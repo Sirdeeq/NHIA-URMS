@@ -49,7 +49,7 @@ const NIGERIAN_STATES = [
 ];
 
 const OFFICERS = [
-  "Amina Yusuf", "Jane Smith", "Ahmed Musa", "Chidi Okechukwu", "Fatima Ibrahim"
+  "SO (State Officer)", "ZD (Zonal Director)", "SDO (Strategic Dev Officer)", "HQ (Department Staff)", "AUDIT (Audit Team)"
 ];
 
 // --- Components ---
@@ -194,7 +194,7 @@ export default function ReportEntry({ onBack, onPreview }: ReportEntryProps) {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="officer">Reporting Officer</Label>
-                      <Select defaultValue="Amina Yusuf">
+                      <Select defaultValue="SO (State Officer)">
                         <SelectTrigger id="officer">
                           <SelectValue placeholder="Select Officer" />
                         </SelectTrigger>

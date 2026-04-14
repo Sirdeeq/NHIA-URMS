@@ -59,10 +59,10 @@ const DIRECTIVES = [
 ];
 
 const ACTIVITY_FEED = [
-  { user: "Zonal Director (SW)", action: "Forwarded Consolidated Report", time: "10 mins ago", type: "success" },
-  { user: "System Audit", action: "Flagged discrepancy in Lagos Finance", time: "45 mins ago", type: "error" },
-  { user: "SDO Office", action: "Updated National Dashboard", time: "2 hours ago", type: "info" },
-  { user: "State Officer (Kano)", action: "Submitted Monthly Report", time: "3 hours ago", type: "success" },
+  { user: "ZD (SW)", action: "Forwarded Consolidated Report", time: "10 mins ago", type: "success" },
+  { user: "AUDIT", action: "Flagged discrepancy in Lagos Finance", time: "45 mins ago", type: "error" },
+  { user: "SDO", action: "Updated National Dashboard", time: "2 hours ago", type: "info" },
+  { user: "SO (Kano)", action: "Submitted Monthly Report", time: "3 hours ago", type: "success" },
 ];
 
 const TREND_DATA = [

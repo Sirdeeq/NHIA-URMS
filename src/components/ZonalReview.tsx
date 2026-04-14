@@ -51,11 +51,11 @@ import { toast } from "sonner";
 // --- Mock Data ---
 
 const REPORTS = [
-  { id: "REP-001", state: "Lagos", type: "Monthly Operations", period: "Oct 2023", status: "Pending", updated: "2 hours ago", officer: "Amina Yusuf" },
-  { id: "REP-002", state: "Ogun", type: "Monthly Operations", period: "Oct 2023", status: "Reviewed", updated: "1 day ago", officer: "Jane Smith" },
-  { id: "REP-003", state: "Oyo", type: "Monthly Operations", period: "Oct 2023", status: "Forwarded", updated: "3 days ago", officer: "Ahmed Musa" },
-  { id: "REP-004", state: "Lagos", type: "Quarterly Review", period: "Q3 2023", status: "Reviewed", updated: "1 week ago", officer: "Amina Yusuf" },
-  { id: "REP-005", state: "Ekiti", type: "Monthly Operations", period: "Oct 2023", status: "Pending", updated: "5 hours ago", officer: "Chidi Oke" },
+  { id: "REP-001", state: "Lagos", type: "Monthly Operations", period: "Oct 2023", status: "Pending", updated: "2 hours ago", officer: "SO (Lagos)" },
+  { id: "REP-002", state: "Ogun", type: "Monthly Operations", period: "Oct 2023", status: "Reviewed", updated: "1 day ago", officer: "SO (Ogun)" },
+  { id: "REP-003", state: "Oyo", type: "Monthly Operations", period: "Oct 2023", status: "Forwarded", updated: "3 days ago", officer: "SO (Oyo)" },
+  { id: "REP-004", state: "Lagos", type: "Quarterly Review", period: "Q3 2023", status: "Reviewed", updated: "1 week ago", officer: "SO (Lagos)" },
+  { id: "REP-005", state: "Ekiti", type: "Monthly Operations", period: "Oct 2023", status: "Pending", updated: "5 hours ago", officer: "SO (Ekiti)" },
 ];
 
 const STATUS_COLORS: Record<string, string> = {

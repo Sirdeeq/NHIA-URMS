@@ -92,9 +92,9 @@ const CHART_DATA = [
 ];
 
 const RECENT_ACTIVITY = [
-  { id: 1, action: "Report Submitted", user: "Amina Yusuf (Lagos)", time: "2 hours ago", status: "Pending" },
+  { id: 1, action: "Report Submitted", user: "SO (Lagos)", time: "2 hours ago", status: "Pending" },
   { id: 2, action: "Directive Created", user: "HQ Admin", time: "4 hours ago", status: "Active" },
-  { id: 3, action: "Report Approved", user: "Zonal Director", time: "1 day ago", status: "Completed" },
+  { id: 3, action: "Report Approved", user: "ZD", time: "1 day ago", status: "Completed" },
   { id: 4, action: "Audit Flagged", user: "Audit Team", time: "2 days ago", status: "Flagged" },
 ];
 
@@ -448,12 +448,12 @@ export default function Dashboard({ role, onLogout }: DashboardProps) {
 
   const getUserInfo = (r: Role) => {
     switch(r) {
-      case "state-officer": return { name: "Amina Yusuf", initials: "AY", email: "amina.y@nhia.gov.ng" };
-      case "zonal-director": return { name: "Babatunde Okafor", initials: "BO", email: "b.okafor@nhia.gov.ng" };
-      case "sdo": return { name: "Chidi Eze", initials: "CE", email: "chidi.eze@nhia.gov.ng" };
-      case "hq-department": return { name: "Danjuma Mohammed", initials: "DM", email: "d.mohammed@nhia.gov.ng" };
-      case "audit": return { name: "Elizabeth Adeyemi", initials: "EA", email: "e.adeyemi@nhia.gov.ng" };
-      case "dg-ceo": return { name: "Dr. Kelechi Iheanacho", initials: "KI", email: "dg.ceo@nhia.gov.ng" };
+      case "state-officer": return { name: "State Officer", initials: "SO", email: "so@nhia.gov.ng" };
+      case "zonal-director": return { name: "Zonal Director", initials: "ZD", email: "zd@nhia.gov.ng" };
+      case "sdo": return { name: "SDO / DGO", initials: "SDO", email: "sdo@nhia.gov.ng" };
+      case "hq-department": return { name: "HQ Department", initials: "HQ", email: "hq@nhia.gov.ng" };
+      case "audit": return { name: "Audit Team", initials: "AUDIT", email: "audit@nhia.gov.ng" };
+      case "dg-ceo": return { name: "DG / CEO", initials: "DG", email: "dg@nhia.gov.ng" };
       default: return { name: "NHIA Staff", initials: "NS", email: "staff@nhia.gov.ng" };
     }
   };
@@ -579,7 +579,7 @@ export default function Dashboard({ role, onLogout }: DashboardProps) {
               {/* Welcome Header */}
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                  <h1 className="text-2xl font-bold tracking-tight text-slate-900">Welcome back, {userInfo.name.split(' ')[0]}</h1>
+                  <h1 className="text-2xl font-bold tracking-tight text-slate-900">Welcome back, {userInfo.initials}</h1>
                   <p className="text-muted-foreground">Here's what's happening in NHIA URMS today.</p>
                 </div>
                 <div className="flex gap-2">
