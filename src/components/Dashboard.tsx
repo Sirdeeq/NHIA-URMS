@@ -43,7 +43,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -448,28 +448,28 @@ export default function Dashboard({ role, onLogout }: DashboardProps) {
               </Button>
 
               <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="p-1 h-auto gap-2 hover:bg-slate-100 rounded-full pr-3">
-                    <Avatar className="w-8 h-8 border border-border/50">
-                      <AvatarImage src="https://picsum.photos/seed/user/200" />
-                      <AvatarFallback>JD</AvatarFallback>
-                    </Avatar>
-                    <div className="text-left hidden md:block">
-                      <p className="text-xs font-bold leading-none">John Doe</p>
-                      <p className="text-[10px] text-muted-foreground">ssirdeeq@gmail.com</p>
-                    </div>
-                    <ChevronDown className="w-3 h-3 text-muted-foreground" />
-                  </Button>
+                <DropdownMenuTrigger className="p-1 h-auto gap-2 hover:bg-slate-100 rounded-full pr-3 flex items-center transition-colors outline-none cursor-pointer">
+                  <Avatar className="w-8 h-8 border border-border/50">
+                    <AvatarImage src="https://picsum.photos/seed/user/200" />
+                    <AvatarFallback>JD</AvatarFallback>
+                  </Avatar>
+                  <div className="text-left hidden md:block">
+                    <p className="text-xs font-bold leading-none">John Doe</p>
+                    <p className="text-[10px] text-muted-foreground">ssirdeeq@gmail.com</p>
+                  </div>
+                  <ChevronDown className="w-3 h-3 text-muted-foreground" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuLabel>My Account</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem>Profile Settings</DropdownMenuItem>
-                  <DropdownMenuItem>Security</DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={onLogout} className="text-destructive">
-                    Logout
-                  </DropdownMenuItem>
+                  <DropdownMenuGroup>
+                    <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem>Profile Settings</DropdownMenuItem>
+                    <DropdownMenuItem>Security</DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={onLogout} className="text-destructive">
+                      Logout
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
