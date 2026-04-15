@@ -31,10 +31,16 @@ import AnnualReportForm from "./AnnualReportForm";
 import AnnualReportsList from "./AnnualReportsList";
 import AnnualReportDetail from "./AnnualReportDetail";
 import { NigeriaMap, ZONE_PERFORMANCE } from "./NigeriaMap";
+import AdminOverview from "./admin/AdminOverview";
+import AdminUsersPage from "./admin/AdminUsersPage";
+import AdminZonesPage from "./admin/AdminZonesPage";
+import AdminStatesPage from "./admin/AdminStatesPage";
+import AdminDepartmentsPage from "./admin/AdminDepartmentsPage";
+import AdminUnitsPage from "./admin/AdminUnitsPage";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type Role = "state-officer" | "zonal-director" | "sdo" | "hq-department" | "audit" | "dg-ceo";
-type View = "home" | "report-entry" | "report-preview" | "zonal-review" | "zonal-compose" | "annual-report" | "annual-reports-list" | "annual-report-detail";
+type Role = "state-officer" | "zonal-director" | "sdo" | "hq-department" | "audit" | "dg-ceo" | "admin";
+type View = "home" | "report-entry" | "report-preview" | "zonal-review" | "zonal-compose" | "annual-report" | "annual-reports-list" | "annual-report-detail" | "admin-overview" | "admin-users" | "admin-zones" | "admin-states" | "admin-departments" | "admin-units";
 interface DashboardProps { role: Role; onLogout: () => void; }
 
 // ─── Mock data ────────────────────────────────────────────────────────────────
@@ -70,6 +76,16 @@ const activityDot: Record<string, string> = {
 
 // ─── Sidebar nav items per role ───────────────────────────────────────────────
 function getMenuItems(role: Role, view: View, setView: (v: View) => void) {
+  if (role === "admin") {
+    return [
+      { icon: <Home className="w-4 h-4" />,      label: "Overview",      active: view === "admin-overview",     onClick: () => setView("admin-overview")     },
+      { icon: <Users className="w-4 h-4" />,     label: "Users",         active: view === "admin-users",        onClick: () => setView("admin-users")        },
+      { icon: <MapIcon className="w-4 h-4" />,   label: "Zonal Offices", active: view === "admin-zones",        onClick: () => setView("admin-zones")        },
+      { icon: <Database className="w-4 h-4" />,  label: "State Offices", active: view === "admin-states",       onClick: () => setView("admin-states")       },
+      { icon: <Archive className="w-4 h-4" />,   label: "Departments",   active: view === "admin-departments",  onClick: () => setView("admin-departments")  },
+      { icon: <Settings className="w-4 h-4" />,  label: "Units",         active: view === "admin-units",        onClick: () => setView("admin-units")        },
+    ];
+  }
   const all = [
     { icon: <Home className="w-4 h-4" />,       label: "Dashboard",       active: view === "home",         onClick: () => setView("home"),         roles: "all"            },
     { icon: <Flag className="w-4 h-4" />,        label: "Directives",      active: false,                   onClick: undefined,                     roles: "dg-ceo"         },
@@ -98,7 +114,7 @@ function getRoleLabel(r: Role) {
   const map: Record<Role, string> = {
     "state-officer": "State Officer", "zonal-director": "Zonal Director",
     "sdo": "SDO / DGO", "hq-department": "HQ Department",
-    "audit": "Audit Team", "dg-ceo": "DG / CEO",
+    "audit": "Audit Team", "dg-ceo": "DG / CEO", "admin": "Administrator",
   };
   return map[r] ?? "User";
 }
@@ -110,6 +126,7 @@ function getUserInfo(r: Role) {
     "hq-department":  { name: "HQ Department",   initials: "HQ",    email: "hq@nhia.gov.ng",    dept: "Headquarters"      },
     "audit":          { name: "Audit Team",       initials: "AUD",   email: "audit@nhia.gov.ng", dept: "Audit & Compliance"},
     "dg-ceo":         { name: "DG / CEO",         initials: "DG",    email: "dg@nhia.gov.ng",    dept: "Executive Office"  },
+    "admin":          { name: "Administrator",    initials: "ADM",   email: "admin@nhia.gov.ng", dept: "System Admin"      },
   };
   return map[r];
 }
@@ -368,7 +385,7 @@ function AuditPanel() {
 
 // ─── Main Dashboard ───────────────────────────────────────────────────────────
 export default function Dashboard({ role, onLogout }: DashboardProps) {
-  const [view, setView] = React.useState<View>("home");
+  const [view, setView] = React.useState<View>(role === "admin" ? "admin-overview" : "home");
   const [sidebarOpen, setSidebarOpen] = React.useState(true);
   const [selectedReportRef, setSelectedReportRef] = React.useState<string | null>(null);
   const userInfo = getUserInfo(role);
@@ -718,6 +735,18 @@ export default function Dashboard({ role, onLogout }: DashboardProps) {
                 referenceId={selectedReportRef!}
                 onBack={() => setView("annual-reports-list")}
               />
+            ) : view === "admin-overview" ? (
+              <div className="relative z-10 p-6 max-w-7xl mx-auto"><AdminOverview /></div>
+            ) : view === "admin-users" ? (
+              <div className="relative z-10 p-6 max-w-7xl mx-auto"><AdminUsersPage /></div>
+            ) : view === "admin-zones" ? (
+              <div className="relative z-10 p-6 max-w-7xl mx-auto"><AdminZonesPage /></div>
+            ) : view === "admin-states" ? (
+              <div className="relative z-10 p-6 max-w-7xl mx-auto"><AdminStatesPage /></div>
+            ) : view === "admin-departments" ? (
+              <div className="relative z-10 p-6 max-w-7xl mx-auto"><AdminDepartmentsPage /></div>
+            ) : view === "admin-units" ? (
+              <div className="relative z-10 p-6 max-w-7xl mx-auto"><AdminUnitsPage /></div>
             ) : (
               <ZonalCompose onBack={() => setView("zonal-review")} onForward={() => setView("home")} />
             )}

@@ -1,10 +1,13 @@
 import * as React from "react";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { unitsApi, departmentsApi, type Unit, type Department } from "@/lib/adminApi";
 import AdminModal from "./AdminModal";
 
-const inputCls = "w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500";
+const inputCls = "w-full pl-3 pr-3 h-11 rounded-xl border border-[#d4e8dc] bg-[#f4f7f5] text-sm text-slate-800 placeholder:text-slate-400 focus:ring-2 focus:ring-[#25a872] focus:border-[#25a872] outline-none transition-all";
 
 export default function AdminUnitsPage() {
   const [units, setUnits] = React.useState<Unit[]>([]);
@@ -35,8 +38,8 @@ export default function AdminUnitsPage() {
     setSaving(true);
     try {
       const payload = { unit_code: form.unit_code, name: form.name, description: form.description, department_id: Number(form.department_id) };
-      if (modal === "create") { await unitsApi.create(payload); toast.success("Unit created"); }
-      else if (editing) { await unitsApi.update(editing.id, payload); toast.success("Unit updated"); }
+      if (modal === "create") { await unitsApi.create(payload as any); toast.success("Unit created"); }
+      else if (editing) { await unitsApi.update(editing.id, payload as any); toast.success("Unit updated"); }
       setModal(null); load();
     } catch (e: any) { toast.error(e.message); }
     finally { setSaving(false); }
@@ -51,79 +54,78 @@ export default function AdminUnitsPage() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-3 items-center justify-between">
-        <select
-          className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          value={filterDept}
-          onChange={e => setFilterDept(e.target.value)}
-        >
+        <select className="h-10 px-3 rounded-xl border border-[#d4e8dc] bg-white text-sm text-slate-700 focus:ring-2 focus:ring-[#25a872] outline-none"
+          value={filterDept} onChange={e => setFilterDept(e.target.value)}>
           <option value="">All Departments</option>
           {depts.map(d => <option key={d.id} value={d.id}>{d.department_code} – {d.name}</option>)}
         </select>
-        <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 bg-[#0f4c81] text-white text-sm font-medium rounded-lg hover:bg-[#0d3f6e]">
+        <Button onClick={openCreate} className="bg-[#145c3f] hover:bg-[#0f3d2e] text-white rounded-xl h-10 gap-2 shadow-sm">
           <Plus className="w-4 h-4" /> Add Unit
-        </button>
+        </Button>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-gray-100 bg-gray-50">
-              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Code</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Name</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Department</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden md:table-cell">Description</th>
-              <th className="px-4 py-3" />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-50">
-            {loading ? (
-              <tr><td colSpan={5} className="text-center py-10 text-gray-400">Loading...</td></tr>
-            ) : units.length === 0 ? (
-              <tr><td colSpan={5} className="text-center py-10 text-gray-400">No units found</td></tr>
-            ) : units.map(u => (
-              <tr key={u.id} className="hover:bg-gray-50">
-                <td className="px-4 py-3 font-mono text-xs font-semibold text-gray-800">{u.unit_code}</td>
-                <td className="px-4 py-3 font-medium text-gray-900">{u.name}</td>
-                <td className="px-4 py-3 text-gray-500">{u.department?.name ?? "—"}</td>
-                <td className="px-4 py-3 text-gray-500 text-xs hidden md:table-cell">{u.description || "—"}</td>
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-1 justify-end">
-                    <button onClick={() => openEdit(u)} className="p-1.5 rounded-md hover:bg-gray-100 text-gray-500"><Pencil className="w-3.5 h-3.5" /></button>
-                    <button onClick={() => handleDelete(u)} className="p-1.5 rounded-md hover:bg-red-50 text-gray-500 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden">
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-[#f0fdf7] hover:bg-[#f0fdf7]">
+                <TableHead className="text-xs font-bold text-slate-600">Code</TableHead>
+                <TableHead className="text-xs font-bold text-slate-600">Name</TableHead>
+                <TableHead className="text-xs font-bold text-slate-600">Department</TableHead>
+                <TableHead className="text-xs font-bold text-slate-600 hidden md:table-cell">Description</TableHead>
+                <TableHead />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {loading ? (
+                <TableRow><TableCell colSpan={5} className="text-center py-10 text-slate-400">Loading...</TableCell></TableRow>
+              ) : units.length === 0 ? (
+                <TableRow><TableCell colSpan={5} className="text-center py-10 text-slate-400">No units found</TableCell></TableRow>
+              ) : units.map(u => (
+                <TableRow key={u.id} className="hover:bg-[#f0fdf7] transition-colors">
+                  <TableCell><span className="font-mono text-xs font-bold text-[#145c3f]">{u.unit_code}</span></TableCell>
+                  <TableCell className="font-medium text-slate-800">{u.name}</TableCell>
+                  <TableCell className="text-slate-500 text-sm">{u.department?.name ?? "—"}</TableCell>
+                  <TableCell className="text-slate-400 text-xs hidden md:table-cell">{u.description || "—"}</TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex items-center gap-1 justify-end">
+                      <Button variant="ghost" size="sm" onClick={() => openEdit(u)} className="h-7 w-7 p-0 hover:bg-[#e8f5ee] hover:text-[#145c3f]"><Pencil className="w-3.5 h-3.5" /></Button>
+                      <Button variant="ghost" size="sm" onClick={() => handleDelete(u)} className="h-7 w-7 p-0 hover:bg-rose-50 hover:text-rose-600"><Trash2 className="w-3.5 h-3.5" /></Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
 
       <AdminModal title={modal === "create" ? "Add Unit" : "Edit Unit"} open={modal !== null} onClose={() => setModal(null)}>
         <form onSubmit={handleSave} className="space-y-4">
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Unit Code <span className="text-red-500">*</span></label>
+            <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">Unit Code <span className="text-rose-500">*</span></label>
             <input className={inputCls} placeholder="e.g. UNIT-001" value={form.unit_code} onChange={e => setForm(f => ({ ...f, unit_code: e.target.value }))} required />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Name <span className="text-red-500">*</span></label>
+            <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">Name <span className="text-rose-500">*</span></label>
             <input className={inputCls} placeholder="e.g. Claims Processing" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Department <span className="text-red-500">*</span></label>
+            <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">Department <span className="text-rose-500">*</span></label>
             <select className={inputCls} value={form.department_id} onChange={e => setForm(f => ({ ...f, department_id: e.target.value }))} required>
               <option value="">— Select Department —</option>
               {depts.map(d => <option key={d.id} value={d.id}>{d.department_code} – {d.name}</option>)}
             </select>
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Description</label>
-            <textarea className={inputCls} rows={3} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
+            <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">Description</label>
+            <textarea className={`${inputCls} h-auto`} rows={3} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
           </div>
           <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={() => setModal(null)} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">Cancel</button>
-            <button type="submit" disabled={saving} className="px-4 py-2 text-sm bg-[#0f4c81] text-white rounded-lg hover:bg-[#0d3f6e] disabled:opacity-60">
+            <Button type="button" variant="ghost" onClick={() => setModal(null)} className="rounded-xl text-slate-600">Cancel</Button>
+            <Button type="submit" disabled={saving} className="bg-[#145c3f] hover:bg-[#0f3d2e] text-white rounded-xl">
               {saving ? "Saving..." : modal === "create" ? "Create" : "Save"}
-            </button>
+            </Button>
           </div>
         </form>
       </AdminModal>
