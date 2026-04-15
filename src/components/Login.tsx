@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { Eye, EyeOff, User, Lock, ChevronRight, AlertCircle, Shield } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
+import { authApi, tokenStore } from "@/lib/adminApi";
 
 const ROLES = [
   { value: "state-officer",  label: "State Officer"   },
@@ -22,30 +23,57 @@ export default function Login({ onLogin }: LoginProps) {
   const [isLoading,    setIsLoading]    = React.useState(false);
   const [error,        setError]        = React.useState<string | null>(null);
 
+  const isAdmin = staffId.toUpperCase().startsWith("ADMIN");
+
   React.useEffect(() => {
     const id = staffId.toUpperCase();
-    if      (id.startsWith("HQ"))    setRole("hq-department");
+    if      (id.startsWith("ADMIN")) setRole("admin");
+    else if (id.startsWith("HQ"))    setRole("hq-department");
     else if (id.startsWith("SDO"))   setRole("sdo");
     else if (id.startsWith("ZD"))    setRole("zonal-director");
     else if (id.startsWith("SO"))    setRole("state-officer");
     else if (id.startsWith("DG"))    setRole("dg-ceo");
+    else                             setRole("");
   }, [staffId]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
-    await new Promise(r => setTimeout(r, 900));
-    if (staffId && password && role) {
-      toast.success("Authentication successful", {
-        description: `Welcome, ${staffId}. Redirecting to ${ROLES.find(r => r.value === role)?.label} dashboard...`,
-      });
-      onLogin(role);
-    } else {
-      setError("Invalid credentials or role not selected.");
-      toast.error("Sign in failed", { description: "Check your Staff ID, password and role." });
+
+    try {
+      if (isAdmin) {
+        // Real JWT auth for admin
+        const res = await authApi.login(staffId, password);
+        if (res.user.role !== "admin") {
+          setError("Access denied. Admin credentials required.");
+          setIsLoading(false);
+          return;
+        }
+        tokenStore.set(res.token);
+        toast.success("Authentication successful", {
+          description: `Welcome, ${res.user.name}. Redirecting to Admin panel...`,
+        });
+        onLogin("admin");
+      } else {
+        // Mock auth for other roles
+        await new Promise(r => setTimeout(r, 900));
+        if (staffId && password && role) {
+          toast.success("Authentication successful", {
+            description: `Welcome, ${staffId}. Redirecting to ${ROLES.find(r => r.value === role)?.label} dashboard...`,
+          });
+          onLogin(role);
+        } else {
+          setError("Invalid credentials or role not selected.");
+          toast.error("Sign in failed", { description: "Check your Staff ID, password and role." });
+        }
+      }
+    } catch (err: any) {
+      setError(err.message ?? "Sign in failed.");
+      toast.error("Sign in failed");
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   return (
@@ -149,7 +177,8 @@ export default function Login({ onLogin }: LoginProps) {
                 </div>
               </div>
 
-              {/* Role */}
+              {/* Role — hidden for admin (auto-detected) */}
+              {!isAdmin && (
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">Access Role</label>
                 <Select value={role} onValueChange={setRole}>
@@ -172,6 +201,7 @@ export default function Login({ onLogin }: LoginProps) {
                   )}
                 </AnimatePresence>
               </div>
+              )}
 
               {/* Error */}
               <AnimatePresence>

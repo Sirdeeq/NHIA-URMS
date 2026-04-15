@@ -151,7 +151,9 @@ export function buildNavTree(
       roles: "all",
       children: [
         { type: "leaf", label: "State Office Cordination", icon: <PackageSearch className="w-3.5 h-3.5" /> },
-        { type: "leaf", label: "Stock Verification", icon: <PackageSearch className="w-3.5 h-3.5" />, view: "stock-verification", onClick: () => setView("stock-verification") },
+        { type: "leaf", label: "Stock Verification", icon: <PackageSearch className="w-3.5 h-3.5" />, view: "stock-verification",       onClick: () => setView("stock-verification") },
+        { type: "leaf", label: "My Verifications",   icon: <FileText className="w-3.5 h-3.5" />,     view: "stock-verifications-list", onClick: () => setView("stock-verifications-list") },
+        { type: "leaf", label: "Asset Register",     icon: <Database className="w-3.5 h-3.5" />,     view: "stock-assets",             onClick: () => setView("stock-assets") },
         { type: "leaf", label: "Servicom",            icon: <Radio className="w-3.5 h-3.5" /> },
         { type: "leaf", label: "Special Projects",   icon: <FolderKanban className="w-3.5 h-3.5" /> },
       ],
@@ -163,10 +165,18 @@ export function buildNavTree(
     { type: "leaf", label: "Zonal Performance",icon: <MapPin className="w-4 h-4" />,  roles: "dg-ceo" },
 
     // ── Common bottom items ────────────────────────────────────────────────
-    { type: "leaf", label: "HQ Data",     icon: <Database className="w-4 h-4" />, roles: "all" },
-    { type: "leaf", label: "Archive",     icon: <Archive className="w-4 h-4" />,  roles: "all" },
-    { type: "leaf", label: "Notifications",icon: <Bell className="w-4 h-4" />,   roles: "all" },
-    { type: "leaf", label: "Settings",    icon: <Settings className="w-4 h-4" />, roles: "all" },
+    { type: "leaf", label: "HQ Data",      icon: <Database className="w-4 h-4" />, roles: "all" },
+    { type: "leaf", label: "Archive",      icon: <Archive className="w-4 h-4" />,  roles: "all" },
+    { type: "leaf", label: "Notifications",icon: <Bell className="w-4 h-4" />,     roles: "all" },
+    {
+      type: "leaf",
+      label: "Settings",
+      icon: <Settings className="w-4 h-4" />,
+      view: "settings",
+      onClick: () => setView("settings"),
+      roles: "admin",
+    },
+    { type: "leaf", label: "Settings", icon: <Settings className="w-4 h-4" />, roles: "!admin" },
   ];
 }
 
@@ -176,6 +186,7 @@ function isVisible(item: NavItem, role: string): boolean {
   const r = item.roles;
   if (!r || r === "all") return true;
   if (r === "!dg-ceo") return role !== "dg-ceo";
+  if (r === "!admin")  return role !== "admin";
   return r.split(",").map(s => s.trim()).includes(role);
 }
 

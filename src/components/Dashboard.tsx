@@ -31,11 +31,14 @@ import AnnualReportForm from "./AnnualReportForm";
 import AnnualReportsList from "./AnnualReportsList";
 import AnnualReportDetail from "./AnnualReportDetail";
 import StockVerificationPage from "./StockVerificationPage";
+import StockVerificationsList from "./StockVerificationsList";
+import StockAssetManager from "./StockAssetManager";
 import SidebarNav from "./SidebarNav";
+import AdminSettingsPage from "./admin/AdminSettingsPage";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type Role = "state-officer" | "zonal-director" | "sdo" | "hq-department" | "audit" | "dg-ceo";
-type View = "home" | "report-entry" | "report-preview" | "zonal-review" | "zonal-compose" | "annual-report" | "annual-reports-list" | "annual-report-detail" | "stock-verification";
+type Role = "state-officer" | "zonal-director" | "sdo" | "hq-department" | "audit" | "dg-ceo" | "admin";
+type View = "home" | "report-entry" | "report-preview" | "zonal-review" | "zonal-compose" | "annual-report" | "annual-reports-list" | "annual-report-detail" | "stock-verification" | "stock-verifications-list" | "stock-assets" | "settings";
 interface DashboardProps { role: Role; onLogout: () => void; }
 
 // ─── Mock data ────────────────────────────────────────────────────────────────
@@ -72,24 +75,26 @@ const activityDot: Record<string, string> = {
 // ─── Sidebar nav items per role ───────────────────────────────────────────────
 function getMenuItems(role: Role, view: View, setView: (v: View) => void) {
   const all = [
-    { icon: <Home className="w-4 h-4" />,       label: "Dashboard",       active: view === "home",         onClick: () => setView("home"),         roles: "all"            },
-    { icon: <Flag className="w-4 h-4" />,        label: "Directives",      active: false,                   onClick: undefined,                     roles: "dg-ceo"         },
-    { icon: <FileText className="w-4 h-4" />,    label: "National Reports",active: false,                   onClick: undefined,                     roles: "dg-ceo"         },
-    { icon: <MapIcon className="w-4 h-4" />,     label: "Zonal Performance",active: false,                  onClick: undefined,                     roles: "dg-ceo"         },
-    { icon: <FileText className="w-4 h-4" />,    label: "Submit Report",   active: view === "report-entry",        onClick: () => setView("report-entry"),        roles: "!dg-ceo" },
-    { icon: <FileText className="w-4 h-4" />,    label: "Annual Report",   active: view === "annual-report",       onClick: () => setView("annual-report"),       roles: "!dg-ceo" },
-    { icon: <History className="w-4 h-4" />,     label: "My Submissions",  active: view === "annual-reports-list", onClick: () => setView("annual-reports-list"), roles: "!dg-ceo" },
-    { icon: <CheckSquare className="w-4 h-4" />, label: "Review Reports",  active: view === "zonal-review", onClick: () => setView("zonal-review"), roles: "!dg-ceo"        },
-    { icon: <Compass className="w-4 h-4" />,     label: "Directives",      active: false,                   onClick: undefined,                     roles: "!dg-ceo"        },
-    { icon: <Database className="w-4 h-4" />,    label: "HQ Data",         active: false,                   onClick: undefined,                     roles: "all"            },
-    { icon: <Shield className="w-4 h-4" />,      label: "Audit & Compliance",active: false,                 onClick: undefined,                     roles: "dg-ceo,audit"   },
-    { icon: <Archive className="w-4 h-4" />,     label: "Archive",         active: false,                   onClick: undefined,                     roles: "all"            },
-    { icon: <Bell className="w-4 h-4" />,        label: "Notifications",   active: false,                   onClick: undefined,                     roles: "all"            },
-    { icon: <Settings className="w-4 h-4" />,    label: "Settings",        active: false,                   onClick: undefined,                     roles: "all"            },
+    { icon: <Home className="w-4 h-4" />,       label: "Dashboard",         active: view === "home",                 onClick: () => setView("home"),                 roles: "all"          },
+    { icon: <Flag className="w-4 h-4" />,        label: "Directives",        active: false,                           onClick: undefined,                             roles: "dg-ceo,admin" },
+    { icon: <FileText className="w-4 h-4" />,    label: "National Reports",  active: false,                           onClick: undefined,                             roles: "dg-ceo,admin" },
+    { icon: <MapIcon className="w-4 h-4" />,     label: "Zonal Performance", active: false,                           onClick: undefined,                             roles: "dg-ceo,admin" },
+    { icon: <FileText className="w-4 h-4" />,    label: "Submit Report",     active: view === "report-entry",         onClick: () => setView("report-entry"),         roles: "!dg-ceo"      },
+    { icon: <FileText className="w-4 h-4" />,    label: "Annual Report",     active: view === "annual-report",        onClick: () => setView("annual-report"),        roles: "!dg-ceo"      },
+    { icon: <History className="w-4 h-4" />,     label: "My Submissions",    active: view === "annual-reports-list",  onClick: () => setView("annual-reports-list"),  roles: "!dg-ceo"      },
+    { icon: <CheckSquare className="w-4 h-4" />, label: "Review Reports",    active: view === "zonal-review",         onClick: () => setView("zonal-review"),         roles: "!dg-ceo"      },
+    { icon: <Compass className="w-4 h-4" />,     label: "Directives",        active: false,                           onClick: undefined,                             roles: "!dg-ceo"      },
+    { icon: <Database className="w-4 h-4" />,    label: "HQ Data",           active: false,                           onClick: undefined,                             roles: "all"          },
+    { icon: <Shield className="w-4 h-4" />,      label: "Audit & Compliance",active: false,                           onClick: undefined,                             roles: "dg-ceo,audit,admin" },
+    { icon: <Archive className="w-4 h-4" />,     label: "Archive",           active: false,                           onClick: undefined,                             roles: "all"          },
+    { icon: <Bell className="w-4 h-4" />,        label: "Notifications",     active: false,                           onClick: undefined,                             roles: "all"          },
+    { icon: <Settings className="w-4 h-4" />,    label: "Settings",          active: view === "settings",             onClick: () => setView("settings"),             roles: "admin"        },
+    { icon: <Settings className="w-4 h-4" />,    label: "Settings",          active: false,                           onClick: undefined,                             roles: "!admin"       },
   ];
   return all.filter(item => {
     if (item.roles === "all") return true;
-    if (item.roles === `!dg-ceo`) return role !== "dg-ceo";
+    if (item.roles === "!dg-ceo") return role !== "dg-ceo";
+    if (item.roles === "!admin")  return role !== "admin";
     return item.roles.split(",").includes(role);
   });
 }
@@ -99,7 +104,7 @@ function getRoleLabel(r: Role) {
   const map: Record<Role, string> = {
     "state-officer": "State Officer", "zonal-director": "Zonal Director",
     "sdo": "SDO / DGO", "hq-department": "HQ Department",
-    "audit": "Audit Team", "dg-ceo": "DG / CEO",
+    "audit": "Audit Team", "dg-ceo": "DG / CEO", "admin": "Administrator",
   };
   return map[r] ?? "User";
 }
@@ -111,6 +116,7 @@ function getUserInfo(r: Role) {
     "hq-department":  { name: "HQ Department",   initials: "HQ",    email: "hq@nhia.gov.ng",    dept: "Headquarters"      },
     "audit":          { name: "Audit Team",       initials: "AUD",   email: "audit@nhia.gov.ng", dept: "Audit & Compliance"},
     "dg-ceo":         { name: "DG / CEO",         initials: "DG",    email: "dg@nhia.gov.ng",    dept: "Executive Office"  },
+    "admin":          { name: "Administrator",    initials: "ADM",   email: "admin@nhia.gov.ng", dept: "System Admin"      },
   };
   return map[r];
 }
@@ -369,10 +375,12 @@ function AuditPanel() {
 
 // ─── Main Dashboard ───────────────────────────────────────────────────────────
 export default function Dashboard({ role, onLogout }: DashboardProps) {
-  const [view, setView] = React.useState<View>("home");
+  const [view, setView] = React.useState<View>(role === "admin" ? "settings" : "home");
   const [sidebarOpen, setSidebarOpen] = React.useState(true);
   const [selectedReportRef, setSelectedReportRef] = React.useState<string | null>(null);
+  const [selectedVerifId, setSelectedVerifId] = React.useState<number | null>(null);
   const userInfo = getUserInfo(role);
+  const menuItems = getMenuItems(role, view, setView);
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-[#f4f7f5]">
@@ -701,7 +709,17 @@ export default function Dashboard({ role, onLogout }: DashboardProps) {
                 onBack={() => setView("annual-reports-list")}
               />
             ) : view === "stock-verification" ? (
-              <StockVerificationPage onBack={() => setView("home")} />
+              <StockVerificationPage onBack={() => setView("stock-verifications-list")} />
+            ) : view === "stock-verifications-list" ? (
+              <StockVerificationsList
+                onBack={() => setView("home")}
+                onNew={() => setView("stock-verification")}
+                onView={(id) => { setSelectedVerifId(id); setView("stock-verification"); }}
+              />
+            ) : view === "stock-assets" ? (
+              <StockAssetManager onBack={() => setView("home")} />
+            ) : view === "settings" ? (
+              <AdminSettingsPage />
             ) : (
               <ZonalCompose onBack={() => setView("zonal-review")} onForward={() => setView("home")} />
             )}

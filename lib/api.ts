@@ -110,6 +110,21 @@ export const stockApi = {
     return request<{ success: boolean; data: any[] }>(`/stock/assets${qs ? `?${qs}` : ""}`);
   },
 
+  createAsset: (payload: any) =>
+    request<{ success: boolean; data: any }>("/stock/assets", {
+      method: "POST", body: JSON.stringify(payload),
+    }),
+
+  updateAsset: (id: number | string, payload: any) =>
+    request<{ success: boolean; data: any }>(`/stock/assets/${id}`, {
+      method: "PUT", body: JSON.stringify(payload),
+    }),
+
+  deleteAsset: (id: number | string) =>
+    request<{ success: boolean; message: string }>(`/stock/assets/${id}`, {
+      method: "DELETE",
+    }),
+
   listVerifications: (filters?: { zone_id?: string; state_id?: string; status?: string; type?: string }) => {
     const params = new URLSearchParams(
       Object.entries(filters || {}).filter(([, v]) => !!v) as [string, string][]
@@ -124,19 +139,16 @@ export const stockApi = {
 
   createVerification: (payload: any) =>
     request<{ success: boolean; data: any }>("/stock/verifications", {
-      method: "POST",
-      body: JSON.stringify(payload),
+      method: "POST", body: JSON.stringify(payload),
     }),
 
   updateVerification: (id: number | string, payload: any) =>
     request<{ success: boolean; data: any }>(`/stock/verifications/${id}`, {
-      method: "PUT",
-      body: JSON.stringify(payload),
+      method: "PUT", body: JSON.stringify(payload),
     }),
 
   updateStatus: (id: number | string, status: string) =>
     request<{ success: boolean; data: any }>(`/stock/verifications/${id}/status`, {
-      method: "PATCH",
-      body: JSON.stringify({ status }),
+      method: "PATCH", body: JSON.stringify({ status }),
     }),
 };

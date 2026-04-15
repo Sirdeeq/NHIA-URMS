@@ -56,9 +56,40 @@ const getAssets = async (req, res, next) => {
     if (req.query.unit_id)   where.unit_id  = req.query.unit_id;
     const assets = await StockAsset.findAll({
       where,
+      include: [
+        { model: StateOffice, as: "state", attributes: ["id","description"] },
+        { model: Unit,        as: "unit",  attributes: ["id","name"] },
+      ],
       order: [["item_class", "ASC"], ["item_description", "ASC"]],
     });
     res.json({ success: true, data: assets });
+  } catch (err) { next(err); }
+};
+
+const createAsset = async (req, res, next) => {
+  try {
+    const { state_id, unit_id, item_class, item_description, asset_tag, book_balance } = req.body;
+    const asset = await StockAsset.create({ state_id, unit_id: unit_id || null, item_class, item_description, asset_tag: asset_tag || null, book_balance: book_balance || 0 });
+    res.status(201).json({ success: true, data: asset });
+  } catch (err) { next(err); }
+};
+
+const updateAsset = async (req, res, next) => {
+  try {
+    const asset = await StockAsset.findByPk(req.params.id);
+    if (!asset) return res.status(404).json({ success: false, message: "Asset not found" });
+    const { state_id, unit_id, item_class, item_description, asset_tag, book_balance } = req.body;
+    await asset.update({ state_id, unit_id: unit_id || null, item_class, item_description, asset_tag: asset_tag || null, book_balance: book_balance || 0 });
+    res.json({ success: true, data: asset });
+  } catch (err) { next(err); }
+};
+
+const deleteAsset = async (req, res, next) => {
+  try {
+    const asset = await StockAsset.findByPk(req.params.id);
+    if (!asset) return res.status(404).json({ success: false, message: "Asset not found" });
+    await asset.destroy();
+    res.json({ success: true, message: "Asset deleted" });
   } catch (err) { next(err); }
 };
 
@@ -231,7 +262,8 @@ const findVerification = (id) =>
   });
 
 module.exports = {
-  getZones, getStates, getDepartments, getUnits, getAssets,
+  getZones, getStates, getDepartments, getUnits,
+  getAssets, createAsset, updateAsset, deleteAsset,
   createVerification, listVerifications, getVerification,
   updateVerification, updateStatus,
 };

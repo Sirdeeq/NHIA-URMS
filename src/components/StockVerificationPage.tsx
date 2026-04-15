@@ -290,7 +290,11 @@ export default function StockVerificationPage({ onBack }: StockVerificationPageP
                   <div className="space-y-2">
                     <Label>Zone <span className="text-red-500">*</span></Label>
                     <Select value={zoneId} onValueChange={setZoneId}>
-                      <SelectTrigger className="w-full"><SelectValue placeholder="Select Zone" /></SelectTrigger>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select Zone">
+                          {zoneId ? zones.find(z => String(z.id) === zoneId)?.label : "Select Zone"}
+                        </SelectValue>
+                      </SelectTrigger>
                       <SelectContent>
                         {zones.map(z => <SelectItem key={z.id} value={String(z.id)}>{z.label}</SelectItem>)}
                       </SelectContent>
@@ -299,7 +303,11 @@ export default function StockVerificationPage({ onBack }: StockVerificationPageP
                   <div className="space-y-2">
                     <Label>State <span className="text-red-500">*</span></Label>
                     <Select value={stateId} onValueChange={setStateId} disabled={!zoneId}>
-                      <SelectTrigger className="w-full"><SelectValue placeholder="Select State" /></SelectTrigger>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select State">
+                          {stateId ? states.find(s => String(s.id) === stateId)?.label : "Select State"}
+                        </SelectValue>
+                      </SelectTrigger>
                       <SelectContent>
                         {states.map(s => <SelectItem key={s.id} value={String(s.id)}>{s.label}</SelectItem>)}
                       </SelectContent>
@@ -308,7 +316,11 @@ export default function StockVerificationPage({ onBack }: StockVerificationPageP
                   <div className="space-y-2">
                     <Label>Department</Label>
                     <Select value={departmentId} onValueChange={setDepartmentId} disabled={!stateId}>
-                      <SelectTrigger className="w-full"><SelectValue placeholder="Select Department" /></SelectTrigger>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select Department">
+                          {departmentId ? departments.find(d => String(d.id) === departmentId)?.label : "Select Department"}
+                        </SelectValue>
+                      </SelectTrigger>
                       <SelectContent>
                         {departments.map(d => <SelectItem key={d.id} value={String(d.id)}>{d.label}</SelectItem>)}
                       </SelectContent>
@@ -317,7 +329,11 @@ export default function StockVerificationPage({ onBack }: StockVerificationPageP
                   <div className="space-y-2">
                     <Label>Unit</Label>
                     <Select value={unitId} onValueChange={setUnitId} disabled={!departmentId}>
-                      <SelectTrigger className="w-full"><SelectValue placeholder="Select Unit" /></SelectTrigger>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select Unit">
+                          {unitId ? units.find(u => String(u.id) === unitId)?.label : "Select Unit"}
+                        </SelectValue>
+                      </SelectTrigger>
                       <SelectContent>
                         {units.map(u => <SelectItem key={u.id} value={String(u.id)}>{u.label}</SelectItem>)}
                       </SelectContent>

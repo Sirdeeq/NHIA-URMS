@@ -2,7 +2,8 @@ const { Router } = require("express");
 const { body } = require("express-validator");
 const { validate } = require("../middleware/validate");
 const {
-  getZones, getStates, getDepartments, getUnits, getAssets,
+  getZones, getStates, getDepartments, getUnits,
+  getAssets, createAsset, updateAsset, deleteAsset,
   createVerification, listVerifications, getVerification,
   updateVerification, updateStatus,
 } = require("../controllers/stockVerification.controller");
@@ -14,7 +15,12 @@ router.get("/zones",       getZones);
 router.get("/states",      getStates);
 router.get("/departments", getDepartments);
 router.get("/units",       getUnits);
+
+// ── Asset CRUD ────────────────────────────────────────────────────────────────
 router.get("/assets",      getAssets);
+router.post("/assets",     createAsset);
+router.put("/assets/:id",  updateAsset);
+router.delete("/assets/:id", deleteAsset);
 
 // ── Verification CRUD ─────────────────────────────────────────────────────────
 const verificationRules = [
