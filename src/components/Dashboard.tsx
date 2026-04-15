@@ -27,11 +27,14 @@ import ZonalReview from "./ZonalReview";
 import ZonalCompose from "./ZonalCompose";
 import DGCEOPanel from "./DGCEOPanel";
 import SDOHub from "./SDOHub";
+import AnnualReportForm from "./AnnualReportForm";
+import AnnualReportsList from "./AnnualReportsList";
+import AnnualReportDetail from "./AnnualReportDetail";
 import { NigeriaMap, ZONE_PERFORMANCE } from "./NigeriaMap";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Role = "state-officer" | "zonal-director" | "sdo" | "hq-department" | "audit" | "dg-ceo";
-type View = "home" | "report-entry" | "report-preview" | "zonal-review" | "zonal-compose";
+type View = "home" | "report-entry" | "report-preview" | "zonal-review" | "zonal-compose" | "annual-report" | "annual-reports-list" | "annual-report-detail";
 interface DashboardProps { role: Role; onLogout: () => void; }
 
 // ─── Mock data ────────────────────────────────────────────────────────────────
@@ -72,7 +75,9 @@ function getMenuItems(role: Role, view: View, setView: (v: View) => void) {
     { icon: <Flag className="w-4 h-4" />,        label: "Directives",      active: false,                   onClick: undefined,                     roles: "dg-ceo"         },
     { icon: <FileText className="w-4 h-4" />,    label: "National Reports",active: false,                   onClick: undefined,                     roles: "dg-ceo"         },
     { icon: <MapIcon className="w-4 h-4" />,     label: "Zonal Performance",active: false,                  onClick: undefined,                     roles: "dg-ceo"         },
-    { icon: <FileText className="w-4 h-4" />,    label: "Submit Report",   active: view === "report-entry", onClick: () => setView("report-entry"), roles: "!dg-ceo"        },
+    { icon: <FileText className="w-4 h-4" />,    label: "Submit Report",   active: view === "report-entry",        onClick: () => setView("report-entry"),        roles: "!dg-ceo" },
+    { icon: <FileText className="w-4 h-4" />,    label: "Annual Report",   active: view === "annual-report",       onClick: () => setView("annual-report"),       roles: "!dg-ceo" },
+    { icon: <History className="w-4 h-4" />,     label: "My Submissions",  active: view === "annual-reports-list", onClick: () => setView("annual-reports-list"), roles: "!dg-ceo" },
     { icon: <CheckSquare className="w-4 h-4" />, label: "Review Reports",  active: view === "zonal-review", onClick: () => setView("zonal-review"), roles: "!dg-ceo"        },
     { icon: <Compass className="w-4 h-4" />,     label: "Directives",      active: false,                   onClick: undefined,                     roles: "!dg-ceo"        },
     { icon: <Database className="w-4 h-4" />,    label: "HQ Data",         active: false,                   onClick: undefined,                     roles: "all"            },
@@ -135,14 +140,14 @@ function KPICard({ title, value, trend, trendUp, icon, tint, sub }: {
 }
 
 // ─── Role panels ─────────────────────────────────────────────────────────────
-function StateOfficerPanel({ onNewReport }: { onNewReport: () => void }) {
+function StateOfficerPanel({ onNewReport, onAnnualReport, onViewSubmissions }: { onNewReport: () => void; onAnnualReport: () => void; onViewSubmissions: () => void }) {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {[
-          { icon: <Plus className="w-5 h-5" />, title: "Submit New Report", desc: "Start a fresh monthly submission", action: onNewReport, primary: true },
-          { icon: <Clock className="w-5 h-5" />, title: "Continue Draft", desc: "Resume your saved progress", action: undefined, primary: false },
-          { icon: <FileText className="w-5 h-5" />, title: "View Submitted", desc: "Access your submission history", action: undefined, primary: false },
+          { icon: <Plus className="w-5 h-5" />,      title: "Submit New Report",   desc: "Start a fresh monthly submission",    action: onNewReport,       primary: true  },
+          { icon: <BarChart3 className="w-5 h-5" />, title: "Annual State Report", desc: "Submit the annual data form",         action: onAnnualReport,    primary: false },
+          { icon: <FileText className="w-5 h-5" />,  title: "My Submissions",      desc: "View all your submitted reports",     action: onViewSubmissions, primary: false },
         ].map(c => (
           <button key={c.title} onClick={c.action}
             className={`flex flex-col items-start p-5 rounded-2xl border text-left group transition-all hover:shadow-md ${
@@ -365,6 +370,7 @@ function AuditPanel() {
 export default function Dashboard({ role, onLogout }: DashboardProps) {
   const [view, setView] = React.useState<View>("home");
   const [sidebarOpen, setSidebarOpen] = React.useState(true);
+  const [selectedReportRef, setSelectedReportRef] = React.useState<string | null>(null);
   const userInfo = getUserInfo(role);
   const menuItems = getMenuItems(role, view, setView);
 
@@ -590,7 +596,7 @@ export default function Dashboard({ role, onLogout }: DashboardProps) {
 
                     {/* Role panel */}
                     <motion.div key={role} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-                      {role === "state-officer"  && <StateOfficerPanel  onNewReport={() => setView("report-entry")} />}
+                      {role === "state-officer"  && <StateOfficerPanel onNewReport={() => setView("report-entry")} onAnnualReport={() => setView("annual-report")} onViewSubmissions={() => setView("annual-reports-list")} />}
                       {role === "zonal-director" && <ZonalDirectorPanel onReviewReports={() => setView("zonal-review")} />}
                       {role === "dg-ceo"         && <DGCEOPanel />}
                       {role === "sdo"            && <SDOHub />}
@@ -699,6 +705,19 @@ export default function Dashboard({ role, onLogout }: DashboardProps) {
               <ReportPreview onBack={() => setView("report-entry")} onEditSection={() => setView("report-entry")} onSubmit={() => setView("home")} />
             ) : view === "zonal-review" ? (
               <ZonalReview onCompose={() => setView("zonal-compose")} />
+            ) : view === "annual-report" ? (
+              <AnnualReportForm onBack={() => setView("home")} onSubmit={(_refId) => setView("annual-reports-list")} />
+            ) : view === "annual-reports-list" ? (
+              <AnnualReportsList
+                onBack={() => setView("home")}
+                onNewReport={() => setView("annual-report")}
+                onViewReport={(refId) => { setSelectedReportRef(refId); setView("annual-report-detail"); }}
+              />
+            ) : view === "annual-report-detail" ? (
+              <AnnualReportDetail
+                referenceId={selectedReportRef!}
+                onBack={() => setView("annual-reports-list")}
+              />
             ) : (
               <ZonalCompose onBack={() => setView("zonal-review")} onForward={() => setView("home")} />
             )}
