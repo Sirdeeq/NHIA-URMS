@@ -27,6 +27,7 @@ import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip as RechartsTooltip, ResponsiveContainer, LineChart, Line
 } from "recharts";
+import SDOPerformance from "./SDOPerformance";
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const PRIMARY = "#1E3A8A";
@@ -835,17 +836,18 @@ function AccessControlTab() {
 // ─── Main SDOHub Component ────────────────────────────────────────────────────
 
 const TABS = [
-  { id: "overview",  label: "Overview"          },
-  { id: "state",     label: "State Coordination"},
-  { id: "stock",     label: "Stock Verification"},
-  { id: "servicom",  label: "SERVICOM"          },
-  { id: "projects",  label: "Special Projects"  },
-  { id: "linkage",   label: "Data Linkage"      },
-  { id: "access",    label: "Access Control"    },
+  { id: "overview",     label: "Overview"           },
+  { id: "state",        label: "State Coordination" },
+  { id: "stock",        label: "Stock Verification" },
+  { id: "servicom",     label: "SERVICOM"           },
+  { id: "projects",     label: "Special Projects"   },
+  { id: "linkage",      label: "Data Linkage"       },
+  { id: "access",       label: "Access Control"     },
+  { id: "performance",  label: "Performance Report" },
 ];
 
 export default function SDOHub() {
-  const [activeTab, setActiveTab] = React.useState("overview");
+  const [activeTab, setActiveTab] = React.useState("performance");
 
   return (
     <div className="space-y-6 pb-12">
@@ -900,13 +902,14 @@ export default function SDOHub() {
           exit={{ opacity: 0, y: -8 }}
           transition={{ duration: 0.2 }}
         >
-          {activeTab === "overview"  && <OverviewTab />}
-          {activeTab === "state"     && <StateCoordinationTab />}
-          {activeTab === "stock"     && <StockVerificationTab />}
-          {activeTab === "servicom"  && <ServicecomTab />}
-          {activeTab === "projects"  && <SpecialProjectsTab />}
-          {activeTab === "linkage"   && <DataLinkageTab />}
-          {activeTab === "access"    && <AccessControlTab />}
+          {activeTab === "overview"     && <OverviewTab />}
+          {activeTab === "state"        && <StateCoordinationTab />}
+          {activeTab === "stock"        && <StockVerificationTab />}
+          {activeTab === "servicom"     && <ServicecomTab />}
+          {activeTab === "projects"     && <SpecialProjectsTab />}
+          {activeTab === "linkage"      && <DataLinkageTab />}
+          {activeTab === "access"       && <AccessControlTab />}
+          {activeTab === "performance"  && <SDOPerformance />}
         </motion.div>
       </AnimatePresence>
     </div>

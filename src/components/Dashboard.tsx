@@ -26,7 +26,7 @@ import ReportPreview from "./ReportPreview";
 import ZonalReview from "./ZonalReview";
 import ZonalCompose from "./ZonalCompose";
 import DGCEOPanel from "./DGCEOPanel";
-import SDOHub from "./SDOHub";
+import SDOPerformance from "./SDOPerformance";
 import AnnualReportForm from "./AnnualReportForm";
 import AnnualReportsList from "./AnnualReportsList";
 import AnnualReportDetail from "./AnnualReportDetail";
@@ -535,15 +535,23 @@ export default function Dashboard({ role, onLogout }: DashboardProps) {
                   </div>
                 </div>
 
-                {/* KPI row */}
+                {/* KPI row — hidden for SDO (has its own KPIs) */}
+                {role !== "sdo" && (
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                   <KPICard title="Reports Submitted" value="124" trend="+12%" trendUp icon={<FileText className="w-5 h-5 text-blue-600" />} tint="kpi-blue" sub="This month" />
                   <KPICard title="Pending Review"    value="18"  trend="-5%"  icon={<Clock className="w-5 h-5 text-amber-600" />}  tint="kpi-amber" sub="Awaiting action" />
                   <KPICard title="Open Directives"   value="06"  trend="+2"   trendUp icon={<Compass className="w-5 h-5 text-[#145c3f]" />} tint="kpi-green" sub="Active tasks" />
                   <KPICard title="Compliance Rate"   value="98.2%" trend="+0.4%" trendUp icon={<CheckSquare className="w-5 h-5 text-purple-600" />} tint="kpi-purple" sub="National average" />
                 </div>
+                )}
 
                 {/* Main grid */}
+                {role === "sdo" ? (
+                  /* SDO: full-width performance dashboard, no sidebar cards */
+                  <motion.div key={role} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+                    <SDOPerformance />
+                  </motion.div>
+                ) : (
                 <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
                   <div className="xl:col-span-2 space-y-6">
                     {/* Chart */}
@@ -599,7 +607,6 @@ export default function Dashboard({ role, onLogout }: DashboardProps) {
                       {role === "state-officer"  && <StateOfficerPanel onNewReport={() => setView("report-entry")} onAnnualReport={() => setView("annual-report")} onViewSubmissions={() => setView("annual-reports-list")} />}
                       {role === "zonal-director" && <ZonalDirectorPanel onReviewReports={() => setView("zonal-review")} />}
                       {role === "dg-ceo"         && <DGCEOPanel />}
-                      {role === "sdo"            && <SDOHub />}
                       {role === "hq-department"  && <HQPanel />}
                       {role === "audit"          && <AuditPanel />}
                     </motion.div>
@@ -698,6 +705,7 @@ export default function Dashboard({ role, onLogout }: DashboardProps) {
                     </Card>
                   </div>
                 </div>
+                )} {/* end role !== "sdo" ternary */}
               </motion.div>
             ) : view === "report-entry" ? (
               <ReportEntry onBack={() => setView("home")} onPreview={() => setView("report-preview")} />
