@@ -92,7 +92,7 @@ export default function AdminUsersPage() {
     } catch (e: any) { toast.error(e.message); }
   };
 
-  const filteredStates = form.zone_id ? states.filter(s => s.zonal_id === Number(form.zone_id)) : states;
+  const filteredStates = form.zone_id ? states.filter(s => String(s.zonal_id) === String(form.zone_id)) : states;
 
   return (
     <div className="space-y-4">

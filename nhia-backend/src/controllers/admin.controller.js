@@ -215,8 +215,14 @@ const deleteState = async (req, res, next) => {
 
 const listDepartments = async (req, res, next) => {
   try {
+    const where = {};
+    if (req.query.state_id) where.state_id = req.query.state_id;
     const depts = await Department.findAll({
-      include: [{ association: "units", attributes: ["id", "unit_code", "name"] }],
+      where,
+      include: [
+        { association: "units", attributes: ["id", "unit_code", "name"] },
+        { association: "state", attributes: ["id", "code", "description"] },
+      ],
       order: [["department_code", "ASC"]],
     });
     res.json({ success: true, data: depts });
@@ -225,11 +231,10 @@ const listDepartments = async (req, res, next) => {
 
 const createDepartment = async (req, res, next) => {
   try {
-    const { department_code, name, description } = req.body;
-    if (!department_code || !name) {
-      return res.status(400).json({ success: false, message: "department_code and name required" });
-    }
-    const dept = await Department.create({ department_code, name, description });
+    const { department_code, name, description, state_id } = req.body;
+    if (!department_code || !name || !state_id) {
+      return res.status(400).json({ success: false, message: "department_code, name, state_id required" });
+    }    const dept = await Department.create({ department_code, name, description, state_id });
     res.status(201).json({ success: true, data: dept });
   } catch (err) {
     if (err.name === "SequelizeUniqueConstraintError") {
