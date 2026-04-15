@@ -96,6 +96,7 @@ function formatDate(iso: string | null | undefined) {
 export default function AnnualReportDetail({ referenceId, onBack }: AnnualReportDetailProps) {
   const [report, setReport] = React.useState<ReportDetail | null>(null);
   const [loading, setLoading] = React.useState(true);
+  const [submitting, setSubmitting] = React.useState(false);
 
   React.useEffect(() => {
     (async () => {
@@ -110,6 +111,22 @@ export default function AnnualReportDetail({ referenceId, onBack }: AnnualReport
       }
     })();
   }, [referenceId]);
+
+  const handleSubmit = async () => {
+    if (!report) return;
+    setSubmitting(true);
+    try {
+      const res = await annualReportApi.updateStatus(report.reference_id, "submitted");
+      setReport(prev => prev ? { ...prev, status: "submitted" } : prev);
+      toast.success("Report submitted successfully", {
+        description: `${report.reference_id} is now pending Zonal review.`,
+      });
+    } catch (err: any) {
+      toast.error("Failed to submit", { description: err.message });
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -147,9 +164,23 @@ export default function AnnualReportDetail({ referenceId, onBack }: AnnualReport
             </p>
           </div>
         </div>
-        <Badge className={`text-xs px-3 py-1 flex items-center gap-1.5 border ${sc.className}`}>
-          {sc.icon} {sc.label}
-        </Badge>
+        <div className="flex items-center gap-3">
+          <Badge className={`text-xs px-3 py-1 flex items-center gap-1.5 border ${sc.className}`}>
+            {sc.icon} {sc.label}
+          </Badge>
+          {report.status === "draft" && (
+            <Button
+              className="bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20"
+              onClick={handleSubmit}
+              disabled={submitting}
+            >
+              {submitting
+                ? <><Loader2 className="w-4 h-4 animate-spin" /> Submitting...</>
+                : <><Send className="w-4 h-4" /> Submit Report</>
+              }
+            </Button>
+          )}
+        </div>
       </div>
 
       <ScrollArea className="flex-1">

@@ -1,0 +1,34 @@
+const { DataTypes } = require("sequelize");
+const sequelize = require("../config/database");
+
+const ROLES = ["admin", "state-officer", "zonal-director", "sdo", "hq-department", "dg-ceo"];
+
+const User = sequelize.define(
+  "User",
+  {
+    id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },
+    name: { type: DataTypes.STRING(100), allowNull: false },
+    staff_id: { type: DataTypes.STRING(30), allowNull: false, unique: true },
+    email: { type: DataTypes.STRING(150), allowNull: true, unique: true },
+    password: { type: DataTypes.STRING(255), allowNull: false },
+    role: { type: DataTypes.ENUM(...ROLES), allowNull: false, defaultValue: "state-officer" },
+    zone_id: {
+      type: DataTypes.INTEGER.UNSIGNED,
+      allowNull: true,
+      references: { model: "zonal_offices", key: "id" },
+      onDelete: "SET NULL",
+      onUpdate: "CASCADE",
+    },
+    state_id: {
+      type: DataTypes.INTEGER.UNSIGNED,
+      allowNull: true,
+      references: { model: "state_offices", key: "id" },
+      onDelete: "SET NULL",
+      onUpdate: "CASCADE",
+    },
+    is_active: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
+  },
+  { tableName: "users", modelName: "User" }
+);
+
+module.exports = { User, ROLES };

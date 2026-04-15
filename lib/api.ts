@@ -80,3 +80,75 @@ export const annualReportApi = {
       method: "DELETE",
     }),
 };
+
+// ─── Stock Verification ───────────────────────────────────────────────────────
+
+export const stockApi = {
+  getZones: () =>
+    request<{ success: boolean; data: any[] }>("/stock/zones"),
+
+  getStates: (zoneId?: number | string) =>
+    request<{ success: boolean; data: any[] }>(
+      `/stock/states${zoneId ? `?zone_id=${zoneId}` : ""}`
+    ),
+
+  getDepartments: (stateId?: number | string) =>
+    request<{ success: boolean; data: any[] }>(
+      `/stock/departments${stateId ? `?state_id=${stateId}` : ""}`
+    ),
+
+  getUnits: (departmentId?: number | string) =>
+    request<{ success: boolean; data: any[] }>(
+      `/stock/units${departmentId ? `?department_id=${departmentId}` : ""}`
+    ),
+
+  getAssets: (stateId?: number | string, unitId?: number | string) => {
+    const params = new URLSearchParams();
+    if (stateId) params.set("state_id", String(stateId));
+    if (unitId)  params.set("unit_id",  String(unitId));
+    const qs = params.toString();
+    return request<{ success: boolean; data: any[] }>(`/stock/assets${qs ? `?${qs}` : ""}`);
+  },
+
+  createAsset: (payload: any) =>
+    request<{ success: boolean; data: any }>("/stock/assets", {
+      method: "POST", body: JSON.stringify(payload),
+    }),
+
+  updateAsset: (id: number | string, payload: any) =>
+    request<{ success: boolean; data: any }>(`/stock/assets/${id}`, {
+      method: "PUT", body: JSON.stringify(payload),
+    }),
+
+  deleteAsset: (id: number | string) =>
+    request<{ success: boolean; message: string }>(`/stock/assets/${id}`, {
+      method: "DELETE",
+    }),
+
+  listVerifications: (filters?: { zone_id?: string; state_id?: string; status?: string; type?: string }) => {
+    const params = new URLSearchParams(
+      Object.entries(filters || {}).filter(([, v]) => !!v) as [string, string][]
+    ).toString();
+    return request<{ success: boolean; data: any[] }>(
+      `/stock/verifications${params ? `?${params}` : ""}`
+    );
+  },
+
+  getVerification: (id: number | string) =>
+    request<{ success: boolean; data: any }>(`/stock/verifications/${id}`),
+
+  createVerification: (payload: any) =>
+    request<{ success: boolean; data: any }>("/stock/verifications", {
+      method: "POST", body: JSON.stringify(payload),
+    }),
+
+  updateVerification: (id: number | string, payload: any) =>
+    request<{ success: boolean; data: any }>(`/stock/verifications/${id}`, {
+      method: "PUT", body: JSON.stringify(payload),
+    }),
+
+  updateStatus: (id: number | string, status: string) =>
+    request<{ success: boolean; data: any }>(`/stock/verifications/${id}/status`, {
+      method: "PATCH", body: JSON.stringify({ status }),
+    }),
+};

@@ -4,11 +4,13 @@ const cors = require("cors");
 const morgan = require("morgan");
 
 const sequelize = require("./config/database");
-// Register models & associations
-require("./models/AnnualReport");
-require("./models/QuarterlyData");
+// Register all models & associations
+require("./models/index");
 
 const annualReportRoutes = require("./routes/annualReport.routes");
+const authRoutes = require("./routes/auth.routes");
+const adminRoutes = require("./routes/admin.routes");
+const stockRoutes = require("./routes/stockVerification.routes");
 const { errorHandler } = require("./middleware/errorHandler");
 
 const app = express();
@@ -16,14 +18,17 @@ const PORT = process.env.PORT || 3001;
 
 // ─── Middleware ───────────────────────────────────────────────────────────────
 
-app.use(cors({ origin: process.env.CLIENT_URL || "http://localhost:5173" }));
+app.use(cors({ origin: process.env.CLIENT_URL || "http://localhost:3000" }));
 app.use(express.json());
 app.use(morgan("dev"));
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
 
 app.get("/health", (req, res) => res.json({ status: "ok" }));
+app.use("/api/auth", authRoutes);
+app.use("/api/admin", adminRoutes);
 app.use("/api/annual-reports", annualReportRoutes);
+app.use("/api/stock", stockRoutes);
 
 // ─── 404 ─────────────────────────────────────────────────────────────────────
 

@@ -8,26 +8,21 @@ import Login from "@/src/components/Login";
 import Dashboard from "@/src/components/Dashboard";
 import { Toaster } from "@/components/ui/sonner";
 
-type Role = "state-officer" | "zonal-director" | "sdo" | "hq-department" | "audit";
+type Role = "state-officer" | "zonal-director" | "sdo" | "hq-department" | "audit" | "dg-ceo" | "admin";
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = React.useState(false);
   const [userRole, setUserRole] = React.useState<Role>("state-officer");
 
-  // Mock login handler
   const handleLogin = (role: string) => {
     setUserRole(role as Role);
     setIsAuthenticated(true);
   };
 
-  const handleLogout = () => {
-    setIsAuthenticated(false);
-  };
-
   return (
     <>
       {isAuthenticated ? (
-        <Dashboard role={userRole} onLogout={handleLogout} />
+        <Dashboard role={userRole} onLogout={() => setIsAuthenticated(false)} />
       ) : (
         <Login onLogin={handleLogin} />
       )}
