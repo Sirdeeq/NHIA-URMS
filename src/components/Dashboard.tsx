@@ -30,11 +30,12 @@ import SDOHub from "./SDOHub";
 import AnnualReportForm from "./AnnualReportForm";
 import AnnualReportsList from "./AnnualReportsList";
 import AnnualReportDetail from "./AnnualReportDetail";
+import StockVerificationPage from "./StockVerificationPage";
 import SidebarNav from "./SidebarNav";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Role = "state-officer" | "zonal-director" | "sdo" | "hq-department" | "audit" | "dg-ceo";
-type View = "home" | "report-entry" | "report-preview" | "zonal-review" | "zonal-compose" | "annual-report" | "annual-reports-list" | "annual-report-detail";
+type View = "home" | "report-entry" | "report-preview" | "zonal-review" | "zonal-compose" | "annual-report" | "annual-reports-list" | "annual-report-detail" | "stock-verification";
 interface DashboardProps { role: Role; onLogout: () => void; }
 
 // ─── Mock data ────────────────────────────────────────────────────────────────
@@ -699,6 +700,8 @@ export default function Dashboard({ role, onLogout }: DashboardProps) {
                 referenceId={selectedReportRef!}
                 onBack={() => setView("annual-reports-list")}
               />
+            ) : view === "stock-verification" ? (
+              <StockVerificationPage onBack={() => setView("home")} />
             ) : (
               <ZonalCompose onBack={() => setView("zonal-review")} onForward={() => setView("home")} />
             )}

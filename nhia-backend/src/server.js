@@ -10,6 +10,7 @@ require("./models/index");
 const annualReportRoutes = require("./routes/annualReport.routes");
 const authRoutes = require("./routes/auth.routes");
 const adminRoutes = require("./routes/admin.routes");
+const stockRoutes = require("./routes/stockVerification.routes");
 const { errorHandler } = require("./middleware/errorHandler");
 
 const app = express();
@@ -27,6 +28,7 @@ app.get("/health", (req, res) => res.json({ status: "ok" }));
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/annual-reports", annualReportRoutes);
+app.use("/api/stock", stockRoutes);
 
 // ─── 404 ─────────────────────────────────────────────────────────────────────
 

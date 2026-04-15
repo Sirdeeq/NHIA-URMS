@@ -151,7 +151,7 @@ export function buildNavTree(
       roles: "all",
       children: [
         { type: "leaf", label: "State Office Cordination", icon: <PackageSearch className="w-3.5 h-3.5" /> },
-        { type: "leaf", label: "Stock Verification", icon: <PackageSearch className="w-3.5 h-3.5" /> },
+        { type: "leaf", label: "Stock Verification", icon: <PackageSearch className="w-3.5 h-3.5" />, view: "stock-verification", onClick: () => setView("stock-verification") },
         { type: "leaf", label: "Servicom",            icon: <Radio className="w-3.5 h-3.5" /> },
         { type: "leaf", label: "Special Projects",   icon: <FolderKanban className="w-3.5 h-3.5" /> },
       ],

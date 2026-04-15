@@ -1,24 +1,50 @@
-const AnnualReport = require("./AnnualReport");
-const QuarterlyData = require("./QuarterlyData");
-const ZonalOffice = require("./ZonalOffice");
-const StateOffice = require("./StateOffice");
-const Department = require("./Department");
-const Unit = require("./Unit");
-const { User } = require("./User");
+const AnnualReport       = require("./AnnualReport");
+const QuarterlyData      = require("./QuarterlyData");
+const ZonalOffice        = require("./ZonalOffice");
+const StateOffice        = require("./StateOffice");
+const Department         = require("./Department");
+const Unit               = require("./Unit");
+const { User }           = require("./User");
+const StockAsset         = require("./StockAsset");
+const StockVerification  = require("./StockVerification");
+const StockVerificationItem = require("./StockVerificationItem"); // sets up its own associations
 
 // ── Admin associations ────────────────────────────────────────────────────────
-ZonalOffice.hasMany(StateOffice, { foreignKey: "zonal_id", as: "states" });
-StateOffice.belongsTo(ZonalOffice, { foreignKey: "zonal_id", as: "zone" });
+ZonalOffice.hasMany(StateOffice,  { foreignKey: "zonal_id",      as: "states"      });
+StateOffice.belongsTo(ZonalOffice,{ foreignKey: "zonal_id",      as: "zone"        });
 
-StateOffice.hasMany(Department, { foreignKey: "state_id", as: "departments" });
-Department.belongsTo(StateOffice, { foreignKey: "state_id", as: "state" });
+StateOffice.hasMany(Department,   { foreignKey: "state_id",      as: "departments" });
+Department.belongsTo(StateOffice, { foreignKey: "state_id",      as: "state"       });
 
-Department.hasMany(Unit, { foreignKey: "department_id", as: "units" });
-Unit.belongsTo(Department, { foreignKey: "department_id", as: "department" });
+Department.hasMany(Unit,          { foreignKey: "department_id", as: "units"       });
+Unit.belongsTo(Department,        { foreignKey: "department_id", as: "department"  });
 
-User.belongsTo(ZonalOffice, { foreignKey: "zone_id", as: "zone" });
-User.belongsTo(StateOffice, { foreignKey: "state_id", as: "state" });
-ZonalOffice.hasMany(User, { foreignKey: "zone_id", as: "users" });
-StateOffice.hasMany(User, { foreignKey: "state_id", as: "users" });
+User.belongsTo(ZonalOffice,       { foreignKey: "zone_id",       as: "zone"        });
+User.belongsTo(StateOffice,       { foreignKey: "state_id",      as: "state"       });
+ZonalOffice.hasMany(User,         { foreignKey: "zone_id",       as: "users"       });
+StateOffice.hasMany(User,         { foreignKey: "state_id",      as: "users"       });
 
-module.exports = { AnnualReport, QuarterlyData, ZonalOffice, StateOffice, Department, Unit, User };
+// ── Stock associations ────────────────────────────────────────────────────────
+StateOffice.hasMany(StockAsset,   { foreignKey: "state_id",      as: "assets"      });
+StockAsset.belongsTo(StateOffice, { foreignKey: "state_id",      as: "state"       });
+
+Unit.hasMany(StockAsset,          { foreignKey: "unit_id",       as: "assets"      });
+StockAsset.belongsTo(Unit,        { foreignKey: "unit_id",       as: "unit"        });
+
+ZonalOffice.hasMany(StockVerification,  { foreignKey: "zone_id",       as: "verifications" });
+StockVerification.belongsTo(ZonalOffice,{ foreignKey: "zone_id",       as: "zone"          });
+
+StateOffice.hasMany(StockVerification,  { foreignKey: "state_id",      as: "verifications" });
+StockVerification.belongsTo(StateOffice,{ foreignKey: "state_id",      as: "state"         });
+
+Department.hasMany(StockVerification,   { foreignKey: "department_id", as: "verifications" });
+StockVerification.belongsTo(Department, { foreignKey: "department_id", as: "department"    });
+
+Unit.hasMany(StockVerification,         { foreignKey: "unit_id",       as: "verifications" });
+StockVerification.belongsTo(Unit,       { foreignKey: "unit_id",       as: "unit"          });
+
+module.exports = {
+  AnnualReport, QuarterlyData,
+  ZonalOffice, StateOffice, Department, Unit, User,
+  StockAsset, StockVerification, StockVerificationItem,
+};
