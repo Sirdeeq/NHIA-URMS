@@ -30,7 +30,7 @@ import SDOHub from "./SDOHub";
 import AnnualReportForm from "./AnnualReportForm";
 import AnnualReportsList from "./AnnualReportsList";
 import AnnualReportDetail from "./AnnualReportDetail";
-import { NigeriaMap, ZONE_PERFORMANCE } from "./NigeriaMap";
+import SidebarNav from "./SidebarNav";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Role = "state-officer" | "zonal-director" | "sdo" | "hq-department" | "audit" | "dg-ceo";
@@ -372,7 +372,6 @@ export default function Dashboard({ role, onLogout }: DashboardProps) {
   const [sidebarOpen, setSidebarOpen] = React.useState(true);
   const [selectedReportRef, setSelectedReportRef] = React.useState<string | null>(null);
   const userInfo = getUserInfo(role);
-  const menuItems = getMenuItems(role, view, setView);
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-[#f4f7f5]">
@@ -409,25 +408,7 @@ export default function Dashboard({ role, onLogout }: DashboardProps) {
         )}
 
         {/* Nav */}
-        <ScrollArea className="flex-1 px-2 py-2 scrollbar-thin">
-          <nav className="space-y-0.5">
-            {menuItems.map(item => (
-              <button key={item.label} onClick={item.onClick}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all group ${
-                  item.active
-                    ? "bg-[#25a872] text-white shadow-md shadow-[#25a872]/30"
-                    : "text-white/60 hover:bg-white/10 hover:text-white"
-                }`}
-              >
-                <span className={`shrink-0 ${item.active ? "text-white" : "text-white/50 group-hover:text-white"}`}>
-                  {item.icon}
-                </span>
-                {sidebarOpen && <span className="text-xs font-semibold truncate">{item.label}</span>}
-                {sidebarOpen && item.active && <ChevronRight className="w-3 h-3 ml-auto text-white/70" />}
-              </button>
-            ))}
-          </nav>
-        </ScrollArea>
+        <SidebarNav role={role} view={view} setView={setView} sidebarOpen={sidebarOpen} />
 
         {/* Logout */}
         <div className="p-3 border-t border-white/10">
