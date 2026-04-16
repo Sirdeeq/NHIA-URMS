@@ -47,7 +47,15 @@ const login = async (req, res, next) => {
 
 /** GET /api/auth/me */
 const me = async (req, res) => {
-  res.json({ success: true, user: req.user });
+  const userData = req.user.toJSON ? req.user.toJSON() : { ...req.user };
+  delete userData.password;
+  // Parse functionalities JSON string → array if needed
+  if (typeof userData.functionalities === "string") {
+    try { userData.functionalities = JSON.parse(userData.functionalities); }
+    catch { userData.functionalities = []; }
+  }
+  if (!Array.isArray(userData.functionalities)) userData.functionalities = [];
+  res.json({ success: true, user: userData });
 };
 
 module.exports = { login, me };

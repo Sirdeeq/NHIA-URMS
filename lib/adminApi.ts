@@ -2,9 +2,9 @@ const BASE_URL = (import.meta.env?.VITE_API_URL as string) || "http://localhost:
 
 // ─── Token storage ────────────────────────────────────────────────────────────
 export const tokenStore = {
-  get: () => localStorage.getItem("nhia_token"),
-  set: (t: string) => localStorage.setItem("nhia_token", t),
-  clear: () => localStorage.removeItem("nhia_token"),
+  get: () => localStorage.getItem("nhia@token"),
+  set: (t: string) => localStorage.setItem("nhia@token", t),
+  clear: () => localStorage.removeItem("nhia@token"),
 };
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {

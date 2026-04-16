@@ -15,7 +15,7 @@ const ROLES = [
 
 import type { AccessEntry } from "@/src/access/types";
 
-interface LoginProps { onLogin: (role: string, access: AccessEntry[]) => void; }
+interface LoginProps { onLogin: (role: string, access: AccessEntry[], userData: any) => void; }
 
 export default function Login({ onLogin }: LoginProps) {
   const [staffId,      setStaffId]      = React.useState("");
@@ -48,9 +48,8 @@ export default function Login({ onLogin }: LoginProps) {
       const res = await authApi.login(staffId, password);
       tokenStore.set(res.token);
       toast.success("Authentication successful", { description: `Welcome, ${res.user.name}.` });
-      // functionalities is already parsed to array by the backend
       const accessArr = Array.isArray(res.user.functionalities) ? res.user.functionalities : [];
-      onLogin(res.user.role, accessArr);
+      onLogin(res.user.role, accessArr, res.user);
     } catch (err: any) {
       setError(err.message ?? "Sign in failed.");
       toast.error("Sign in failed");

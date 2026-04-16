@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { statesApi, zonesApi, type StateOffice, type ZonalOffice } from "@/lib/adminApi";
 import AdminModal from "./AdminModal";
+import AppSelect from "./AppSelect";
 
 const inputCls = "w-full pl-3 pr-3 h-11 rounded-xl border border-[#d4e8dc] bg-[#f4f7f5] text-sm text-slate-800 placeholder:text-slate-400 focus:ring-2 focus:ring-[#25a872] focus:border-[#25a872] outline-none transition-all";
 
@@ -54,11 +55,12 @@ export default function AdminStatesPage() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-3 items-center justify-between">
-        <select className="h-10 px-3 rounded-xl border border-[#d4e8dc] bg-white text-sm text-slate-700 focus:ring-2 focus:ring-[#25a872] outline-none"
-          value={filterZone} onChange={e => setFilterZone(e.target.value)}>
-          <option value="">All Zones</option>
-          {zones.map(z => <option key={z.id} value={z.id}>{z.zonal_code} – {z.description}</option>)}
-        </select>
+        <AppSelect
+          value={filterZone}
+          onValueChange={v => setFilterZone(v === "__none__" ? "" : v)}
+          options={zones.map(z => ({ value: String(z.id), label: `${z.zonal_code} – ${z.description}` }))}
+          placeholder="All Zones"
+        />
         <Button onClick={openCreate} className="bg-[#145c3f] hover:bg-[#0f3d2e] text-white rounded-xl h-10 gap-2 shadow-sm">
           <Plus className="w-4 h-4" /> Add State
         </Button>
@@ -110,10 +112,13 @@ export default function AdminStatesPage() {
           </div>
           <div>
             <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">Zone <span className="text-rose-500">*</span></label>
-            <select className={inputCls} value={form.zonal_id} onChange={e => setForm(f => ({ ...f, zonal_id: e.target.value }))} required>
-              <option value="">— Select Zone —</option>
-              {zones.map(z => <option key={z.id} value={z.id}>{z.zonal_code} – {z.description}</option>)}
-            </select>
+            <AppSelect
+              value={form.zonal_id}
+              onValueChange={v => setForm(f => ({ ...f, zonal_id: v === "__none__" ? "" : v }))}
+              options={zones.map(z => ({ value: String(z.id), label: `${z.zonal_code} – ${z.description}` }))}
+              placeholder="— Select Zone —"
+              required
+            />
           </div>
           <div className="flex justify-end gap-3 pt-2">
             <Button type="button" variant="ghost" onClick={() => setModal(null)} className="rounded-xl text-slate-600">Cancel</Button>
