@@ -11,6 +11,7 @@ const annualReportRoutes = require("./routes/annualReport.routes");
 const authRoutes = require("./routes/auth.routes");
 const adminRoutes = require("./routes/admin.routes");
 const stockRoutes = require("./routes/stockVerification.routes");
+const monthlyRoutes = require("./routes/monthlyReport.routes");
 const { errorHandler } = require("./middleware/errorHandler");
 
 const app = express();
@@ -29,6 +30,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/annual-reports", annualReportRoutes);
 app.use("/api/stock", stockRoutes);
+app.use("/api/monthly", monthlyRoutes);
 
 // ─── 404 ─────────────────────────────────────────────────────────────────────
 

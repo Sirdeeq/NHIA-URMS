@@ -33,13 +33,23 @@ import AnnualReportDetail from "./AnnualReportDetail";
 import StockVerificationPage from "./StockVerificationPage";
 import StockVerificationsList from "./StockVerificationsList";
 import StockAssetManager from "./StockAssetManager";
+import FinanceMonthlyForm from "./monthly/FinanceMonthlyForm";
+import AdminMonthlyForm from "./monthly/AdminMonthlyForm";
+import ProgrammesMonthlyForm from "./monthly/ProgrammesMonthlyForm";
+import OutreachMonthlyForm from "./monthly/OutreachMonthlyForm";
+import SqaMonthlyForm from "./monthly/SqaMonthlyForm";
+import ComplaintsMonthlyForm from "./monthly/ComplaintsMonthlyForm";
+import MonthlyReportsList from "./monthly/MonthlyReportsList";
+import DeptMonthlyPage from "./monthly/DeptMonthlyPage";
 import SidebarNav from "./SidebarNav";
 import AdminSettingsPage from "./admin/AdminSettingsPage";
 
+import { type UserContext } from "@/src/App";
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Role = "state-officer" | "zonal-director" | "sdo" | "hq-department" | "audit" | "dg-ceo" | "admin";
-type View = "home" | "report-entry" | "report-preview" | "zonal-review" | "zonal-compose" | "annual-report" | "annual-reports-list" | "annual-report-detail" | "stock-verification" | "stock-verifications-list" | "stock-assets" | "settings";
-interface DashboardProps { role: Role; onLogout: () => void; }
+type View = "home" | "report-entry" | "report-preview" | "zonal-review" | "zonal-compose" | "annual-report" | "annual-reports-list" | "annual-report-detail" | "stock-verification" | "stock-verifications-list" | "stock-assets" | "settings" | "finance-monthly" | "admin-monthly" | "programmes-monthly" | "outreach-monthly" | "sqa-monthly" | "complaints-monthly" | "monthly-reports-list";
+interface DashboardProps { userCtx: UserContext; onLogout: () => void; }
 
 // ─── Mock data ────────────────────────────────────────────────────────────────
 const CHART_DATA = [
@@ -374,13 +384,13 @@ function AuditPanel() {
 }
 
 // ─── Main Dashboard ───────────────────────────────────────────────────────────
-export default function Dashboard({ role, onLogout }: DashboardProps) {
-  const [view, setView] = React.useState<View>(role === "admin" ? "home" : "home");
+export default function Dashboard({ userCtx, onLogout }: DashboardProps) {
+  const role = userCtx.role;
+  const [view, setView] = React.useState<View>("home");
   const [sidebarOpen, setSidebarOpen] = React.useState(true);
   const [selectedReportRef, setSelectedReportRef] = React.useState<string | null>(null);
   const [selectedVerifId, setSelectedVerifId] = React.useState<number | null>(null);
   const userInfo = getUserInfo(role);
-  const menuItems = getMenuItems(role, view, setView);
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-[#f4f7f5]">
@@ -718,6 +728,36 @@ export default function Dashboard({ role, onLogout }: DashboardProps) {
               />
             ) : view === "stock-assets" ? (
               <StockAssetManager onBack={() => setView("home")} />
+            ) : view === "finance-monthly" ? (
+              <DeptMonthlyPage dept="finance" title="Finance Monthly Reports" section="finance"
+                onBack={() => setView("home")} defaultZoneId={userCtx.zoneId} defaultStateId={userCtx.stateId}
+                FormComponent={FinanceMonthlyForm} />
+            ) : view === "admin-monthly" ? (
+              <DeptMonthlyPage dept="finance" title="Admin / HR Monthly Reports" section="admin"
+                onBack={() => setView("home")} defaultZoneId={userCtx.zoneId} defaultStateId={userCtx.stateId}
+                FormComponent={AdminMonthlyForm} />
+            ) : view === "programmes-monthly" ? (
+              <DeptMonthlyPage dept="programmes" title="Enrolment Monthly Reports" section="enrolment"
+                onBack={() => setView("home")} defaultZoneId={userCtx.zoneId} defaultStateId={userCtx.stateId}
+                FormComponent={ProgrammesMonthlyForm} />
+            ) : view === "outreach-monthly" ? (
+              <DeptMonthlyPage dept="programmes" title="Outreach Monthly Reports" section="outreach"
+                onBack={() => setView("home")} defaultZoneId={userCtx.zoneId} defaultStateId={userCtx.stateId}
+                FormComponent={OutreachMonthlyForm} />
+            ) : view === "sqa-monthly" ? (
+              <DeptMonthlyPage dept="sqa" title="HMO/HCP Quality Assurance Monthly Reports" section="sqa"
+                onBack={() => setView("home")} defaultZoneId={userCtx.zoneId} defaultStateId={userCtx.stateId}
+                FormComponent={SqaMonthlyForm} />
+            ) : view === "complaints-monthly" ? (
+              <DeptMonthlyPage dept="sqa" title="Enrollee Complaints Monthly Reports" section="complaints"
+                onBack={() => setView("home")} defaultZoneId={userCtx.zoneId} defaultStateId={userCtx.stateId}
+                FormComponent={ComplaintsMonthlyForm} />
+            ) : view === "monthly-reports-list" ? (
+              <MonthlyReportsList
+                onBack={() => setView("home")}
+                onNew={(dept) => setView(`${dept === "finance" ? "finance" : dept === "sqa" ? "sqa" : "programmes"}-monthly` as View)}
+                defaultStateId={userCtx.stateId}
+              />
             ) : view === "settings" ? (
               <AdminSettingsPage />
             ) : (

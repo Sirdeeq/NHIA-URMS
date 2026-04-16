@@ -152,3 +152,32 @@ export const stockApi = {
       method: "PATCH", body: JSON.stringify({ status }),
     }),
 };
+
+// ─── Monthly Reports ──────────────────────────────────────────────────────────
+
+export type MonthlyDept = "finance" | "programmes" | "sqa";
+
+const monthlyBase = (dept: MonthlyDept) => `/monthly/${dept}`;
+
+const makeDeptApi = (dept: MonthlyDept) => ({
+  list: (filters?: { state_id?: string; year?: string; month?: string; status?: string; section?: string }) => {
+    const p = new URLSearchParams(Object.entries(filters || {}).filter(([,v]) => !!v) as [string,string][]).toString();
+    return request<{ success: boolean; data: any[] }>(`${monthlyBase(dept)}${p ? `?${p}` : ""}`);
+  },
+  aggregate: (state_id: string, year: string) =>
+    request<{ success: boolean; data: any[] }>(`${monthlyBase(dept)}/aggregate?state_id=${state_id}&year=${year}`),
+  get: (id: number | string) =>
+    request<{ success: boolean; data: any }>(`${monthlyBase(dept)}/${id}`),
+  create: (payload: any) =>
+    request<{ success: boolean; data: any }>(monthlyBase(dept), { method: "POST", body: JSON.stringify(payload) }),
+  update: (id: number | string, payload: any) =>
+    request<{ success: boolean; data: any }>(`${monthlyBase(dept)}/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
+  updateStatus: (id: number | string, status: string) =>
+    request<{ success: boolean; data: any }>(`${monthlyBase(dept)}/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) }),
+});
+
+export const monthlyApi = {
+  finance:    makeDeptApi("finance"),
+  programmes: makeDeptApi("programmes"),
+  sqa:        makeDeptApi("sqa"),
+};

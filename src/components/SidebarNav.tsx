@@ -1,10 +1,10 @@
 import * as React from "react";
 import {
   Home, FileText, ChevronDown, ChevronRight,
-  DollarSign, Building2, Users, Wrench,
-  ShieldCheck, ClipboardList, Wifi,
+  Banknote, Building2, Users,
+  ShieldCheck, ClipboardList,
   LayoutGrid, Briefcase, PackageSearch,
-  Radio, FolderKanban, History, CheckSquare,
+  FolderKanban, History, CheckSquare,
   Flag, MapPin, Database, Archive, Bell, Settings,
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -51,19 +51,17 @@ export function buildNavTree(
     },
 
     // ── Annual Reports ─────────────────────────────────────────────────────
-    // {
-    //   type: "group",
-    //   label: "Annual Reports",
-    //   icon: <FileText className="w-4 h-4" />,
-    //   roles: "!dg-ceo",
-    //   children: [
-    //     { type: "leaf", label: "New Annual Report",  icon: <FileText className="w-3.5 h-3.5" />, view: "annual-report",       onClick: () => setView("annual-report") },
-    //     { type: "leaf", label: "My Submissions",     icon: <History className="w-3.5 h-3.5" />,  view: "annual-reports-list", onClick: () => setView("annual-reports-list") },
-    //     { type: "leaf", label: "Submit Report",      icon: <ClipboardList className="w-3.5 h-3.5" />, view: "report-entry",  onClick: () => setView("report-entry") },
-    //     { type: "leaf", label: "Review Reports",     icon: <CheckSquare className="w-3.5 h-3.5" />,   view: "zonal-review",  onClick: () => setView("zonal-review"), roles: "zonal-director,sdo,hq-department,audit" },
-    //   ],
-    // },
-
+    {
+      type: "group",
+      label: "Annual Reports",
+      icon: <FileText className="w-4 h-4" />,
+      roles: "!dg-ceo",
+      children: [
+        { type: "leaf", label: "New Annual Report", icon: <FileText className="w-3.5 h-3.5" />,  view: "annual-report",        onClick: () => setView("annual-report") },
+        { type: "leaf", label: "My Submissions",    icon: <History className="w-3.5 h-3.5" />,   view: "annual-reports-list",  onClick: () => setView("annual-reports-list") },
+      ],
+    },
+ 
     // ── Finance & Admin Department ─────────────────────────────────────────
     {
       type: "group",
@@ -74,12 +72,9 @@ export function buildNavTree(
         {
           type: "group",
           label: "Finance",
-          icon: <DollarSign className="w-3.5 h-3.5" />,
+          icon: <Banknote className="w-3.5 h-3.5" />,
           children: [
-            { type: "leaf", label: "Expenditure Payments", icon: <DollarSign className="w-3 h-3" /> },
-            { type: "leaf", label: "Payments",             icon: <DollarSign className="w-3 h-3" /> },
-            { type: "leaf", label: "Reporting",            icon: <FileText className="w-3 h-3" /> },
-            { type: "leaf", label: "Financial Reporting",  icon: <FileText className="w-3 h-3" /> },
+            { type: "leaf", label: "Monthly Report", icon: <FileText className="w-3 h-3" />, view: "finance-monthly", onClick: () => setView("finance-monthly") },
           ],
         },
         {
@@ -87,8 +82,7 @@ export function buildNavTree(
           label: "Admin",
           icon: <Briefcase className="w-3.5 h-3.5" />,
           children: [
-            { type: "leaf", label: "Facilities",  icon: <Building2 className="w-3 h-3" /> },
-            { type: "leaf", label: "HR Support",  icon: <Users className="w-3 h-3" /> },
+            { type: "leaf", label: "Monthly Report", icon: <FileText className="w-3 h-3" />, view: "admin-monthly", onClick: () => setView("admin-monthly") },
           ],
         },
       ],
@@ -106,7 +100,7 @@ export function buildNavTree(
           label: "HMO/HCP Quality Assurance",
           icon: <ShieldCheck className="w-3.5 h-3.5" />,
           children: [
-            { type: "leaf", label: "QA Officers", icon: <Users className="w-3 h-3" /> },
+            { type: "leaf", label: "Monthly Report", icon: <FileText className="w-3 h-3" />, view: "sqa-monthly", onClick: () => setView("sqa-monthly") },
           ],
         },
         {
@@ -114,7 +108,7 @@ export function buildNavTree(
           label: "Enrollee Complaints / SHIA Liaison",
           icon: <ClipboardList className="w-3.5 h-3.5" />,
           children: [
-            { type: "leaf", label: "Enrollee Complaints", icon: <ClipboardList className="w-3 h-3" /> },
+            { type: "leaf", label: "Monthly Report", icon: <FileText className="w-3 h-3" />, view: "complaints-monthly", onClick: () => setView("complaints-monthly") },
           ],
         },
       ],
@@ -124,11 +118,11 @@ export function buildNavTree(
     {
       type: "group",
       label: "Zonal ICT Support",
-      icon: <Wifi className="w-4 h-4" />,
+      icon: <Database className="w-4 h-4" />,
       roles: "all",
       children: [
-        { type: "leaf", label: "ICT Support Desk", icon: <Wrench className="w-3.5 h-3.5" /> },
-        { type: "leaf", label: "Systems & Network", icon: <Radio className="w-3.5 h-3.5" /> },
+        { type: "leaf", label: "ICT Support Desk",  icon: <FileText className="w-3.5 h-3.5" /> },
+        { type: "leaf", label: "Systems & Network", icon: <FileText className="w-3.5 h-3.5" /> },
       ],
     },
 
@@ -144,15 +138,15 @@ export function buildNavTree(
           label: "Enrolment",
           icon: <Users className="w-3.5 h-3.5" />,
           children: [
-            { type: "leaf", label: "Enrollment Officers", icon: <Users className="w-3 h-3" /> },
+            { type: "leaf", label: "Monthly Report", icon: <FileText className="w-3 h-3" />, view: "programmes-monthly", onClick: () => setView("programmes-monthly") },
           ],
         },
         {
           type: "group",
-          label: "Enrollment Enquiries & Outreach Officer",
+          label: "Enrollment Enquiries & Outreach",
           icon: <FolderKanban className="w-3.5 h-3.5" />,
           children: [
-            { type: "leaf", label: "Enrollment Enquiries & Outreach Officers", icon: <FolderKanban className="w-3 h-3" /> },
+            { type: "leaf", label: "Monthly Report", icon: <FileText className="w-3 h-3" />, view: "outreach-monthly", onClick: () => setView("outreach-monthly") },
           ],
         },
       ],
@@ -165,12 +159,9 @@ export function buildNavTree(
       icon: <Briefcase className="w-4 h-4" />,
       roles: "all",
       children: [
-        { type: "leaf", label: "State Office Cordination", icon: <PackageSearch className="w-3.5 h-3.5" /> },
-        { type: "leaf", label: "Stock Verification", icon: <PackageSearch className="w-3.5 h-3.5" />, view: "stock-verification",       onClick: () => setView("stock-verification") },
-        { type: "leaf", label: "My Verifications",   icon: <FileText className="w-3.5 h-3.5" />,     view: "stock-verifications-list", onClick: () => setView("stock-verifications-list") },
-        { type: "leaf", label: "Asset Register",     icon: <Database className="w-3.5 h-3.5" />,     view: "stock-assets",             onClick: () => setView("stock-assets") },
-        { type: "leaf", label: "Servicom",            icon: <Radio className="w-3.5 h-3.5" /> },
-        { type: "leaf", label: "Special Projects",   icon: <FolderKanban className="w-3.5 h-3.5" /> },
+        { type: "leaf", label: "Stock Verification",  icon: <PackageSearch className="w-3.5 h-3.5" />, view: "stock-verification",       onClick: () => setView("stock-verification") },
+        { type: "leaf", label: "My Verifications",    icon: <History className="w-3.5 h-3.5" />,       view: "stock-verifications-list", onClick: () => setView("stock-verifications-list") },
+        { type: "leaf", label: "Asset Register",      icon: <Database className="w-3.5 h-3.5" />,      view: "stock-assets",             onClick: () => setView("stock-assets") },
       ],
     },
 

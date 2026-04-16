@@ -13,7 +13,7 @@ const ROLES = [
   { value: "dg-ceo",         label: "DG-CEO"          },
 ];
 
-interface LoginProps { onLogin: (role: string) => void; }
+interface LoginProps { onLogin: (role: string, staffId?: string) => void; }
 
 export default function Login({ onLogin }: LoginProps) {
   const [staffId,      setStaffId]      = React.useState("");
@@ -62,7 +62,7 @@ export default function Login({ onLogin }: LoginProps) {
           toast.success("Authentication successful", {
             description: `Welcome, ${staffId}. Redirecting to ${ROLES.find(r => r.value === role)?.label} dashboard...`,
           });
-          onLogin(role);
+          onLogin(role, staffId);
         } else {
           setError("Invalid credentials or role not selected.");
           toast.error("Sign in failed", { description: "Check your Staff ID, password and role." });
