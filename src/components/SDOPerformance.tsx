@@ -289,6 +289,199 @@ function PillTabs({ options, active, onChange }: { options: string[]; active: st
   );
 }
 
+// ─── Reusable Modal Shell ─────────────────────────────────────────────────────
+function ModalShell({ title, subtitle, onClose, onBack, children }: {
+  title: string; subtitle?: React.ReactNode; onClose: () => void;
+  onBack?: () => void; children: React.ReactNode;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <motion.div initial={{ opacity:0, scale:0.96, y:16 }} animate={{ opacity:1, scale:1, y:0 }}
+        exit={{ opacity:0, scale:0.96, y:16 }} transition={{ duration:0.2 }}
+        className="relative z-10 w-full max-w-3xl bg-white rounded-3xl shadow-2xl border border-[#d4e8dc] flex flex-col"
+        style={{ maxHeight:"88vh" }}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[#d4e8dc] bg-[#f0fdf7] rounded-t-3xl shrink-0">
+          <div className="flex items-center gap-3">
+            {onBack && (
+              <button onClick={onBack}
+                className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-[#d4e8dc] transition-colors text-[#145c3f]">
+                <ArrowLeft className="w-4 h-4" />
+              </button>
+            )}
+            <div>
+              <p className="text-sm font-black text-slate-900">{title}</p>
+              {subtitle && <div className="mt-0.5">{subtitle}</div>}
+            </div>
+          </div>
+          <button onClick={onClose}
+            className="w-8 h-8 rounded-xl flex items-center justify-center hover:bg-[#d4e8dc] transition-colors text-slate-500">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto scrollbar-thin">
+          <div className="p-6 space-y-5">{children}</div>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
+// ─── Reusable State Table with Zone+State filter ──────────────────────────────
+type StateRow = { state: string; zone: string; gifship: number; igr: number; bhcpf: number;
+  complaints: number; resolution: number; cemonc: number; ffp: number; fsship: number; status: string; };
+
+function StateFilterTable({ rows, year, highlightField, onStateClick }: {
+  rows: StateRow[]; year: string; highlightField?: keyof StateRow;
+  onStateClick?: (s: StateRow) => void;
+}) {
+  const [zoneFilter, setZoneFilter] = React.useState("All");
+  const [stateSearch, setStateSearch] = React.useState("");
+
+  const filtered = React.useMemo(() => {
+    let t = [...rows];
+    if (zoneFilter !== "All") t = t.filter(r => r.zone === zoneFilter);
+    if (stateSearch) t = t.filter(r => r.state.toLowerCase().includes(stateSearch.toLowerCase()));
+    return t;
+  }, [rows, zoneFilter, stateSearch]);
+
+  return (
+    <div className="rounded-2xl border border-[#d4e8dc] overflow-hidden">
+      <div className="bg-[#f0fdf7] border-b border-[#d4e8dc] px-3 py-2.5 flex flex-wrap items-center gap-2">
+        <div className="flex gap-1 flex-wrap">
+          {["All", ...ZONES].map(z => (
+            <button key={z} onClick={() => setZoneFilter(z)}
+              className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border transition-all ${
+                zoneFilter === z
+                  ? "bg-[#145c3f] border-[#145c3f] text-white"
+                  : "border-[#c8e6d8] text-[#5a7a6a] hover:border-[#25a872] hover:text-[#145c3f]"
+              }`}
+              style={zoneFilter !== z && z !== "All" ? { borderColor: ZONE_COLORS[z]+"60", color: ZONE_COLORS[z] } : {}}
+            >{z === "All" ? "All Zones" : z.split(" ")[0] + " " + z.split(" ")[1]}</button>
+          ))}
+        </div>
+        <div className="relative ml-auto">
+          <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-[#5a7a6a]" />
+          <input value={stateSearch} onChange={e => setStateSearch(e.target.value)} placeholder="Filter state..."
+            className="pl-6 pr-2 h-7 w-32 rounded-lg bg-white border border-[#d4e8dc] text-[11px] text-slate-700 placeholder:text-slate-400 focus:outline-none focus:border-[#145c3f] transition-all" />
+        </div>
+        <span className="text-[10px] text-[#5a7a6a]">{filtered.length} states</span>
+      </div>
+      <div className="overflow-y-auto" style={{ maxHeight:"320px" }}>
+        <table className="w-full text-xs">
+          <thead className="sticky top-0 bg-[#f0fdf7] border-b border-[#d4e8dc] z-10">
+            <tr>
+              {["#","State","Zone","GIFSHIP","BHCPF","IGR (₦M)","Complaints","Resolution","CEmONC","FFP","FSSHIP","Status"].map(h => (
+                <th key={h} className="px-2.5 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-[#5a7a6a] whitespace-nowrap">{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map((row, i) => (
+              <tr key={row.state}
+                onClick={() => onStateClick?.(row)}
+                className={`border-b border-[#e8f5ee] transition-colors hover:bg-[#f0fdf7] ${onStateClick ? "cursor-pointer" : ""}`}>
+                <td className="px-2.5 py-2 text-[#5a7a6a] font-bold">{i+1}</td>
+                <td className={`px-2.5 py-2 font-bold whitespace-nowrap ${highlightField === "igr" || highlightField === "gifship" ? "text-[#145c3f]" : "text-slate-800"}`}>
+                  {row.state}
+                  {onStateClick && <ChevronRight className="w-3 h-3 inline ml-1 text-[#25a872] opacity-60" />}
+                </td>
+                <td className="px-2.5 py-2">
+                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
+                    style={{ backgroundColor:ZONE_COLORS[row.zone]+"18", color:ZONE_COLORS[row.zone] }}>
+                    {row.zone.split(" ")[0]}
+                  </span>
+                </td>
+                <td className={`px-2.5 py-2 font-semibold ${highlightField==="gifship"?"font-black text-[#145c3f]":"text-slate-700"}`}>{fmt(row.gifship)}</td>
+                <td className="px-2.5 py-2 text-slate-600">{fmt(row.bhcpf)}</td>
+                <td className={`px-2.5 py-2 font-bold ${highlightField==="igr"?"text-[#145c3f]":row.igr>50?"text-green-700":row.igr>15?"text-amber-600":"text-slate-500"}`}>₦{row.igr}M</td>
+                <td className={`px-2.5 py-2 ${highlightField==="complaints"?"font-black text-[#145c3f]":"text-slate-500"}`}>{row.complaints.toLocaleString()}</td>
+                <td className="px-2.5 py-2">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-10 h-1.5 rounded-full bg-[#e8f5ee] overflow-hidden">
+                      <div className="h-full rounded-full" style={{ width:`${row.resolution}%`, backgroundColor:resColor(row.resolution) }} />
+                    </div>
+                    <span className="font-bold text-[10px]" style={{ color:resColor(row.resolution) }}>{row.resolution}%</span>
+                  </div>
+                </td>
+                <td className="px-2.5 py-2 text-slate-500">{row.cemonc.toLocaleString()}</td>
+                <td className="px-2.5 py-2 text-slate-500">{fmt(row.ffp)}</td>
+                <td className="px-2.5 py-2 text-slate-500">{fmt(row.fsship)}</td>
+                <td className="px-2.5 py-2">
+                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                    row.status==="Active" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
+                  }`}>{row.status}</span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ─── StateDetailModal — full metrics for a single state ──────────────────────
+function StateDetailModal({ state, year, stateTable, onClose }: {
+  state: string; year: string;
+  stateTable: StateRow[];
+  onClose: () => void;
+}) {
+  const row = stateTable.find(r => r.state === state);
+  if (!row) return null;
+  const col = ZONE_COLORS[row.zone] || "#22c55e";
+  const metrics = [
+    { label:"GIFSHIP Enrolments", value: row.gifship.toLocaleString(), color:"#22c55e" },
+    { label:"BHCPF Lives",        value: row.bhcpf.toLocaleString(),   color:"#a78bfa" },
+    { label:"IGR (₦M)",           value: `₦${row.igr}M`,              color:"#3b82f6" },
+    { label:"Complaints",         value: row.complaints.toLocaleString(), color:"#f59e0b" },
+    { label:"Resolution Rate",    value: `${row.resolution}%`,         color: resColor(row.resolution) },
+    { label:"CEmONC",             value: row.cemonc.toLocaleString(),  color:"#3b82f6" },
+    { label:"FFP",                value: row.ffp.toLocaleString(),     color:"#a78bfa" },
+    { label:"FSSHIP",             value: row.fsship.toLocaleString(),  color:"#f97316" },
+  ];
+  return (
+    <ModalShell title={`${state} — ${year} Performance`}
+      subtitle={<span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ backgroundColor:col+"18", color:col }}>{row.zone}</span>}
+      onClose={onClose}>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {metrics.map(m => (
+          <div key={m.label} className="p-3 rounded-2xl border border-[#d4e8dc] bg-[#f0fdf7]">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-[#5a7a6a] mb-1">{m.label}</p>
+            <p className="text-lg font-black" style={{ color: m.color }}>{m.value}</p>
+          </div>
+        ))}
+      </div>
+      <div className="p-4 rounded-2xl border border-[#d4e8dc] bg-white">
+        <p className="text-[10px] font-bold uppercase tracking-wider text-[#5a7a6a] mb-3">KPI Progress Bars</p>
+        <div className="space-y-3">
+          {[
+            { label:"GIFSHIP", val: row.gifship, max: 20000, color:"#22c55e" },
+            { label:"BHCPF",   val: row.bhcpf,   max: 5000,  color:"#a78bfa" },
+            { label:"IGR",     val: row.igr,      max: 200,   color:"#3b82f6" },
+            { label:"Resolution", val: row.resolution, max: 100, color: resColor(row.resolution) },
+          ].map(b => (
+            <div key={b.label}>
+              <div className="flex justify-between text-[10px] text-[#5a7a6a] mb-1">
+                <span className="font-semibold">{b.label}</span>
+                <span className="font-bold text-slate-700">{b.label==="IGR"?`₦${b.val}M`:b.label==="Resolution"?`${b.val}%`:b.val.toLocaleString()}</span>
+              </div>
+              <div className="h-2 rounded-full bg-[#e8f5ee] overflow-hidden">
+                <div className="h-full rounded-full transition-all" style={{ width:`${Math.min((b.val/b.max)*100,100)}%`, backgroundColor:b.color }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="flex items-center justify-between p-3 rounded-2xl border border-[#d4e8dc] bg-[#f0fdf7]">
+        <span className="text-xs font-bold text-slate-700">Status</span>
+        <span className={`text-xs font-bold px-3 py-1 rounded-full ${row.status==="Active"?"bg-emerald-100 text-emerald-700":"bg-amber-100 text-amber-700"}`}>{row.status}</span>
+      </div>
+    </ModalShell>
+  );
+}
+
 // ─── QuarterlyDrillModal ──────────────────────────────────────────────────────
 // Flow: Quarterly → Zonal → State
 type QDrillLevel = "quarterly" | "zonal" | "state";
@@ -543,10 +736,23 @@ function QuarterlyDrillModal({ kpiLabel, data, onClose }: { kpiLabel: string; da
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
+                {/* State filter table with zone+state filter */}
                 <div className="rounded-2xl border border-[#d4e8dc] overflow-hidden">
-                  <div className="bg-[#f0fdf7] border-b border-[#d4e8dc] px-3 py-2 flex items-center justify-between">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-[#5a7a6a]">{activeZone} States — All Quarters</p>
-                    <p className="text-[10px] text-[#5a7a6a]">{stateBreakdown.length} states</p>
+                  <div className="bg-[#f0fdf7] border-b border-[#d4e8dc] px-3 py-2 flex flex-wrap items-center gap-2">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-[#5a7a6a]">States — All Quarters</p>
+                    <div className="flex gap-1 flex-wrap ml-2">
+                      {["All", ...ZONES].map(z => (
+                        <button key={z} onClick={() => setActiveZone(z === "All" ? ZONES[0] : z)}
+                          className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border transition-all ${
+                            (z === "All" ? false : activeZone === z)
+                              ? "bg-[#145c3f] border-[#145c3f] text-white"
+                              : "border-[#c8e6d8] text-[#5a7a6a] hover:border-[#25a872]"
+                          }`}
+                          style={z !== "All" && activeZone !== z ? { borderColor: ZONE_COLORS[z]+"60", color: ZONE_COLORS[z] } : {}}
+                        >{z === "All" ? "All" : z.split(" ")[0]}</button>
+                      ))}
+                    </div>
+                    <span className="text-[10px] text-[#5a7a6a] ml-auto">{stateBreakdown.length} states</span>
                   </div>
                   <div className="overflow-y-auto" style={{ maxHeight: "280px" }}>
                     <table className="w-full text-xs">
@@ -769,9 +975,9 @@ function AnnualDrillModal({ kpiLabel, stateTable, onClose }: {
                   </ResponsiveContainer>
                 </div>
                 <div className="rounded-2xl border border-[#d4e8dc] overflow-hidden">
-                  <div className="bg-[#f0fdf7] border-b border-[#d4e8dc] px-3 py-2 flex items-center justify-between">
+                  <div className="bg-[#f0fdf7] border-b border-[#d4e8dc] px-3 py-2 flex flex-wrap items-center gap-2">
                     <p className="text-[10px] font-bold uppercase tracking-wider text-[#5a7a6a]">{activeZone} States</p>
-                    <p className="text-[10px] text-[#5a7a6a]">{stateBreakdown.length} states</p>
+                    <span className="text-[10px] text-[#5a7a6a] ml-auto">{stateBreakdown.length} states</span>
                   </div>
                   <div className="overflow-y-auto" style={{ maxHeight: "280px" }}>
                     <table className="w-full text-xs">
@@ -818,30 +1024,425 @@ function AnnualDrillModal({ kpiLabel, stateTable, onClose }: {
   );
 }
 
+// ─── ZoneDrillModal — full metrics table for a zone, click state for detail ──
+function ZoneDrillModal({ zone, year, stateTable, onClose }: {
+  zone: string; year: string;
+  stateTable: StateRow[];
+  onClose: () => void;
+}) {
+  const [selectedState, setSelectedState] = React.useState<string | null>(null);
+  const col = ZONE_COLORS[zone] || "#22c55e";
+
+  const zoneRows = React.useMemo(() =>
+    stateTable.filter(r => r.zone === zone).sort((a,b) => b.igr - a.igr),
+    [stateTable, zone]
+  );
+
+  const totals = React.useMemo(() => ({
+    gif: zoneRows.reduce((s,r)=>s+r.gifship,0),
+    igr: zoneRows.reduce((s,r)=>s+r.igr,0),
+    bhcpf: zoneRows.reduce((s,r)=>s+r.bhcpf,0),
+    cmp: zoneRows.reduce((s,r)=>s+r.complaints,0),
+    cemonc: zoneRows.reduce((s,r)=>s+r.cemonc,0),
+    ffp: zoneRows.reduce((s,r)=>s+r.ffp,0),
+    fsship: zoneRows.reduce((s,r)=>s+r.fsship,0),
+  }), [zoneRows]);
+
+  if (selectedState) {
+    return (
+      <StateDetailModal state={selectedState} year={year} stateTable={stateTable}
+        onClose={() => setSelectedState(null)} />
+    );
+  }
+
+  return (
+    <ModalShell
+      title={`${zone} — ${year} Zone Performance`}
+      subtitle={<span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ backgroundColor:col+"18", color:col }}>{zoneRows.length} states</span>}
+      onClose={onClose}
+    >
+      {/* Zone summary cards */}
+      <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+        {[
+          { label:"GIFSHIP",    value: totals.gif.toLocaleString(),       color:"#22c55e" },
+          { label:"BHCPF",      value: totals.bhcpf.toLocaleString(),     color:"#a78bfa" },
+          { label:"IGR (₦M)",   value: `₦${totals.igr.toFixed(1)}M`,     color:"#3b82f6" },
+          { label:"Complaints", value: totals.cmp.toLocaleString(),       color:"#f59e0b" },
+          { label:"CEmONC",     value: totals.cemonc.toLocaleString(),    color:"#3b82f6" },
+          { label:"FFP",        value: totals.ffp.toLocaleString(),       color:"#a78bfa" },
+          { label:"FSSHIP",     value: totals.fsship.toLocaleString(),    color:"#f97316" },
+        ].map(m => (
+          <div key={m.label} className="p-3 rounded-2xl border border-[#d4e8dc] bg-[#f0fdf7]">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-[#5a7a6a] mb-1">{m.label}</p>
+            <p className="text-sm font-black" style={{ color: m.color }}>{m.value}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* States table — click state for detail */}
+      <div className="rounded-2xl border border-[#d4e8dc] overflow-hidden">
+        <div className="bg-[#f0fdf7] border-b border-[#d4e8dc] px-3 py-2 flex items-center justify-between">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-[#5a7a6a]">States — click for detail</p>
+          <p className="text-[10px] text-[#5a7a6a]">{zoneRows.length} states</p>
+        </div>
+        <div className="overflow-y-auto" style={{ maxHeight:"360px" }}>
+          <table className="w-full text-xs">
+            <thead className="sticky top-0 bg-[#f0fdf7] border-b border-[#d4e8dc] z-10">
+              <tr>
+                {["#","State","GIFSHIP","BHCPF","IGR (₦M)","Complaints","Resolution","CEmONC","FFP","FSSHIP","Status"].map(h => (
+                  <th key={h} className="px-2.5 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-[#5a7a6a] whitespace-nowrap">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {zoneRows.map((row, i) => (
+                <tr key={row.state} onClick={() => setSelectedState(row.state)}
+                  className="border-b border-[#e8f5ee] hover:bg-[#f0fdf7] transition-colors cursor-pointer">
+                  <td className="px-2.5 py-2 text-[#5a7a6a] font-bold">{i+1}</td>
+                  <td className="px-2.5 py-2 font-bold text-[#145c3f] whitespace-nowrap">
+                    {row.state} <ChevronRight className="w-3 h-3 inline text-[#25a872] opacity-60" />
+                  </td>
+                  <td className="px-2.5 py-2 text-slate-700 font-semibold">{fmt(row.gifship)}</td>
+                  <td className="px-2.5 py-2 text-slate-600">{fmt(row.bhcpf)}</td>
+                  <td className="px-2.5 py-2 font-bold" style={{ color: row.igr>50?"#16a34a":row.igr>15?"#d97706":"#64748b" }}>₦{row.igr}M</td>
+                  <td className="px-2.5 py-2 text-slate-500">{row.complaints.toLocaleString()}</td>
+                  <td className="px-2.5 py-2">
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-10 h-1.5 rounded-full bg-[#e8f5ee] overflow-hidden">
+                        <div className="h-full rounded-full" style={{ width:`${row.resolution}%`, backgroundColor:resColor(row.resolution) }} />
+                      </div>
+                      <span className="font-bold text-[10px]" style={{ color:resColor(row.resolution) }}>{row.resolution}%</span>
+                    </div>
+                  </td>
+                  <td className="px-2.5 py-2 text-slate-500">{row.cemonc.toLocaleString()}</td>
+                  <td className="px-2.5 py-2 text-slate-500">{fmt(row.ffp)}</td>
+                  <td className="px-2.5 py-2 text-slate-500">{fmt(row.fsship)}</td>
+                  <td className="px-2.5 py-2">
+                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${row.status==="Active"?"bg-emerald-100 text-emerald-700":"bg-amber-100 text-amber-700"}`}>{row.status}</span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </ModalShell>
+  );
+}
+
+// ─── Top12IGRDrillModal — zone tabs + state IGR breakdown ────────────────────
+function Top12IGRDrillModal({ year, stateTable, initialZone, onClose }: {
+  year: string; stateTable: StateRow[]; initialZone?: string; onClose: () => void;
+}) {
+  const [activeZone, setActiveZone] = React.useState(initialZone || "All");
+  const [selectedState, setSelectedState] = React.useState<string | null>(null);
+
+  const displayRows = React.useMemo(() => {
+    let rows = stateTable.filter(s => s.igr > 0);
+    if (activeZone !== "All") rows = rows.filter(r => r.zone === activeZone);
+    return rows.sort((a,b) => b.igr - a.igr).slice(0, 12);
+  }, [stateTable, activeZone]);
+
+  const maxIGR = displayRows[0]?.igr || 1;
+
+  if (selectedState) {
+    return <StateDetailModal state={selectedState} year={year} stateTable={stateTable} onClose={() => setSelectedState(null)} />;
+  }
+
+  return (
+    <ModalShell title={`Top States by IGR — ${year}`}
+      subtitle={<span className="text-[10px] text-[#5a7a6a]">Click a state for full breakdown</span>}
+      onClose={onClose}>
+      {/* Zone tabs */}
+      <div className="flex items-center gap-1 p-1 rounded-xl bg-[#e8f5ee] border border-[#d4e8dc] w-fit flex-wrap">
+        {["All", ...ZONES].map(z => (
+          <button key={z} onClick={() => setActiveZone(z)}
+            className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all ${
+              activeZone === z ? "bg-[#145c3f] text-white shadow-sm" : "text-[#5a7a6a] hover:text-[#145c3f]"
+            }`}
+          >{z === "All" ? "All Zones" : z.split(" ")[0] + " " + z.split(" ")[1]}</button>
+        ))}
+      </div>
+
+      {/* Bar chart */}
+      <div className="h-64">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={displayRows} layout="vertical" barSize={12} margin={{ left:8, right:24 }}>
+            <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e8f5ee" />
+            <XAxis type="number" tick={{ fontSize:10, fill:"#5a7a6a" }} axisLine={false} tickLine={false} tickFormatter={v=>`₦${v}M`} />
+            <YAxis type="category" dataKey="state" tick={{ fontSize:11, fill:"#334155", fontWeight:600 }} axisLine={false} tickLine={false} width={64} />
+            <RTooltip contentStyle={{ background:"#fff", border:"1px solid #d4e8dc", borderRadius:12, fontSize:12 }}
+              formatter={(v:number)=>[`₦${v}M`,"IGR"]} />
+            <Bar dataKey="igr" radius={[0,6,6,0]} cursor="pointer"
+              onClick={(d:any) => setSelectedState(d.state)}>
+              {displayRows.map(e => <Cell key={e.state} fill={ZONE_COLORS[e.zone]} fillOpacity={0.85} />)}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* State cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+        {displayRows.map(s => {
+          const col = ZONE_COLORS[s.zone];
+          const pct = Math.round((s.igr / maxIGR) * 100);
+          return (
+            <button key={s.state} onClick={() => setSelectedState(s.state)}
+              className="p-3 rounded-2xl border bg-white hover:shadow-md hover:-translate-y-0.5 transition-all text-left group"
+              style={{ borderColor: col+"40" }}>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[10px] font-bold text-slate-700">{s.state}</span>
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ backgroundColor:col+"18", color:col }}>{s.zone.split(" ")[0]}</span>
+              </div>
+              <p className="text-sm font-black" style={{ color:col }}>₦{s.igr}M</p>
+              <div className="mt-1.5 h-1 rounded-full bg-[#e8f5ee] overflow-hidden">
+                <div className="h-full rounded-full" style={{ width:`${pct}%`, backgroundColor:col }} />
+              </div>
+              <p className="text-[9px] text-[#25a872] font-semibold mt-1 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                View detail <ChevronRight className="w-3 h-3" />
+              </p>
+            </button>
+          );
+        })}
+      </div>
+    </ModalShell>
+  );
+}
+
+// ─── IGRByZoneDrillModal — zone donut → zone detail → state detail ────────────
+function IGRByZoneDrillModal({ year, stateTable, initialZone, onClose }: {
+  year: string; stateTable: StateRow[]; initialZone?: string; onClose: () => void;
+}) {
+  const [selectedZone, setSelectedZone] = React.useState<string | null>(initialZone || null);
+  const [selectedState, setSelectedState] = React.useState<string | null>(null);
+
+  const zoneIGR = React.useMemo(() => {
+    const map: Record<string,number> = {};
+    stateTable.forEach(s => { map[s.zone] = (map[s.zone]||0) + s.igr; });
+    const total = Object.values(map).reduce((a,b)=>a+b,0);
+    return ZONES.map(z => ({ zone:z, igr: map[z]||0, pct: total>0?Math.round(((map[z]||0)/total)*1000)/10:0 }))
+      .sort((a,b)=>b.igr-a.igr);
+  }, [stateTable]);
+
+  const zoneStates = React.useMemo(() =>
+    selectedZone ? stateTable.filter(r=>r.zone===selectedZone).sort((a,b)=>b.igr-a.igr) : [],
+    [stateTable, selectedZone]
+  );
+
+  if (selectedState) {
+    return <StateDetailModal state={selectedState} year={year} stateTable={stateTable} onClose={() => setSelectedState(null)} />;
+  }
+
+  if (selectedZone) {
+    const col = ZONE_COLORS[selectedZone];
+    const zoneTotal = zoneStates.reduce((s,r)=>s+r.igr,0);
+    return (
+      <ModalShell title={`${selectedZone} — IGR Breakdown (${year})`}
+        subtitle={<span className="text-[10px] font-bold" style={{ color:col }}>₦{zoneTotal.toFixed(1)}M total · click state for detail</span>}
+        onClose={onClose} onBack={() => setSelectedZone(null)}>
+        <div className="h-52">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={zoneStates} layout="vertical" barSize={10} margin={{ left:8, right:24 }}>
+              <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e8f5ee" />
+              <XAxis type="number" tick={{ fontSize:10, fill:"#5a7a6a" }} axisLine={false} tickLine={false} tickFormatter={v=>`₦${v}M`} />
+              <YAxis type="category" dataKey="state" tick={{ fontSize:10, fill:"#334155", fontWeight:600 }} axisLine={false} tickLine={false} width={72} />
+              <RTooltip contentStyle={{ background:"#fff", border:"1px solid #d4e8dc", borderRadius:12, fontSize:12 }}
+                formatter={(v:number)=>[`₦${v}M`,"IGR"]} />
+              <Bar dataKey="igr" radius={[0,6,6,0]} cursor="pointer"
+                onClick={(d:any) => setSelectedState(d.state)}>
+                {zoneStates.map(s => <Cell key={s.state} fill={col} fillOpacity={0.85} />)}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+        <div className="rounded-2xl border border-[#d4e8dc] overflow-hidden">
+          <div className="bg-[#f0fdf7] border-b border-[#d4e8dc] px-3 py-2">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-[#5a7a6a]">States — click for full metrics</p>
+          </div>
+          <div className="overflow-y-auto" style={{ maxHeight:"280px" }}>
+            <table className="w-full text-xs">
+              <thead className="sticky top-0 bg-[#f0fdf7] border-b border-[#d4e8dc] z-10">
+                <tr>
+                  {["#","State","GIFSHIP","BHCPF","IGR (₦M)","Complaints","Resolution","CEmONC","FFP","FSSHIP","Status"].map(h => (
+                    <th key={h} className="px-2.5 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-[#5a7a6a] whitespace-nowrap">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {zoneStates.map((row, i) => (
+                  <tr key={row.state} onClick={() => setSelectedState(row.state)}
+                    className="border-b border-[#e8f5ee] hover:bg-[#f0fdf7] transition-colors cursor-pointer">
+                    <td className="px-2.5 py-2 text-[#5a7a6a] font-bold">{i+1}</td>
+                    <td className="px-2.5 py-2 font-bold text-[#145c3f] whitespace-nowrap">
+                      {row.state} <ChevronRight className="w-3 h-3 inline text-[#25a872] opacity-60" />
+                    </td>
+                    <td className="px-2.5 py-2 text-slate-700 font-semibold">{fmt(row.gifship)}</td>
+                    <td className="px-2.5 py-2 text-slate-600">{fmt(row.bhcpf)}</td>
+                    <td className="px-2.5 py-2 font-bold" style={{ color:row.igr>50?"#16a34a":row.igr>15?"#d97706":"#64748b" }}>₦{row.igr}M</td>
+                    <td className="px-2.5 py-2 text-slate-500">{row.complaints.toLocaleString()}</td>
+                    <td className="px-2.5 py-2">
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-10 h-1.5 rounded-full bg-[#e8f5ee] overflow-hidden">
+                          <div className="h-full rounded-full" style={{ width:`${row.resolution}%`, backgroundColor:resColor(row.resolution) }} />
+                        </div>
+                        <span className="font-bold text-[10px]" style={{ color:resColor(row.resolution) }}>{row.resolution}%</span>
+                      </div>
+                    </td>
+                    <td className="px-2.5 py-2 text-slate-500">{row.cemonc.toLocaleString()}</td>
+                    <td className="px-2.5 py-2 text-slate-500">{fmt(row.ffp)}</td>
+                    <td className="px-2.5 py-2 text-slate-500">{fmt(row.fsship)}</td>
+                    <td className="px-2.5 py-2">
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${row.status==="Active"?"bg-emerald-100 text-emerald-700":"bg-amber-100 text-amber-700"}`}>{row.status}</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </ModalShell>
+    );
+  }
+
+  // Zone overview
+  const totalIGR = zoneIGR.reduce((s,z)=>s+z.igr,0);
+  return (
+    <ModalShell title={`IGR by Zone — ${year}`}
+      subtitle={<span className="text-[10px] text-[#5a7a6a]">Click a zone for state breakdown</span>}
+      onClose={onClose}>
+      <div className="h-52">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={zoneIGR} barSize={36}>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e8f5ee" />
+            <XAxis dataKey="zone" tick={{ fontSize:9, fill:"#5a7a6a", fontWeight:700 }} axisLine={false} tickLine={false}
+              tickFormatter={z => z.split(" ")[0] + " " + z.split(" ")[1]} />
+            <YAxis tick={{ fontSize:10, fill:"#5a7a6a" }} axisLine={false} tickLine={false} tickFormatter={v=>`₦${v}M`} />
+            <RTooltip contentStyle={{ background:"#fff", border:"1px solid #d4e8dc", borderRadius:12, fontSize:12 }}
+              formatter={(v:number)=>[`₦${v}M`,"IGR"]} />
+            <Bar dataKey="igr" radius={[8,8,0,0]} cursor="pointer"
+              onClick={(d:any) => setSelectedZone(d.zone)}>
+              {zoneIGR.map(z => <Cell key={z.zone} fill={ZONE_COLORS[z.zone]} fillOpacity={0.85} />)}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        {zoneIGR.map(z => {
+          const col = ZONE_COLORS[z.zone];
+          return (
+            <button key={z.zone} onClick={() => setSelectedZone(z.zone)}
+              className="p-4 rounded-2xl border bg-white hover:shadow-md hover:-translate-y-0.5 transition-all text-left group"
+              style={{ borderColor: col+"40" }}>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-bold text-[#5a7a6a] leading-tight">{z.zone}</span>
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ backgroundColor:col+"18", color:col }}>{z.pct}%</span>
+              </div>
+              <p className="text-base font-black text-slate-900">₦{z.igr.toFixed(1)}M</p>
+              <div className="mt-2 h-1 rounded-full bg-[#e8f5ee] overflow-hidden">
+                <div className="h-full rounded-full" style={{ width:`${(z.igr/totalIGR)*100}%`, backgroundColor:col }} />
+              </div>
+              <p className="text-[10px] font-semibold mt-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity" style={{ color:col }}>
+                View states <ChevronRight className="w-3 h-3" />
+              </p>
+            </button>
+          );
+        })}
+      </div>
+    </ModalShell>
+  );
+}
+
+// ─── ComplaintDrillModal — top complaints → state detail ─────────────────────
+function ComplaintDrillModal({ year, stateTable, onClose }: {
+  year: string; stateTable: StateRow[]; onClose: () => void;
+}) {
+  const [selectedState, setSelectedState] = React.useState<string | null>(null);
+  const [zoneFilter, setZoneFilter] = React.useState("All");
+
+  const rows = React.useMemo(() => {
+    let t = stateTable.filter(s => s.complaints > 0);
+    if (zoneFilter !== "All") t = t.filter(r => r.zone === zoneFilter);
+    return t.sort((a,b) => b.complaints - a.complaints).slice(0, 10);
+  }, [stateTable, zoneFilter]);
+
+  if (selectedState) {
+    return <StateDetailModal state={selectedState} year={year} stateTable={stateTable} onClose={() => setSelectedState(null)} />;
+  }
+
+  return (
+    <ModalShell title={`Top Complaint States — ${year}`}
+      subtitle={<span className="text-[10px] text-[#5a7a6a]">Click a state for full breakdown</span>}
+      onClose={onClose}>
+      {/* Zone filter */}
+      <div className="flex items-center gap-1 p-1 rounded-xl bg-[#e8f5ee] border border-[#d4e8dc] w-fit flex-wrap">
+        {["All", ...ZONES].map(z => (
+          <button key={z} onClick={() => setZoneFilter(z)}
+            className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all ${
+              zoneFilter === z ? "bg-[#145c3f] text-white shadow-sm" : "text-[#5a7a6a] hover:text-[#145c3f]"
+            }`}
+          >{z === "All" ? "All Zones" : z.split(" ")[0] + " " + z.split(" ")[1]}</button>
+        ))}
+      </div>
+
+      {/* Bar chart */}
+      <div className="h-64">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={rows} layout="vertical" barSize={12} margin={{ left:8, right:16 }}>
+            <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e8f5ee" />
+            <XAxis type="number" tick={{ fontSize:10, fill:"#5a7a6a" }} axisLine={false} tickLine={false} />
+            <YAxis type="category" dataKey="state" tick={{ fontSize:11, fill:"#334155", fontWeight:600 }} axisLine={false} tickLine={false} width={60} />
+            <RTooltip contentStyle={{ background:"#fff", border:"1px solid #d4e8dc", borderRadius:12, fontSize:12 }}
+              formatter={(v:number,_:string,p:any)=>[`${v} complaints · ${p.payload.resolution}% resolved`, p.payload.state]} />
+            <Bar dataKey="complaints" radius={[0,6,6,0]} cursor="pointer"
+              onClick={(d:any) => setSelectedState(d.state)}>
+              {rows.map(b => <Cell key={b.state} fill={resColor(b.resolution)} fillOpacity={0.85} />)}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* State list */}
+      <div className="space-y-2">
+        {rows.map((s, i) => {
+          const col = ZONE_COLORS[s.zone];
+          return (
+            <button key={s.state} onClick={() => setSelectedState(s.state)}
+              className="w-full flex items-center gap-3 p-3 rounded-xl bg-[#f0fdf7] border border-[#d4e8dc] hover:border-[#25a872] hover:shadow-sm transition-all text-left group">
+              <span className="w-6 h-6 rounded-full bg-[#145c3f] text-white text-[10px] font-black flex items-center justify-center shrink-0">{i+1}</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-bold text-slate-800">{s.state}</p>
+                <p className="text-[10px]" style={{ color:col }}>{s.zone}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs font-bold text-slate-800">{s.complaints.toLocaleString()} complaints</p>
+                <p className="text-[10px] font-bold" style={{ color:resColor(s.resolution) }}>{s.resolution}% resolved</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-[#25a872] opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+            </button>
+          );
+        })}
+      </div>
+    </ModalShell>
+  );
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
-const FILTER_OPTIONS = ["All","IGR","GIFSHIP","BHCPF Lives","Complaints","Resolution Rate"];
+const SORT_OPTIONS = ["IGR","GIFSHIP","BHCPF Lives","Complaints","Resolution Rate"];
 
 export default function SDOPerformance() {
   const [year, setYear]       = React.useState<Year>("2025");
-  const [search, setSearch]   = React.useState("");
-  const [filter, setFilter]   = React.useState("All");
   const [drillKPI, setDrillKPI] = React.useState<string | null>(null);
+  // New modal states
+  const [showTop12IGR, setShowTop12IGR]     = React.useState(false);
+  const [showIGRByZone, setShowIGRByZone]   = React.useState(false);
+  const [showComplaints, setShowComplaints] = React.useState(false);
+  const [drillZone, setDrillZone]           = React.useState<string | null>(null);
+  const [drillState, setDrillState]         = React.useState<string | null>(null);
+  const [top12InitZone, setTop12InitZone]   = React.useState<string | undefined>(undefined);
+  const [igrZoneInit, setIgrZoneInit]       = React.useState<string | undefined>(undefined);
 
   const rows = YEAR_DATA[year];
   const d    = React.useMemo(() => computeData(rows), [rows]);
-
-  const filtered = React.useMemo(() => {
-    let t = [...d.stateTable];
-    if (search) t = t.filter(r => r.state.toLowerCase().includes(search.toLowerCase()) || r.zone.toLowerCase().includes(search.toLowerCase()));
-    switch (filter) {
-      case "IGR":             t.sort((a,b)=>b.igr-a.igr); break;
-      case "GIFSHIP":         t.sort((a,b)=>b.gifship-a.gifship); break;
-      case "BHCPF Lives":     t.sort((a,b)=>b.bhcpf-a.bhcpf); break;
-      case "Complaints":      t.sort((a,b)=>b.complaints-a.complaints); break;
-      case "Resolution Rate": t.sort((a,b)=>b.resolution-a.resolution); break;
-    }
-    return t;
-  }, [d, search, filter]);
 
   const igrTotal = `₦${(d.totalIGR/1000000).toFixed(1)}M`;
 
@@ -856,18 +1457,22 @@ export default function SDOPerformance() {
   ];
 
   const SPARKLINE_CARDS = [
-    { label:"Complaints",      value: d.totalCMP.toLocaleString(),   trend:+8.6,  up:true,  color:"#f87171", data:[620,710,780,840,920,1050,1180,1320,1450,1580,1720,d.totalCMP] },
-    { label:"Avg Resolution",  value:"82%",                          trend:+4.1,  up:true,  color:"#22c55e", data:[62,65,67,64,68,70,72,69,74,76,73,82] },
-    { label:"BHCPF Lives",     value: fmt(d.totalBHCPF),             trend:+21.3, up:true,  color:"#60a5fa", data:[82000,95000,108000,121000,138000,152000,168000,185000,201000,218000,234000,d.totalBHCPF] },
-    { label:"GIFSHIP",         value: d.totalGIF.toLocaleString(),   trend:+18.4, up:true,  color:"#a78bfa", data:[1800,2100,2400,2650,2900,3200,3500,3800,4100,4400,4700,d.totalGIF] },
+    { label:"Complaints",      kpi:"Total Complaints",     value: d.totalCMP.toLocaleString(),   trend:+8.6,  color:"#f87171", data:[620,710,780,840,920,1050,1180,1320,1450,1580,1720,d.totalCMP] },
+    { label:"Avg Resolution",  kpi:null,                   value:"82%",                          trend:+4.1,  color:"#22c55e", data:[62,65,67,64,68,70,72,69,74,76,73,82] },
+    { label:"BHCPF Lives",     kpi:"BHCPF Lives",          value: fmt(d.totalBHCPF),             trend:+21.3, color:"#60a5fa", data:[82000,95000,108000,121000,138000,152000,168000,185000,201000,218000,234000,d.totalBHCPF] },
+    { label:"GIFSHIP",         kpi:"GIFSHIP Enrolments",   value: d.totalGIF.toLocaleString(),   trend:+18.4, color:"#a78bfa", data:[1800,2100,2400,2650,2900,3200,3500,3800,4100,4400,4700,d.totalGIF] },
   ];
 
   const card = "rounded-2xl border border-[#d4e8dc] bg-white shadow-sm hover:shadow-md transition-all";
   const lbl  = "text-[10px] font-bold uppercase tracking-[0.15em] text-[#5a7a6a]";
 
-  // Determine which modal type to show
-  const isAnnualDrill = drillKPI ? drillKPI in KPI_ANNUAL_CONFIG : false;
+  const isAnnualDrill    = drillKPI ? drillKPI in KPI_ANNUAL_CONFIG : false;
   const isQuarterlyDrill = drillKPI ? drillKPI in KPI_QUARTERLY_CONFIG : false;
+
+  const closeAll = () => {
+    setDrillKPI(null); setShowTop12IGR(false); setShowIGRByZone(false);
+    setShowComplaints(false); setDrillZone(null); setDrillState(null);
+  };
 
   return (
     <>
@@ -879,13 +1484,28 @@ export default function SDOPerformance() {
       {/* ── All content above watermark ── */}
       <div className="relative z-10 space-y-6 pb-16">
 
-        {/* Drill-down modals */}
+        {/* ── All Modals ── */}
         <AnimatePresence>
           {drillKPI && isQuarterlyDrill && (
-            <QuarterlyDrillModal kpiLabel={drillKPI} data={rows} onClose={() => setDrillKPI(null)} />
+            <QuarterlyDrillModal kpiLabel={drillKPI} data={rows} onClose={closeAll} />
           )}
           {drillKPI && isAnnualDrill && (
-            <AnnualDrillModal kpiLabel={drillKPI} stateTable={d.stateTable} onClose={() => setDrillKPI(null)} />
+            <AnnualDrillModal kpiLabel={drillKPI} stateTable={d.stateTable} onClose={closeAll} />
+          )}
+          {showTop12IGR && (
+            <Top12IGRDrillModal year={year} stateTable={d.stateTable} initialZone={top12InitZone} onClose={closeAll} />
+          )}
+          {showIGRByZone && (
+            <IGRByZoneDrillModal year={year} stateTable={d.stateTable} initialZone={igrZoneInit} onClose={closeAll} />
+          )}
+          {showComplaints && (
+            <ComplaintDrillModal year={year} stateTable={d.stateTable} onClose={closeAll} />
+          )}
+          {drillZone && (
+            <ZoneDrillModal zone={drillZone} year={year} stateTable={d.stateTable} onClose={closeAll} />
+          )}
+          {drillState && (
+            <StateDetailModal state={drillState} year={year} stateTable={d.stateTable} onClose={closeAll} />
           )}
         </AnimatePresence>
 
@@ -903,45 +1523,49 @@ export default function SDOPerformance() {
           </div>
         </div>
 
-        {/* ── Data Insights (FIRST section) ── */}
+        {/* ── Data Insights ── */}
         <div>
           <p className={lbl + " mb-3"}>Data Insights — {year}</p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            {/* Top IGR */}
+            {/* Top IGR — clickable */}
             {(() => {
               const top = d.topIGR[0];
               return top ? (
-                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                <button onClick={() => { setTop12InitZone(undefined); setShowTop12IGR(true); }}
+                  className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-left hover:shadow-md hover:-translate-y-0.5 transition-all group">
                   <div className="flex items-center gap-2 mb-2">
                     <div className="w-7 h-7 rounded-xl bg-emerald-100 flex items-center justify-center">
                       <TrendingUp className="w-3.5 h-3.5 text-emerald-600" />
                     </div>
                     <span className="text-xs font-bold text-emerald-700">Top IGR Performer</span>
+                    <ChevronRight className="w-3.5 h-3.5 text-emerald-500 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
                   <p className="text-base font-black text-slate-900">{top.state} State</p>
                   <p className="text-[11px] text-slate-600 mt-1 leading-relaxed">
-                    Leads nationally with <span className="text-emerald-700 font-bold">₦{top.igr}M IGR</span> in {year}, accounting for the highest share of national revenue generation.
+                    Leads nationally with <span className="text-emerald-700 font-bold">₦{top.igr}M IGR</span> in {year}. Click to explore all states.
                   </p>
-                </div>
+                </button>
               ) : null;
             })()}
 
-            {/* Critical complaint flag */}
+            {/* Critical complaint flag — clickable */}
             {(() => {
               const flag = [...d.stateTable].filter(s=>s.complaints>100&&s.resolution<50)[0];
               return flag ? (
-                <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4">
+                <button onClick={() => setShowComplaints(true)}
+                  className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-left hover:shadow-md hover:-translate-y-0.5 transition-all group">
                   <div className="flex items-center gap-2 mb-2">
                     <div className="w-7 h-7 rounded-xl bg-rose-100 flex items-center justify-center">
                       <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
                     </div>
                     <span className="text-xs font-bold text-rose-700">Critical Flag · Urgent Action</span>
+                    <ChevronRight className="w-3.5 h-3.5 text-rose-400 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
                   <p className="text-base font-black text-slate-900">{flag.state} State</p>
                   <p className="text-[11px] text-slate-600 mt-1 leading-relaxed">
-                    <span className="text-rose-700 font-bold">{flag.resolution}% resolution rate</span> on <span className="font-bold text-slate-900">{flag.complaints.toLocaleString()} complaints</span>. Requires immediate SDO escalation.
+                    <span className="text-rose-700 font-bold">{flag.resolution}% resolution rate</span> on <span className="font-bold text-slate-900">{flag.complaints.toLocaleString()} complaints</span>. Click to view all.
                   </p>
-                </div>
+                </button>
               ) : (
                 <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
                   <div className="flex items-center gap-2 mb-2">
@@ -951,27 +1575,29 @@ export default function SDOPerformance() {
                     <span className="text-xs font-bold text-emerald-700">Strong Compliance</span>
                   </div>
                   <p className="text-base font-black text-slate-900">No Critical Flags</p>
-                  <p className="text-[11px] text-slate-600 mt-1">All states with high complaint volumes are maintaining acceptable resolution rates in {year}.</p>
+                  <p className="text-[11px] text-slate-600 mt-1">All states maintaining acceptable resolution rates in {year}.</p>
                 </div>
               );
             })()}
 
-            {/* Top GIFSHIP */}
+            {/* Top GIFSHIP — clickable */}
             {(() => {
               const top = [...d.stateTable].sort((a,b)=>b.gifship-a.gifship)[0];
               return top ? (
-                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                <button onClick={() => setDrillKPI("GIFSHIP Enrolments")}
+                  className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-left hover:shadow-md hover:-translate-y-0.5 transition-all group">
                   <div className="flex items-center gap-2 mb-2">
                     <div className="w-7 h-7 rounded-xl bg-amber-100 flex items-center justify-center">
                       <Star className="w-3.5 h-3.5 text-amber-600 fill-amber-600" />
                     </div>
                     <span className="text-xs font-bold text-amber-700">GIFSHIP Champion</span>
+                    <ChevronRight className="w-3.5 h-3.5 text-amber-500 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
                   <p className="text-base font-black text-slate-900">{top.state} State</p>
                   <p className="text-[11px] text-slate-600 mt-1 leading-relaxed">
-                    Highest GIFSHIP enrolments at <span className="text-amber-700 font-bold">{top.gifship.toLocaleString()}</span> with <span className="font-bold text-slate-900">₦{top.igr}M IGR</span> in {year}.
+                    <span className="text-amber-700 font-bold">{top.gifship.toLocaleString()}</span> enrolments · <span className="font-bold text-slate-900">₦{top.igr}M IGR</span> in {year}. Click to drill down.
                   </p>
-                </div>
+                </button>
               ) : null;
             })()}
           </div>
@@ -1002,49 +1628,81 @@ export default function SDOPerformance() {
         {/* ── Sparkline row ── */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {SPARKLINE_CARDS.map(s => (
-            <div key={s.label} className={card + " p-4"}>
+            <button key={s.label}
+              onClick={() => {
+                if (s.kpi && ALL_DRILL_LABELS.has(s.kpi)) setDrillKPI(s.kpi);
+                else if (s.label === "Complaints") setShowComplaints(true);
+              }}
+              className={card + " p-4 text-left group hover:-translate-y-0.5 transition-all"}>
               <div className="flex items-start justify-between mb-1">
                 <p className="text-[10px] text-[#5a7a6a] font-semibold uppercase tracking-wider leading-tight">{s.label}</p>
                 <span className="text-[10px] font-bold text-emerald-600">+{s.trend}%</span>
               </div>
               <p className="text-xl font-black text-slate-900 mb-1">{s.value}</p>
               <Sparkline data={s.data} color={s.color} />
-            </div>
+              <p className="text-[9px] text-[#25a872] font-semibold mt-1 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                Drill down <ChevronRight className="w-3 h-3" />
+              </p>
+            </button>
           ))}
         </div>
 
         {/* ── Bar + Donut ── */}
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+          {/* Top 12 IGR — clickable bars + zone tabs */}
           <div className={card + " xl:col-span-2 p-5"}>
-            <p className="text-sm font-bold text-slate-800 mb-1">Top 12 States by IGR</p>
-            <p className="text-[10px] text-[#5a7a6a] mb-4">Internally Generated Revenue — {year} (₦ Millions)</p>
-            <ResponsiveContainer width="100%" height={320}>
+            <div className="flex items-start justify-between mb-1">
+              <div>
+                <p className="text-sm font-bold text-slate-800">Top 12 States by IGR</p>
+                <p className="text-[10px] text-[#5a7a6a]">Internally Generated Revenue — {year} (₦ Millions) · click bar or zone tab</p>
+              </div>
+              <button onClick={() => { setTop12InitZone(undefined); setShowTop12IGR(true); }}
+                className="text-[10px] font-bold text-[#145c3f] px-2.5 py-1 rounded-lg bg-[#e8f5ee] hover:bg-[#d4e8dc] transition-colors flex items-center gap-1 shrink-0">
+                Expand <ChevronRight className="w-3 h-3" />
+              </button>
+            </div>
+            {/* Zone filter tabs */}
+            <div className="flex items-center gap-1 mt-2 mb-3 flex-wrap">
+              {Object.entries(ZONE_COLORS).map(([zone, color]) => (
+                <button key={zone} onClick={() => { setTop12InitZone(zone); setShowTop12IGR(true); }}
+                  className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border transition-all hover:shadow-sm hover:-translate-y-0.5"
+                  style={{ borderColor: color+"60", color, backgroundColor: color+"10" }}>
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor:color }} />
+                  {zone.split(" ")[0]}
+                </button>
+              ))}
+            </div>
+            <ResponsiveContainer width="100%" height={300}>
               <BarChart data={d.topIGR} layout="vertical" barSize={12} margin={{ left:8, right:24 }}>
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e8f5ee" />
                 <XAxis type="number" tick={{ fontSize:10, fill:"#5a7a6a" }} axisLine={false} tickLine={false} tickFormatter={v=>`₦${v}M`} />
                 <YAxis type="category" dataKey="state" tick={{ fontSize:11, fill:"#334155", fontWeight:600 }} axisLine={false} tickLine={false} width={64} />
                 <RTooltip contentStyle={{ background:"#fff", border:"1px solid #d4e8dc", borderRadius:12, fontSize:12 }} formatter={(v:number)=>[`₦${v}M`,"IGR"]} />
-                <Bar dataKey="igr" radius={[0,6,6,0]}>
+                <Bar dataKey="igr" radius={[0,6,6,0]} cursor="pointer"
+                  onClick={(data:any) => { setDrillState(data.state); }}>
                   {d.topIGR.map(e => <Cell key={e.state} fill={ZONE_COLORS[e.zone]} fillOpacity={0.85} />)}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
-            <div className="flex flex-wrap gap-3 mt-3">
-              {Object.entries(ZONE_COLORS).map(([zone,color]) => (
-                <span key={zone} className="flex items-center gap-1.5 text-[10px] text-[#5a7a6a]">
-                  <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor:color }} />{zone}
-                </span>
-              ))}
-            </div>
           </div>
 
+          {/* IGR by Zone donut — clickable */}
           <div className={card + " p-5 flex flex-col"}>
-            <p className="text-sm font-bold text-slate-800 mb-1">IGR by Zone</p>
-            <p className="text-[10px] text-[#5a7a6a] mb-3">{year} distribution</p>
+            <div className="flex items-start justify-between mb-1">
+              <div>
+                <p className="text-sm font-bold text-slate-800">IGR by Zone</p>
+                <p className="text-[10px] text-[#5a7a6a]">{year} distribution · click zone</p>
+              </div>
+              <button onClick={() => { setIgrZoneInit(undefined); setShowIGRByZone(true); }}
+                className="text-[10px] font-bold text-[#145c3f] px-2.5 py-1 rounded-lg bg-[#e8f5ee] hover:bg-[#d4e8dc] transition-colors flex items-center gap-1 shrink-0">
+                Expand <ChevronRight className="w-3 h-3" />
+              </button>
+            </div>
             <div className="flex-1 flex items-center justify-center">
               <ResponsiveContainer width="100%" height={200}>
                 <PieChart>
-                  <Pie data={d.donut} cx="50%" cy="50%" innerRadius={58} outerRadius={88} dataKey="value" paddingAngle={3} strokeWidth={0}>
+                  <Pie data={d.donut} cx="50%" cy="50%" innerRadius={58} outerRadius={88} dataKey="value" paddingAngle={3} strokeWidth={0}
+                    cursor="pointer" onClick={(data:any) => { setIgrZoneInit(data.name); setShowIGRByZone(true); }}>
                     {d.donut.map(dd => <Cell key={dd.name} fill={dd.color} fillOpacity={0.9} />)}
                   </Pie>
                   <DonutCenter total={igrTotal} />
@@ -1053,19 +1711,23 @@ export default function SDOPerformance() {
             </div>
             <div className="space-y-2 mt-2">
               {d.donut.map(dd => (
-                <div key={dd.name} className="flex items-center justify-between">
+                <button key={dd.name} onClick={() => { setIgrZoneInit(dd.name); setShowIGRByZone(true); }}
+                  className="w-full flex items-center justify-between hover:bg-[#f0fdf7] px-2 py-1 rounded-lg transition-colors group">
                   <div className="flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor:dd.color }} />
                     <span className="text-[11px] text-[#5a7a6a]">{dd.name}</span>
                   </div>
-                  <span className="text-[11px] font-bold text-slate-700">{dd.value}%</span>
-                </div>
+                  <div className="flex items-center gap-1">
+                    <span className="text-[11px] font-bold text-slate-700">{dd.value}%</span>
+                    <ChevronRight className="w-3 h-3 text-[#25a872] opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
+                </button>
               ))}
             </div>
           </div>
         </div>
 
-        {/* ── Zone cards ── */}
+        {/* ── Zone cards — clickable ── */}
         <div>
           <p className={lbl + " mb-3"}>Zone-Level Performance — {year}</p>
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
@@ -1073,11 +1735,15 @@ export default function SDOPerformance() {
               const pct = Math.round((z.gifship/z.gifshipMax)*100);
               const col = ZONE_COLORS[z.zone];
               return (
-                <div key={z.zone} className={card + " p-4"}>
+                <button key={z.zone} onClick={() => setDrillZone(z.zone)}
+                  className={card + " p-4 text-left group hover:-translate-y-0.5 transition-all"}>
                   <div className="flex items-center justify-between mb-3">
                     <span className="text-xs font-bold text-slate-800">{z.zone}</span>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border"
-                      style={{ backgroundColor:col+"18", color:col, borderColor:col+"40" }}>{z.igr}</span>
+                    <div className="flex items-center gap-1">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border"
+                        style={{ backgroundColor:col+"18", color:col, borderColor:col+"40" }}>{z.igr}</span>
+                      <ChevronRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity" style={{ color:col }} />
+                    </div>
                   </div>
                   <div className="space-y-2.5">
                     <div>
@@ -1098,95 +1764,37 @@ export default function SDOPerformance() {
                       </div>
                     </div>
                   </div>
-                </div>
+                  <p className="text-[9px] font-semibold mt-2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity" style={{ color:col }}>
+                    View states <ChevronRight className="w-3 h-3" />
+                  </p>
+                </button>
               );
             })}
           </div>
         </div>
 
-        {/* ── State table ── */}
+        {/* ── State Performance Table — with zone+state filter ── */}
         <div className="rounded-2xl border border-[#d4e8dc] bg-white shadow-sm overflow-hidden">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 border-b border-[#d4e8dc] bg-[#f0fdf7]">
-            <div>
-              <p className="text-sm font-bold text-slate-800">State Performance Table — {year}</p>
-              <p className="text-[10px] text-[#5a7a6a] mt-0.5">{filtered.length} states · sorted by {filter}</p>
-            </div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <div className="flex gap-1.5 flex-wrap">
-                {FILTER_OPTIONS.map(f => (
-                  <button key={f} onClick={() => setFilter(f)}
-                    className={`text-[10px] font-semibold px-2.5 py-1 rounded-full border transition-all ${
-                      filter===f ? "bg-[#145c3f] border-[#145c3f] text-white" : "border-[#c8e6d8] text-[#5a7a6a] hover:border-[#25a872] hover:text-[#145c3f]"
-                    }`}>{f}</button>
-                ))}
-              </div>
-              <div className="relative">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#5a7a6a]" />
-                <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search state..."
-                  className="pl-8 pr-3 h-8 w-40 rounded-xl bg-white border-2 border-[#1a7a52] text-xs text-slate-700 placeholder:text-slate-400 focus:outline-none focus:border-[#145c3f] focus:ring-2 focus:ring-[#25a872]/20 transition-all" />
-              </div>
-            </div>
+          <div className="p-4 border-b border-[#d4e8dc] bg-[#f0fdf7]">
+            <p className="text-sm font-bold text-slate-800">State Performance Table — {year}</p>
+            <p className="text-[10px] text-[#5a7a6a] mt-0.5">Filter by zone or state · click a row for full detail</p>
           </div>
-          <ScrollArea className="h-[420px]">
-            <table className="w-full text-xs">
-              <thead className="sticky top-0 z-10 bg-[#f0fdf7] border-b border-[#d4e8dc]">
-                <tr>
-                  {["State","Zone","GIFSHIP","BHCPF","IGR (₦M)","Complaints","Resolution","CEmONC","FFP","FSSHIP","Status"].map(h => (
-                    <th key={h} className="px-3 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-[#5a7a6a] whitespace-nowrap">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map(row => (
-                  <tr key={row.state}
-                    className={`border-b border-[#e8f5ee] transition-colors hover:bg-[#f0fdf7] ${row.state==="Enugu"?"bg-rose-50/60":""}`}>
-                    <td className="px-3 py-2.5 font-bold text-slate-800 whitespace-nowrap">
-                      <div className="flex items-center gap-1.5">
-                        {(row.igr > 50 || row.gifship > 2000) && <Star className="w-3 h-3 text-amber-500 fill-amber-500" />}
-                        {row.complaints > 200 && row.resolution < 50 && <AlertTriangle className="w-3 h-3 text-rose-500" />}
-                        {row.state}
-                      </div>
-                    </td>
-                    <td className="px-3 py-2.5">
-                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
-                        style={{ backgroundColor:ZONE_COLORS[row.zone]+"18", color:ZONE_COLORS[row.zone] }}>
-                        {row.zone.split(" ")[0]}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2.5 text-slate-700 font-semibold">{fmt(row.gifship)}</td>
-                    <td className="px-3 py-2.5 text-slate-600">{fmt(row.bhcpf)}</td>
-                    <td className="px-3 py-2.5 font-bold" style={{ color:row.igr>50?"#16a34a":row.igr>15?"#d97706":"#64748b" }}>
-                      ₦{row.igr}M
-                    </td>
-                    <td className="px-3 py-2.5 text-slate-500">{row.complaints.toLocaleString()}</td>
-                    <td className="px-3 py-2.5">
-                      <div className="flex items-center gap-2">
-                        <div className="w-14 h-1.5 rounded-full bg-[#e8f5ee] overflow-hidden">
-                          <div className="h-full rounded-full" style={{ width:`${row.resolution}%`, backgroundColor:resColor(row.resolution) }} />
-                        </div>
-                        <span className="font-bold text-[11px]" style={{ color:resColor(row.resolution) }}>{row.resolution}%</span>
-                      </div>
-                    </td>
-                    <td className="px-3 py-2.5 text-slate-500">{row.cemonc.toLocaleString()}</td>
-                    <td className="px-3 py-2.5 text-slate-500">{fmt(row.ffp)}</td>
-                    <td className="px-3 py-2.5 text-slate-500">{fmt(row.fsship)}</td>
-                    <td className="px-3 py-2.5">
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                        row.status==="Active" ? "bg-emerald-100 text-emerald-700 border border-emerald-200" : "bg-amber-100 text-amber-700 border border-amber-200"
-                      }`}>{row.status}</span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </ScrollArea>
+          <StateFilterTable rows={d.stateTable} year={year} onStateClick={row => setDrillState(row.state)} />
         </div>
 
         {/* ── Complaint management ── */}
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
           <div className={card + " p-5"}>
-            <p className="text-sm font-bold text-slate-800 mb-1">Top 10 States by Complaint Volume — {year}</p>
-            <p className="text-[10px] text-[#5a7a6a] mb-4">Bar colour = resolution rate</p>
+            <div className="flex items-start justify-between mb-1">
+              <div>
+                <p className="text-sm font-bold text-slate-800">Top 10 States by Complaint Volume — {year}</p>
+                <p className="text-[10px] text-[#5a7a6a]">Bar colour = resolution rate · click bar for detail</p>
+              </div>
+              <button onClick={() => setShowComplaints(true)}
+                className="text-[10px] font-bold text-[#145c3f] px-2.5 py-1 rounded-lg bg-[#e8f5ee] hover:bg-[#d4e8dc] transition-colors flex items-center gap-1 shrink-0">
+                Expand <ChevronRight className="w-3 h-3" />
+              </button>
+            </div>
             <ResponsiveContainer width="100%" height={280}>
               <BarChart data={d.complaintBars} layout="vertical" barSize={12} margin={{ left:8, right:16 }}>
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e8f5ee" />
@@ -1194,7 +1802,8 @@ export default function SDOPerformance() {
                 <YAxis type="category" dataKey="state" tick={{ fontSize:11, fill:"#334155", fontWeight:600 }} axisLine={false} tickLine={false} width={60} />
                 <RTooltip contentStyle={{ background:"#fff", border:"1px solid #d4e8dc", borderRadius:12, fontSize:12 }}
                   formatter={(v:number,_:string,p:any)=>[`${v} complaints · ${p.payload.resolution}% resolved`, p.payload.state]} />
-                <Bar dataKey="complaints" radius={[0,6,6,0]}>
+                <Bar dataKey="complaints" radius={[0,6,6,0]} cursor="pointer"
+                  onClick={(data:any) => setDrillState(data.state)}>
                   {d.complaintBars.map(b => <Cell key={b.state} fill={b.color} fillOpacity={0.85} />)}
                 </Bar>
               </BarChart>
