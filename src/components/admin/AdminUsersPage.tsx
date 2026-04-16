@@ -8,7 +8,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { usersApi, zonesApi, statesApi, departmentsApi, unitsApi, type AdminUser, type ZonalOffice, type StateOffice } from "@/lib/adminApi";
 import AdminModal from "./AdminModal";
 import { MODULE_CONFIG } from "@/src/access/moduleConfig";
-import AppSelect from "./AppSelect";
 
 const ROLES = ["state-officer", "zonal-director", "sdo", "hq-department", "dg-ceo", "admin"] as const;
 const ROLE_LABELS: Record<string, string> = {
@@ -212,18 +211,16 @@ export default function AdminUsersPage({ showOverview = false }: { showOverview?
           <input className="w-full pl-9 pr-3 h-10 rounded-xl border border-[#d4e8dc] bg-white text-sm placeholder:text-slate-400 focus:ring-2 focus:ring-[#25a872] outline-none transition-all"
             placeholder="Search name or staff ID..." value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} />
         </div>
-        <AppSelect
-          value={filterRole}
-          onValueChange={v => { setFilterRole(v === "__none__" ? "" : v); setPage(1); }}
-          options={ROLES.map(r => ({ value: r, label: ROLE_LABELS[r] }))}
-          placeholder="All Roles"
-        />
-        <AppSelect
-          value={filterZone}
-          onValueChange={v => { setFilterZone(v === "__none__" ? "" : v); setPage(1); }}
-          options={zones.map(z => ({ value: String(z.id), label: z.zonal_code }))}
-          placeholder="All Zones"
-        />
+        <select className="h-10 px-3 rounded-xl border border-[#d4e8dc] bg-white text-sm text-slate-700 focus:ring-2 focus:ring-[#25a872] outline-none"
+          value={filterRole} onChange={e => { setFilterRole(e.target.value); setPage(1); }}>
+          <option value="">All Roles</option>
+          {ROLES.map(r => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
+        </select>
+        <select className="h-10 px-3 rounded-xl border border-[#d4e8dc] bg-white text-sm text-slate-700 focus:ring-2 focus:ring-[#25a872] outline-none"
+          value={filterZone} onChange={e => { setFilterZone(e.target.value); setPage(1); }}>
+          <option value="">All Zones</option>
+          {zones.map(z => <option key={z.id} value={z.id}>{z.zonal_code}</option>)}
+        </select>
         <Button onClick={openCreate} className="bg-[#145c3f] hover:bg-[#0f3d2e] text-white rounded-xl h-10 gap-2 shadow-sm">
           <Plus className="w-4 h-4" /> Add User
         </Button>
@@ -306,55 +303,41 @@ export default function AdminUsersPage({ showOverview = false }: { showOverview?
               <input type="password" className={inputCls} placeholder="••••••••" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} required={modal === "create"} />
             </Field>
             <Field label="Role" required>
-              <AppSelect
-                value={form.role}
-                onValueChange={v => setForm(f => ({ ...f, role: v }))}
-                options={ROLES.map(r => ({ value: r, label: ROLE_LABELS[r] }))}
-                required
-              />
+              <select className={inputCls} value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))} required>
+                {ROLES.map(r => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
+              </select>
             </Field>
             {modal === "edit" && (
               <Field label="Status">
-                <AppSelect
-                  value={form.is_active ? "1" : "0"}
-                  onValueChange={v => setForm(f => ({ ...f, is_active: v === "1" }))}
-                  options={[{ value: "1", label: "Active" }, { value: "0", label: "Inactive" }]}
-                  required
-                />
+                <select className={inputCls} value={form.is_active ? "1" : "0"} onChange={e => setForm(f => ({ ...f, is_active: e.target.value === "1" }))}>
+                  <option value="1">Active</option>
+                  <option value="0">Inactive</option>
+                </select>
               </Field>
             )}
             <Field label="Zone">
-              <AppSelect
-                value={form.zone_id}
-                onValueChange={v => setForm(f => ({ ...f, zone_id: v === "__none__" ? "" : v, state_id: "" }))}
-                options={zones.map(z => ({ value: String(z.id), label: `${z.zonal_code} – ${z.description}` }))}
-                placeholder="— None —"
-              />
+              <select className={inputCls} value={form.zone_id} onChange={e => setForm(f => ({ ...f, zone_id: e.target.value, state_id: "" }))}>
+                <option value="">— None —</option>
+                {zones.map(z => <option key={z.id} value={z.id}>{z.zonal_code} – {z.description}</option>)}
+              </select>
             </Field>
             <Field label="State">
-              <AppSelect
-                value={form.state_id}
-                onValueChange={v => setForm(f => ({ ...f, state_id: v === "__none__" ? "" : v }))}
-                options={filteredStates.map(s => ({ value: String(s.id), label: `${s.code} – ${s.description}` }))}
-                placeholder="— None —"
-              />
+              <select className={inputCls} value={form.state_id} onChange={e => setForm(f => ({ ...f, state_id: e.target.value }))}>
+                <option value="">— None —</option>
+                {filteredStates.map(s => <option key={s.id} value={s.id}>{s.code} – {s.description}</option>)}
+              </select>
             </Field>
             <Field label="Department">
-              <AppSelect
-                value={form.department_id}
-                onValueChange={v => handleDeptChange(v === "__none__" ? "" : v)}
-                options={depts.map(d => ({ value: String(d.id), label: `${d.department_code} – ${d.name}` }))}
-                placeholder="— None —"
-              />
+              <select className={inputCls} value={form.department_id} onChange={e => handleDeptChange(e.target.value)}>
+                <option value="">— None —</option>
+                {depts.map(d => <option key={d.id} value={d.id}>{d.department_code} – {d.name}</option>)}
+              </select>
             </Field>
             <Field label="Unit">
-              <AppSelect
-                value={form.unit_id}
-                onValueChange={v => setForm(f => ({ ...f, unit_id: v === "__none__" ? "" : v }))}
-                options={formUnits.map(u => ({ value: String(u.id), label: `${u.unit_code} – ${u.name}` }))}
-                placeholder="— None —"
-                disabled={!form.department_id}
-              />
+              <select className={inputCls} value={form.unit_id} onChange={e => setForm(f => ({ ...f, unit_id: e.target.value }))} disabled={!form.department_id}>
+                <option value="">— None —</option>
+                {formUnits.map(u => <option key={u.id} value={u.id}>{u.unit_code} – {u.name}</option>)}
+              </select>
               {!form.department_id && <p className="text-[10px] text-slate-400 mt-1">Select a department first</p>}
             </Field>
           </div>

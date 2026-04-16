@@ -6,7 +6,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { unitsApi, departmentsApi, type Unit, type Department } from "@/lib/adminApi";
 import AdminModal from "./AdminModal";
-import AppSelect from "./AppSelect";
 
 const inputCls = "w-full pl-3 pr-3 h-11 rounded-xl border border-[#d4e8dc] bg-[#f4f7f5] text-sm text-slate-800 placeholder:text-slate-400 focus:ring-2 focus:ring-[#25a872] focus:border-[#25a872] outline-none transition-all";
 
@@ -55,12 +54,11 @@ export default function AdminUnitsPage() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-3 items-center justify-between">
-        <AppSelect
-          value={filterDept}
-          onValueChange={v => setFilterDept(v === "__none__" ? "" : v)}
-          options={depts.map(d => ({ value: String(d.id), label: `${d.department_code} – ${d.name}` }))}
-          placeholder="All Departments"
-        />
+        <select className="h-10 px-3 rounded-xl border border-[#d4e8dc] bg-white text-sm text-slate-700 focus:ring-2 focus:ring-[#25a872] outline-none"
+          value={filterDept} onChange={e => setFilterDept(e.target.value)}>
+          <option value="">All Departments</option>
+          {depts.map(d => <option key={d.id} value={d.id}>{d.department_code} – {d.name}</option>)}
+        </select>
         <Button onClick={openCreate} className="bg-[#145c3f] hover:bg-[#0f3d2e] text-white rounded-xl h-10 gap-2 shadow-sm">
           <Plus className="w-4 h-4" /> Add Unit
         </Button>
@@ -110,13 +108,10 @@ export default function AdminUnitsPage() {
           </div>
           <div>
             <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">Department <span className="text-rose-500">*</span></label>
-            <AppSelect
-              value={form.department_id}
-              onValueChange={v => setForm(f => ({ ...f, department_id: v === "__none__" ? "" : v }))}
-              options={depts.map(d => ({ value: String(d.id), label: `${d.department_code} – ${d.name}` }))}
-              placeholder="— Select Department —"
-              required
-            />
+            <select className={inputCls} value={form.department_id} onChange={e => setForm(f => ({ ...f, department_id: e.target.value }))} required>
+              <option value="">— Select Department —</option>
+              {depts.map(d => <option key={d.id} value={d.id}>{d.department_code} – {d.name}</option>)}
+            </select>
           </div>
           <div>
             <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">Description</label>
