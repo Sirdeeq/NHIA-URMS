@@ -1,11 +1,11 @@
 import * as React from "react";
-import { Plus, Pencil, Trash2, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, ChevronLeft, ChevronRight, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { usersApi, zonesApi, statesApi, type AdminUser, type ZonalOffice, type StateOffice } from "@/lib/adminApi";
+import { usersApi, zonesApi, statesApi, departmentsApi, unitsApi, type AdminUser, type ZonalOffice, type StateOffice } from "@/lib/adminApi";
 import AdminModal from "./AdminModal";
 
 const ROLES = ["state-officer", "zonal-director", "sdo", "hq-department", "dg-ceo", "admin"] as const;
@@ -23,9 +23,9 @@ const ROLE_COLORS: Record<string, string> = {
 };
 
 const inputCls = "w-full pl-3 pr-3 h-11 rounded-xl border border-[#d4e8dc] bg-[#f4f7f5] text-sm text-slate-800 placeholder:text-slate-400 focus:ring-2 focus:ring-[#25a872] focus:border-[#25a872] outline-none transition-all";
-const EMPTY = { name: "", staff_id: "", email: "", password: "", role: "state-officer", zone_id: "", state_id: "", is_active: true };
+const EMPTY = { name: "", email: "", password: "", role: "state-officer", zone_id: "", state_id: "", is_active: true };
 
-export default function AdminUsersPage() {
+export default function AdminUsersPage({ showOverview = false }: { showOverview?: boolean }) {
   const [users, setUsers] = React.useState<AdminUser[]>([]);
   const [zones, setZones] = React.useState<ZonalOffice[]>([]);
   const [states, setStates] = React.useState<StateOffice[]>([]);
@@ -40,6 +40,24 @@ export default function AdminUsersPage() {
   const [editing, setEditing] = React.useState<AdminUser | null>(null);
   const [form, setForm] = React.useState({ ...EMPTY });
   const [saving, setSaving] = React.useState(false);
+
+  // Overview stats
+  const [stats, setStats] = React.useState<{ label: string; value: number; tint: string; iconColor: string; icon: React.ReactNode }[]>([]);
+
+  React.useEffect(() => {
+    if (!showOverview) return;
+    Promise.allSettled([
+      usersApi.list(), zonesApi.list(), statesApi.list(), departmentsApi.list(), unitsApi.list(),
+    ]).then(([u, z, s, d, un]) => {
+      setStats([
+        { label: "Total Users",   value: u.status  === "fulfilled" ? u.value.total        : 0, tint: "bg-[#e8f5ee] border-[#d4e8dc]", iconColor: "text-[#145c3f]", icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> },
+        { label: "Zonal Offices", value: z.status  === "fulfilled" ? z.value.data.length  : 0, tint: "bg-blue-50 border-blue-100",    iconColor: "text-blue-600",  icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg> },
+        { label: "State Offices", value: s.status  === "fulfilled" ? s.value.data.length  : 0, tint: "bg-amber-50 border-amber-100",  iconColor: "text-amber-600", icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg> },
+        { label: "Departments",   value: d.status  === "fulfilled" ? d.value.data.length  : 0, tint: "bg-purple-50 border-purple-100",iconColor: "text-purple-600",icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg> },
+        { label: "Units",         value: un.status === "fulfilled" ? un.value.data.length : 0, tint: "bg-rose-50 border-rose-100",    iconColor: "text-rose-600",  icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> },
+      ]);
+    });
+  }, [showOverview]);
 
   const load = React.useCallback(async () => {
     setLoading(true);
@@ -61,14 +79,14 @@ export default function AdminUsersPage() {
   const openCreate = () => { setForm({ ...EMPTY }); setEditing(null); setModal("create"); };
   const openEdit = (u: AdminUser) => {
     setEditing(u);
-    setForm({ name: u.name, staff_id: u.staff_id, email: u.email || "", password: "", role: u.role, zone_id: String(u.zone_id || ""), state_id: String(u.state_id || ""), is_active: u.is_active });
+    setForm({ name: u.name, email: u.email || "", password: "", role: u.role, zone_id: String(u.zone_id || ""), state_id: String(u.state_id || ""), is_active: u.is_active });
     setModal("edit");
   };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault(); setSaving(true);
     try {
-      const payload: any = { name: form.name, staff_id: form.staff_id, email: form.email || undefined, role: form.role, zone_id: form.zone_id ? Number(form.zone_id) : undefined, state_id: form.state_id ? Number(form.state_id) : undefined, is_active: form.is_active };
+      const payload: any = { name: form.name, email: form.email || undefined, role: form.role, zone_id: form.zone_id ? Number(form.zone_id) : undefined, state_id: form.state_id ? Number(form.state_id) : undefined, is_active: form.is_active };
       if (form.password) payload.password = form.password;
       if (modal === "create") { if (!form.password) { toast.error("Password required"); setSaving(false); return; } await usersApi.create(payload); toast.success("User created"); }
       else if (editing) { await usersApi.update(editing.id, payload); toast.success("User updated"); }
@@ -85,6 +103,23 @@ export default function AdminUsersPage() {
 
   return (
     <div className="space-y-4">
+      {/* Overview stats */}
+      {showOverview && stats.length > 0 && (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-2">
+          {stats.map(s => (
+            <div key={s.label} className={`${s.tint} rounded-2xl p-5 border shadow-sm hover:shadow-md transition-all`}>
+              <div className="flex items-start justify-between mb-4">
+                <div className={`w-10 h-10 rounded-xl bg-white/70 flex items-center justify-center shadow-sm ${s.iconColor}`}>
+                  {s.icon}
+                </div>
+                <TrendingUp className="w-3.5 h-3.5 text-slate-300" />
+              </div>
+              <p className="text-3xl font-black text-slate-900 tracking-tight">{s.value}</p>
+              <p className="text-sm font-semibold text-slate-700 mt-1">{s.label}</p>
+            </div>
+          ))}
+        </div>
+      )}
       {/* Toolbar */}
       <div className="flex flex-wrap gap-3 items-center">
         <div className="relative flex-1 min-w-[180px]">
@@ -169,7 +204,9 @@ export default function AdminUsersPage() {
       <AdminModal title={modal === "create" ? "Add New User" : "Edit User"} open={modal !== null} onClose={() => setModal(null)}>
         <form onSubmit={handleSave} className="space-y-4">
           <Field label="Full Name" required><input className={inputCls} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required /></Field>
-          <Field label="Staff ID" required><input className={inputCls} value={form.staff_id} onChange={e => setForm(f => ({ ...f, staff_id: e.target.value }))} required disabled={modal === "edit"} /></Field>
+          {modal === "create" && (
+            <p className="text-xs text-slate-400 -mt-2">Staff ID will be auto-generated based on role (e.g. SO-0001, ZD-0001)</p>
+          )}
           <Field label="Email"><input type="email" className={inputCls} value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} /></Field>
           <Field label={modal === "create" ? "Password" : "New Password (leave blank to keep)"} required={modal === "create"}>
             <input type="password" className={inputCls} value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} required={modal === "create"} />

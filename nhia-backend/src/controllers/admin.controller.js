@@ -58,22 +58,39 @@ const getUser = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+// Role → Staff ID prefix map
+const ROLE_PREFIX = {
+  "admin":          "ADMIN",
+  "state-officer":  "SO",
+  "zonal-director": "ZD",
+  "sdo":            "SDO",
+  "hq-department":  "HQ",
+  "dg-ceo":         "DG",
+};
+
+const generateStaffId = async (role) => {
+  const prefix = ROLE_PREFIX[role] || "USR";
+  const count = await User.count({ where: { role } });
+  return `${prefix}-${String(count + 1).padStart(4, "0")}`;
+};
+
 const createUser = async (req, res, next) => {
   try {
-    const { name, staff_id, email, password, role, zone_id, state_id } = req.body;
-    if (!name || !staff_id || !password || !role) {
-      return res.status(400).json({ success: false, message: "name, staff_id, password, role required" });
+    const { name, email, password, role, zone_id, state_id } = req.body;
+    if (!name || !password || !role) {
+      return res.status(400).json({ success: false, message: "name, password, role required" });
     }
     if (!ROLES.includes(role)) {
       return res.status(400).json({ success: false, message: `Invalid role. Valid: ${ROLES.join(", ")}` });
     }
+    const staff_id = await generateStaffId(role);
     const hashed = await bcrypt.hash(password, 12);
     const user = await User.create({ name, staff_id, email, password: hashed, role, zone_id, state_id });
     const { password: _pw, ...data } = user.toJSON();
     res.status(201).json({ success: true, data });
   } catch (err) {
     if (err.name === "SequelizeUniqueConstraintError") {
-      return res.status(409).json({ success: false, message: "staff_id or email already exists" });
+      return res.status(409).json({ success: false, message: "email already exists" });
     }
     next(err);
   }
@@ -215,14 +232,8 @@ const deleteState = async (req, res, next) => {
 
 const listDepartments = async (req, res, next) => {
   try {
-    const where = {};
-    if (req.query.state_id) where.state_id = req.query.state_id;
     const depts = await Department.findAll({
-      where,
-      include: [
-        { association: "units", attributes: ["id", "unit_code", "name"] },
-        { association: "state", attributes: ["id", "code", "description"] },
-      ],
+      include: [{ association: "units", attributes: ["id", "unit_code", "name"] }],
       order: [["department_code", "ASC"]],
     });
     res.json({ success: true, data: depts });
@@ -231,10 +242,14 @@ const listDepartments = async (req, res, next) => {
 
 const createDepartment = async (req, res, next) => {
   try {
-    const { department_code, name, description, state_id } = req.body;
-    if (!department_code || !name || !state_id) {
-      return res.status(400).json({ success: false, message: "department_code, name, state_id required" });
-    }    const dept = await Department.create({ department_code, name, description, state_id });
+    const { name, description } = req.body;
+    if (!name) {
+      return res.status(400).json({ success: false, message: "name is required" });
+    }
+    // Auto-generate: DEPT-001, DEPT-002, ...
+    const count = await Department.count();
+    const department_code = `DEPT-${String(count + 1).padStart(3, "0")}`;
+    const dept = await Department.create({ department_code, name, description });
     res.status(201).json({ success: true, data: dept });
   } catch (err) {
     if (err.name === "SequelizeUniqueConstraintError") {
@@ -281,10 +296,13 @@ const listUnits = async (req, res, next) => {
 
 const createUnit = async (req, res, next) => {
   try {
-    const { unit_code, name, description, department_id } = req.body;
-    if (!unit_code || !name || !department_id) {
-      return res.status(400).json({ success: false, message: "unit_code, name, department_id required" });
+    const { name, description, department_id } = req.body;
+    if (!name || !department_id) {
+      return res.status(400).json({ success: false, message: "name and department_id required" });
     }
+    // Auto-generate: UNIT-001, UNIT-002, ...
+    const count = await Unit.count();
+    const unit_code = `UNIT-${String(count + 1).padStart(3, "0")}`;
     const unit = await Unit.create({ unit_code, name, description, department_id });
     res.status(201).json({ success: true, data: unit });
   } catch (err) {

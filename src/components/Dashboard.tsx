@@ -375,7 +375,7 @@ function AuditPanel() {
 
 // ─── Main Dashboard ───────────────────────────────────────────────────────────
 export default function Dashboard({ role, onLogout }: DashboardProps) {
-  const [view, setView] = React.useState<View>(role === "admin" ? "settings" : "home");
+  const [view, setView] = React.useState<View>(role === "admin" ? "home" : "home");
   const [sidebarOpen, setSidebarOpen] = React.useState(true);
   const [selectedReportRef, setSelectedReportRef] = React.useState<string | null>(null);
   const [selectedVerifId, setSelectedVerifId] = React.useState<number | null>(null);

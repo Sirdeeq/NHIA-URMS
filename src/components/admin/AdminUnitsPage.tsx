@@ -16,7 +16,7 @@ export default function AdminUnitsPage() {
   const [loading, setLoading] = React.useState(true);
   const [modal, setModal] = React.useState<"create" | "edit" | null>(null);
   const [editing, setEditing] = React.useState<Unit | null>(null);
-  const [form, setForm] = React.useState({ unit_code: "", name: "", description: "", department_id: "" });
+  const [form, setForm] = React.useState({ name: "", description: "", department_id: "" });
   const [saving, setSaving] = React.useState(false);
 
   const load = async () => {
@@ -29,15 +29,15 @@ export default function AdminUnitsPage() {
   React.useEffect(() => { load(); }, [filterDept]);
   React.useEffect(() => { departmentsApi.list().then(r => setDepts(r.data)).catch(() => {}); }, []);
 
-  const openCreate = () => { setForm({ unit_code: "", name: "", description: "", department_id: "" }); setEditing(null); setModal("create"); };
-  const openEdit = (u: Unit) => { setEditing(u); setForm({ unit_code: u.unit_code, name: u.name, description: u.description || "", department_id: String(u.department_id) }); setModal("edit"); };
+  const openCreate = () => { setForm({ name: "", description: "", department_id: "" }); setEditing(null); setModal("create"); };
+  const openEdit = (u: Unit) => { setEditing(u); setForm({ name: u.name, description: u.description || "", department_id: String(u.department_id) }); setModal("edit"); };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.department_id) { toast.error("Please select a department"); return; }
     setSaving(true);
     try {
-      const payload = { unit_code: form.unit_code, name: form.name, description: form.description, department_id: Number(form.department_id) };
+      const payload = { name: form.name, description: form.description, department_id: Number(form.department_id) };
       if (modal === "create") { await unitsApi.create(payload as any); toast.success("Unit created"); }
       else if (editing) { await unitsApi.update(editing.id, payload as any); toast.success("Unit updated"); }
       setModal(null); load();
@@ -102,10 +102,6 @@ export default function AdminUnitsPage() {
 
       <AdminModal title={modal === "create" ? "Add Unit" : "Edit Unit"} open={modal !== null} onClose={() => setModal(null)}>
         <form onSubmit={handleSave} className="space-y-4">
-          <div>
-            <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">Unit Code <span className="text-rose-500">*</span></label>
-            <input className={inputCls} placeholder="e.g. UNIT-001" value={form.unit_code} onChange={e => setForm(f => ({ ...f, unit_code: e.target.value }))} required />
-          </div>
           <div>
             <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">Name <span className="text-rose-500">*</span></label>
             <input className={inputCls} placeholder="e.g. Claims Processing" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required />

@@ -139,7 +139,22 @@ export function buildNavTree(
       icon: <LayoutGrid className="w-4 h-4" />,
       roles: "all",
       children: [
-        { type: "leaf", label: "Programme Activities", icon: <FolderKanban className="w-3.5 h-3.5" /> },
+        {
+          type: "group",
+          label: "Enrolment",
+          icon: <Users className="w-3.5 h-3.5" />,
+          children: [
+            { type: "leaf", label: "Enrollment Officers", icon: <Users className="w-3 h-3" /> },
+          ],
+        },
+        {
+          type: "group",
+          label: "Enrollment Enquiries & Outreach Officer",
+          icon: <FolderKanban className="w-3.5 h-3.5" />,
+          children: [
+            { type: "leaf", label: "Enrollment Enquiries & Outreach Officers", icon: <FolderKanban className="w-3 h-3" /> },
+          ],
+        },
       ],
     },
 

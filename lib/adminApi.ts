@@ -35,7 +35,7 @@ export interface AdminUser {
 }
 export interface ZonalOffice { id: number; zonal_code: string; description: string; states?: StateOffice[]; }
 export interface StateOffice { id: number; code: string; description: string; zonal_id: number; zone?: ZonalOffice; }
-export interface Department { id: number; department_code: string; name: string; description?: string; state_id: number; state?: StateOffice; units?: Unit[]; }
+export interface Department { id: number; department_code: string; name: string; description?: string; units?: Unit[]; }
 export interface Unit { id: number; unit_code: string; name: string; description?: string; department_id: number; department?: Department; }
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
@@ -94,8 +94,7 @@ export const statesApi = {
 
 // Departments
 export const departmentsApi = {
-  list: (state_id?: number) =>
-    request<{ success: boolean; data: Department[] }>(`/admin/departments${qs({ state_id })}`),
+  list: () => request<{ success: boolean; data: Department[] }>("/admin/departments"),
   create: (body: Omit<Department, "id">) =>
     request<{ success: boolean; data: Department }>("/admin/departments", { method: "POST", body: JSON.stringify(body) }),
   update: (id: number, body: Partial<Department>) =>

@@ -13,11 +13,8 @@ const StockVerificationItem = require("./StockVerificationItem"); // sets up its
 ZonalOffice.hasMany(StateOffice,  { foreignKey: "zonal_id",      as: "states"      });
 StateOffice.belongsTo(ZonalOffice,{ foreignKey: "zonal_id",      as: "zone"        });
 
-StateOffice.hasMany(Department,   { foreignKey: "state_id",      as: "departments" });
-Department.belongsTo(StateOffice, { foreignKey: "state_id",      as: "state"       });
-
-Department.hasMany(Unit,          { foreignKey: "department_id", as: "units"       });
-Unit.belongsTo(Department,        { foreignKey: "department_id", as: "department"  });
+Department.hasMany(Unit, { foreignKey: "department_id", as: "units" });
+Unit.belongsTo(Department, { foreignKey: "department_id", as: "department" });
 
 User.belongsTo(ZonalOffice,       { foreignKey: "zone_id",       as: "zone"        });
 User.belongsTo(StateOffice,       { foreignKey: "state_id",      as: "state"       });
