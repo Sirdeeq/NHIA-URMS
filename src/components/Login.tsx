@@ -6,16 +6,17 @@ import { toast } from "sonner";
 import { authApi, tokenStore } from "@/lib/adminApi";
 
 const ROLES = [
-  { value: "state-officer",  label: "State Officer"   },
-  { value: "zonal-director", label: "Zonal Director"  },
-  { value: "sdo",            label: "SDO"             },
-  { value: "hq-department",  label: "HQ Department"   },
-  { value: "dg-ceo",         label: "DG-CEO"          },
+  { value: "state-officer",    label: "State Officer"      },
+  { value: "zonal-coordinator",label: "Zonal Coordinator"  },
+  { value: "state-coordinator",label: "State Coordinator"  },
+  { value: "sdo",              label: "SDO"                },
+  { value: "hq-department",    label: "HQ Department"      },
+  { value: "dg-ceo",           label: "DG-CEO"             },
 ];
 
 import type { AccessEntry } from "@/src/access/types";
 
-interface LoginProps { onLogin: (role: string, access: AccessEntry[]) => void; }
+interface LoginProps { onLogin: (role: string, access: AccessEntry[], userData: any) => void; }
 
 export default function Login({ onLogin }: LoginProps) {
   const [staffId,      setStaffId]      = React.useState("");
@@ -32,7 +33,8 @@ export default function Login({ onLogin }: LoginProps) {
     if      (id.startsWith("ADMIN")) setRole("admin");
     else if (id.startsWith("HQ"))    setRole("hq-department");
     else if (id.startsWith("SDO"))   setRole("sdo");
-    else if (id.startsWith("ZD"))    setRole("zonal-director");
+    else if (id.startsWith("ZC"))    setRole("zonal-coordinator");
+    else if (id.startsWith("SC"))    setRole("state-coordinator");
     else if (id.startsWith("SO"))    setRole("state-officer");
     else if (id.startsWith("DG"))    setRole("dg-ceo");
     else                             setRole("");
@@ -48,9 +50,8 @@ export default function Login({ onLogin }: LoginProps) {
       const res = await authApi.login(staffId, password);
       tokenStore.set(res.token);
       toast.success("Authentication successful", { description: `Welcome, ${res.user.name}.` });
-      // functionalities is already parsed to array by the backend
       const accessArr = Array.isArray(res.user.functionalities) ? res.user.functionalities : [];
-      onLogin(res.user.role, accessArr);
+      onLogin(res.user.role, accessArr, res.user);
     } catch (err: any) {
       setError(err.message ?? "Sign in failed.");
       toast.error("Sign in failed");

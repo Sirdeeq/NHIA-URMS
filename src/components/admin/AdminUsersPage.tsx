@@ -9,18 +9,20 @@ import { usersApi, zonesApi, statesApi, departmentsApi, unitsApi, type AdminUser
 import AdminModal from "./AdminModal";
 import { MODULE_CONFIG } from "@/src/access/moduleConfig";
 
-const ROLES = ["state-officer", "zonal-director", "sdo", "hq-department", "dg-ceo", "admin"] as const;
+const ROLES = ["state-officer", "zonal-coordinator", "state-coordinator", "sdo", "hq-department", "dg-ceo", "admin"] as const;
 const ROLE_LABELS: Record<string, string> = {
-  "state-officer": "State Officer", "zonal-director": "Zonal Director",
+  "state-officer": "State Officer", "zonal-coordinator": "Zonal Coordinator",
+  "state-coordinator": "State Coordinator",
   "sdo": "SDO", "hq-department": "HQ Department", "dg-ceo": "DG-CEO", "admin": "Admin",
 };
 const ROLE_COLORS: Record<string, string> = {
-  "admin": "bg-purple-100 text-purple-700 border-purple-200",
-  "dg-ceo": "bg-rose-100 text-rose-700 border-rose-200",
-  "zonal-director": "bg-blue-100 text-blue-700 border-blue-200",
-  "hq-department": "bg-amber-100 text-amber-700 border-amber-200",
-  "sdo": "bg-[#e8f5ee] text-[#145c3f] border-[#d4e8dc]",
-  "state-officer": "bg-slate-100 text-slate-700 border-slate-200",
+  "admin":             "bg-purple-100 text-purple-700 border-purple-200",
+  "dg-ceo":            "bg-rose-100 text-rose-700 border-rose-200",
+  "zonal-coordinator": "bg-blue-100 text-blue-700 border-blue-200",
+  "state-coordinator": "bg-cyan-100 text-cyan-700 border-cyan-200",
+  "hq-department":     "bg-amber-100 text-amber-700 border-amber-200",
+  "sdo":               "bg-[#e8f5ee] text-[#145c3f] border-[#d4e8dc]",
+  "state-officer":     "bg-slate-100 text-slate-700 border-slate-200",
 };
 
 const inputCls = "w-full pl-3 pr-3 h-11 rounded-xl border border-[#d4e8dc] bg-[#f4f7f5] text-sm text-slate-800 placeholder:text-slate-400 focus:ring-2 focus:ring-[#25a872] focus:border-[#25a872] outline-none transition-all";
@@ -44,6 +46,7 @@ export default function AdminUsersPage({ showOverview = false }: { showOverview?
   const [form, setForm] = React.useState({ ...EMPTY });
   const [saving, setSaving] = React.useState(false);
   const [granted, setGranted] = React.useState<Set<string>>(new Set());
+  const [activeTab, setActiveTab] = React.useState<"info" | "access">("info");
 
   // Overview stats
   const [stats, setStats] = React.useState<{ label: string; value: number; tint: string; iconColor: string; icon: React.ReactNode }[]>([]);
@@ -89,7 +92,7 @@ export default function AdminUsersPage({ showOverview = false }: { showOverview?
     try { const r = await unitsApi.list(Number(deptId)); setFormUnits(r.data); } catch { /* silent */ }
   };
 
-  const openCreate = () => { setForm({ ...EMPTY }); setFormUnits([]); setGranted(new Set()); setEditing(null); setModal("create"); };
+  const openCreate = () => { setForm({ ...EMPTY }); setFormUnits([]); setGranted(new Set()); setActiveTab("info"); setEditing(null); setModal("create"); };
   const openEdit = async (u: AdminUser) => {
     setEditing(u);
     setForm({
@@ -116,6 +119,7 @@ export default function AdminUsersPage({ showOverview = false }: { showOverview?
     if (u.department_id) {
       try { const r = await unitsApi.list(u.department_id); setFormUnits(r.data); } catch { setFormUnits([]); }
     } else { setFormUnits([]); }
+    setActiveTab("info");
     setModal("edit");
   };
 
@@ -283,97 +287,95 @@ export default function AdminUsersPage({ showOverview = false }: { showOverview?
         )}
       </Card>
 
-      <AdminModal title={modal === "create" ? "Add New User" : "Edit User"} open={modal !== null} onClose={() => setModal(null)} width="max-w-4xl">
-        <form onSubmit={handleSave}>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* ── Left: User details ── */}
-            <div className="space-y-4">
-              <Field label="Full Name" required><input className={inputCls} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required /></Field>
-              {modal === "create" && (
-                <p className="text-xs text-slate-400 -mt-2">Staff ID will be auto-generated based on role (e.g. SO-0001, ZD-0001)</p>
-              )}
-              <Field label="Email"><input type="email" className={inputCls} value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} /></Field>
-              <Field label={modal === "create" ? "Password" : "New Password (leave blank to keep)"} required={modal === "create"}>
-                <input type="password" className={inputCls} value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} required={modal === "create"} />
-              </Field>
-              <Field label="Role" required>
-                <select className={inputCls} value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))} required>
-                  {ROLES.map(r => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
-                </select>
-              </Field>
-              <Field label="Zone">
-                <select className={inputCls} value={form.zone_id} onChange={e => setForm(f => ({ ...f, zone_id: e.target.value, state_id: "" }))}>
-                  <option value="">— None —</option>
-                  {zones.map(z => <option key={z.id} value={z.id}>{z.zonal_code} – {z.description}</option>)}
-                </select>
-              </Field>
-              <Field label="State">
-                <select className={inputCls} value={form.state_id} onChange={e => setForm(f => ({ ...f, state_id: e.target.value }))}>
-                  <option value="">— None —</option>
-                  {filteredStates.map(s => <option key={s.id} value={s.id}>{s.code} – {s.description}</option>)}
-                </select>
-              </Field>
-              <Field label="Department">
-                <select className={inputCls} value={form.department_id} onChange={e => handleDeptChange(e.target.value)}>
-                  <option value="">— None —</option>
-                  {depts.map(d => <option key={d.id} value={d.id}>{d.department_code} – {d.name}</option>)}
-                </select>
-              </Field>
-              <Field label="Unit">
-                <select className={inputCls} value={form.unit_id} onChange={e => setForm(f => ({ ...f, unit_id: e.target.value }))} disabled={!form.department_id}>
-                  <option value="">— None —</option>
-                  {formUnits.map(u => <option key={u.id} value={u.id}>{u.unit_code} – {u.name}</option>)}
-                </select>
-                {!form.department_id && <p className="text-xs text-slate-400 mt-1">Select a department first</p>}
-              </Field>
-              {modal === "edit" && (
-                <Field label="Status">
-                  <select className={inputCls} value={form.is_active ? "1" : "0"} onChange={e => setForm(f => ({ ...f, is_active: e.target.value === "1" }))}>
-                    <option value="1">Active</option><option value="0">Inactive</option>
-                  </select>
-                </Field>
-              )}
-            </div>
+      <AdminModal title={modal === "create" ? "Add New User" : "Edit User"} open={modal !== null} onClose={() => setModal(null)} width="max-w-3xl">
+        <form onSubmit={handleSave} className="space-y-6">
 
-            {/* ── Right: Module Access ── */}
-            <div className="flex flex-col">
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
-                  <ShieldCheck className="w-3.5 h-3.5 text-[#145c3f]" /> Module Access
-                </label>
-                <div className="flex gap-2">
-                  <button type="button" onClick={() => {
-                    const all = new Set<string>();
-                    MODULE_CONFIG.forEach(m => { all.add(m.title); m.children.forEach(c => all.add(c.path)); });
-                    setGranted(all);
-                  }} className="text-[10px] text-[#145c3f] hover:underline font-medium">All</button>
-                  <span className="text-slate-300 text-[10px]">|</span>
-                  <button type="button" onClick={() => setGranted(new Set())} className="text-[10px] text-rose-500 hover:underline font-medium">None</button>
-                </div>
+          {/* ── User Info ── */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="sm:col-span-2">
+              <Field label="Full Name" required>
+                <input className={inputCls} placeholder="e.g. Amina Yusuf" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required />
+              </Field>
+              {modal === "create" && <p className="text-[10px] text-slate-400 mt-1">Staff ID auto-generated from role (e.g. SO-0001)</p>}
+            </div>
+            <Field label="Email">
+              <input type="email" className={inputCls} placeholder="user@nhia.gov.ng" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
+            </Field>
+            <Field label={modal === "create" ? "Password" : "New Password"} required={modal === "create"}>
+              <input type="password" className={inputCls} placeholder="••••••••" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} required={modal === "create"} />
+            </Field>
+            <Field label="Role" required>
+              <select className={inputCls} value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))} required>
+                {ROLES.map(r => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
+              </select>
+            </Field>
+            {modal === "edit" && (
+              <Field label="Status">
+                <select className={inputCls} value={form.is_active ? "1" : "0"} onChange={e => setForm(f => ({ ...f, is_active: e.target.value === "1" }))}>
+                  <option value="1">Active</option>
+                  <option value="0">Inactive</option>
+                </select>
+              </Field>
+            )}
+            <Field label="Zone">
+              <select className={inputCls} value={form.zone_id} onChange={e => setForm(f => ({ ...f, zone_id: e.target.value, state_id: "" }))}>
+                <option value="">— None —</option>
+                {zones.map(z => <option key={z.id} value={z.id}>{z.zonal_code} – {z.description}</option>)}
+              </select>
+            </Field>
+            <Field label="State">
+              <select className={inputCls} value={form.state_id} onChange={e => setForm(f => ({ ...f, state_id: e.target.value }))}>
+                <option value="">— None —</option>
+                {filteredStates.map(s => <option key={s.id} value={s.id}>{s.code} – {s.description}</option>)}
+              </select>
+            </Field>
+            <Field label="Department">
+              <select className={inputCls} value={form.department_id} onChange={e => handleDeptChange(e.target.value)}>
+                <option value="">— None —</option>
+                {depts.map(d => <option key={d.id} value={d.id}>{d.department_code} – {d.name}</option>)}
+              </select>
+            </Field>
+            <Field label="Unit">
+              <select className={inputCls} value={form.unit_id} onChange={e => setForm(f => ({ ...f, unit_id: e.target.value }))} disabled={!form.department_id}>
+                <option value="">— None —</option>
+                {formUnits.map(u => <option key={u.id} value={u.id}>{u.unit_code} – {u.name}</option>)}
+              </select>
+              {!form.department_id && <p className="text-[10px] text-slate-400 mt-1">Select a department first</p>}
+            </Field>
+          </div>
+
+          {/* ── Module Access ── */}
+          <div className="border-t border-[#d4e8dc] pt-5">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
+                <ShieldCheck className="w-3.5 h-3.5 text-[#145c3f]" /> Module Access
+                <span className="ml-1 text-[10px] font-normal text-slate-400 normal-case">
+                  ({MODULE_CONFIG.filter(m => granted.has(m.title)).length} of {MODULE_CONFIG.length} granted)
+                </span>
+              </p>
+              <div className="flex gap-3">
+                <button type="button" onClick={() => { const all = new Set<string>(); MODULE_CONFIG.forEach(m => { all.add(m.title); m.children.forEach(c => all.add(c.path)); }); setGranted(all); }} className="text-xs text-[#145c3f] hover:underline font-medium">Select all</button>
+                <span className="text-slate-300">|</span>
+                <button type="button" onClick={() => setGranted(new Set())} className="text-xs text-rose-500 hover:underline font-medium">Clear all</button>
               </div>
-              <div className="space-y-1.5 overflow-y-auto flex-1 pr-1" style={{ maxHeight: "420px" }}>
-                {MODULE_CONFIG.map(mod => {
-                  const allChildPaths = mod.children.map(c => c.path);
-                  const parentChecked = granted.has(mod.title);
-                  const checkedCount = allChildPaths.filter(p => granted.has(p)).length;
-                  const someChecked = parentChecked && checkedCount < allChildPaths.length;
-                  return (
-                    <ModuleAccessRow
-                      key={mod.title}
-                      mod={mod}
-                      parentChecked={parentChecked}
-                      someChecked={someChecked}
-                      granted={granted}
-                      onToggleParent={toggleParent}
-                      onToggleChild={toggleChild}
-                    />
-                  );
-                })}
-              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {MODULE_CONFIG.map(mod => {
+                const allChildPaths = mod.children.map(c => c.path);
+                const parentChecked = granted.has(mod.title);
+                const checkedCount = allChildPaths.filter(p => granted.has(p)).length;
+                const someChecked = parentChecked && checkedCount < allChildPaths.length;
+                return (
+                  <ModuleAccessRow key={mod.title} mod={mod}
+                    parentChecked={parentChecked} someChecked={someChecked}
+                    granted={granted} onToggleParent={toggleParent} onToggleChild={toggleChild} />
+                );
+              })}
             </div>
           </div>
 
-          <div className="flex justify-end gap-3 pt-4 mt-4 border-t border-[#d4e8dc]">
+          {/* ── Footer ── */}
+          <div className="flex justify-end gap-3 pt-2 border-t border-[#d4e8dc]">
             <Button type="button" variant="ghost" onClick={() => setModal(null)} className="rounded-xl text-slate-600">Cancel</Button>
             <Button type="submit" disabled={saving} className="bg-[#145c3f] hover:bg-[#0f3d2e] text-white rounded-xl">
               {saving ? "Saving..." : modal === "create" ? "Create User" : "Save Changes"}

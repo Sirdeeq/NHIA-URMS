@@ -1,9 +1,5 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
-import type { AccessEntry } from "./types";
-
-export type UserRole =
-  | "Admin" | "State Officer" | "Zonal Director"
-  | "SDO"   | "HQ Department" | "DG-CEO";
+import type { AccessEntry } from "@/src/access/types";
 
 export interface AuthUser {
   id: number;
@@ -11,20 +7,19 @@ export interface AuthUser {
   staff_id: string;
   email?: string;
   role: string;
-  /** Structured access permissions */
-  access?: AccessEntry[];
-  /** Legacy flat string — kept for backward compat during migration */
-  functionalities?: string;
+  /** Structured access — [{access_to, functionalities[]}] */
+  functionalities?: AccessEntry[];
   zone_id?: number;
   state_id?: number;
+  department_id?: number;
+  unit_id?: number;
+  is_active?: boolean;
 }
 
 interface AuthState {
   user: AuthUser | null;
   token: string | null;
 }
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 const TOKEN_KEY = "nhia@token";
 const USER_KEY  = "nhia@user";
@@ -33,14 +28,13 @@ function loadFromStorage(): AuthState {
   try {
     const token = localStorage.getItem(TOKEN_KEY);
     const raw   = localStorage.getItem(USER_KEY);
-    const user  = raw ? (JSON.parse(raw) as AuthUser) : null;
+    if (!token || !raw) return { user: null, token: null };
+    const user = JSON.parse(raw) as AuthUser;
     return { user, token };
   } catch {
     return { user: null, token: null };
   }
 }
-
-// ─── Slice ────────────────────────────────────────────────────────────────────
 
 const authSlice = createSlice({
   name: "auth",

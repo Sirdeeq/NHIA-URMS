@@ -47,8 +47,8 @@ import ZonalDirectorDashboard from "./ZonalDirectorDashboard";
 import StateOfficeDashboard from "./StateOfficeDashboard";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type Role = "state-officer" | "zonal-director" | "sdo" | "hq-department" | "audit" | "dg-ceo" | "admin";
-type View = "home" | "report-entry" | "report-preview" | "zonal-review" | "zonal-compose" | "annual-report" | "annual-reports-list" | "annual-report-detail" | "settings" | "stock-verification" | "stock-verifications-list" | "stock-assets";
+type Role = "state-officer" | "zonal-coordinator" | "state-coordinator" | "sdo" | "hq-department" | "audit" | "dg-ceo" | "admin";
+type View = "home" | "report-entry" | "report-preview" | "zonal-review" | "zonal-compose" | "annual-report" | "annual-reports-list" | "annual-report-detail" | "settings" | "stock-verification" | "stock-verifications-list" | "stock-assets" | "finance-monthly" | "admin-monthly" | "programmes-monthly" | "outreach-monthly" | "sqa-monthly" | "complaints-monthly" | "monthly-reports-list";
 interface DashboardProps { role: Role; access?: import("@/src/access/types").AccessEntry[]; functionalities?: string; onLogout: () => void; }
 
 // ─── Mock data ────────────────────────────────────────────────────────────────
@@ -112,7 +112,8 @@ function getMenuItems(role: Role, view: View, setView: (v: View) => void) {
 // ─── Role helpers ─────────────────────────────────────────────────────────────
 function getRoleLabel(r: Role) {
   const map: Record<Role, string> = {
-    "state-officer": "State Officer", "zonal-director": "Zonal Director",
+    "state-officer": "State Officer", "zonal-coordinator": "Zonal Coordinator",
+    "state-coordinator": "State Coordinator",
     "sdo": "SDO / DGO", "hq-department": "HQ Department",
     "audit": "Audit Team", "dg-ceo": "DG / CEO", "admin": "Administrator",
   };
@@ -120,13 +121,14 @@ function getRoleLabel(r: Role) {
 }
 function getUserInfo(r: Role) {
   const map: Record<Role, { name: string; initials: string; email: string; dept: string }> = {
-    "state-officer":  { name: "State Officer",   initials: "SO",    email: "so@nhia.gov.ng",    dept: "State Office"      },
-    "zonal-director": { name: "Zonal Director",  initials: "ZD",    email: "zd@nhia.gov.ng",    dept: "Zonal Directorate" },
-    "sdo":            { name: "SDO / DGO",        initials: "SDO",   email: "sdo@nhia.gov.ng",   dept: "State Directorate" },
-    "hq-department":  { name: "HQ Department",   initials: "HQ",    email: "hq@nhia.gov.ng",    dept: "Headquarters"      },
-    "audit":          { name: "Audit Team",       initials: "AUD",   email: "audit@nhia.gov.ng", dept: "Audit & Compliance"},
-    "dg-ceo":         { name: "DG / CEO",         initials: "DG",    email: "dg@nhia.gov.ng",    dept: "Executive Office"  },
-    "admin":          { name: "Administrator",    initials: "ADM",   email: "admin@nhia.gov.ng", dept: "System Admin"      },
+    "state-officer":     { name: "State Officer",      initials: "SO",  email: "so@nhia.gov.ng",  dept: "State Office"       },
+    "zonal-coordinator": { name: "Zonal Coordinator",  initials: "ZC",  email: "zc@nhia.gov.ng",  dept: "Zonal Coordination" },
+    "state-coordinator": { name: "State Coordinator",  initials: "SC",  email: "sc@nhia.gov.ng",  dept: "State Coordination" },
+    "sdo":               { name: "SDO / DGO",          initials: "SDO", email: "sdo@nhia.gov.ng", dept: "State Directorate"  },
+    "hq-department":     { name: "HQ Department",      initials: "HQ",  email: "hq@nhia.gov.ng",  dept: "Headquarters"       },
+    "audit":             { name: "Audit Team",         initials: "AUD", email: "audit@nhia.gov.ng",dept: "Audit & Compliance" },
+    "dg-ceo":            { name: "DG / CEO",           initials: "DG",  email: "dg@nhia.gov.ng",  dept: "Executive Office"   },
+    "admin":             { name: "Administrator",      initials: "ADM", email: "admin@nhia.gov.ng",dept: "System Admin"       },
   };
   return map[r];
 }
@@ -622,6 +624,9 @@ export default function Dashboard({ role, access = [], functionalities = "", onL
 
                     {/* Role panel */}
                     <motion.div key={role} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+                      {role === "state-officer"     && <StateOfficerPanel onNewReport={() => setView("report-entry")} onAnnualReport={() => setView("annual-report")} onViewSubmissions={() => setView("annual-reports-list")} />}
+                      {role === "zonal-coordinator" && <ZonalDirectorPanel onReviewReports={() => setView("zonal-review")} />}
+                      {role === "state-coordinator" && <StateOfficerPanel onNewReport={() => setView("report-entry")} onAnnualReport={() => setView("annual-report")} onViewSubmissions={() => setView("annual-reports-list")} />}
                       {role === "dg-ceo"         && <DGCEOPanel />}
                       {role === "hq-department"  && <HQPanel />}
                       {role === "audit"          && <AuditPanel />}
@@ -754,33 +759,33 @@ export default function Dashboard({ role, access = [], functionalities = "", onL
               <StockAssetManager onBack={() => setView("home")} />
             ) : view === "finance-monthly" ? (
               <DeptMonthlyPage dept="finance" title="Finance Monthly Reports" section="finance"
-                onBack={() => setView("home")} defaultZoneId={userCtx.zoneId} defaultStateId={userCtx.stateId}
+                onBack={() => setView("home")} defaultZoneId={null} defaultStateId={null}
                 FormComponent={FinanceMonthlyForm} />
             ) : view === "admin-monthly" ? (
               <DeptMonthlyPage dept="finance" title="Admin / HR Monthly Reports" section="admin"
-                onBack={() => setView("home")} defaultZoneId={userCtx.zoneId} defaultStateId={userCtx.stateId}
+                onBack={() => setView("home")} defaultZoneId={null} defaultStateId={null}
                 FormComponent={AdminMonthlyForm} />
             ) : view === "programmes-monthly" ? (
               <DeptMonthlyPage dept="programmes" title="Enrolment Monthly Reports" section="enrolment"
-                onBack={() => setView("home")} defaultZoneId={userCtx.zoneId} defaultStateId={userCtx.stateId}
+                onBack={() => setView("home")} defaultZoneId={null} defaultStateId={null}
                 FormComponent={ProgrammesMonthlyForm} />
             ) : view === "outreach-monthly" ? (
               <DeptMonthlyPage dept="programmes" title="Outreach Monthly Reports" section="outreach"
-                onBack={() => setView("home")} defaultZoneId={userCtx.zoneId} defaultStateId={userCtx.stateId}
+                onBack={() => setView("home")} defaultZoneId={null} defaultStateId={null}
                 FormComponent={OutreachMonthlyForm} />
             ) : view === "sqa-monthly" ? (
               <DeptMonthlyPage dept="sqa" title="HMO/HCP Quality Assurance Monthly Reports" section="sqa"
-                onBack={() => setView("home")} defaultZoneId={userCtx.zoneId} defaultStateId={userCtx.stateId}
+                onBack={() => setView("home")} defaultZoneId={null} defaultStateId={null}
                 FormComponent={SqaMonthlyForm} />
             ) : view === "complaints-monthly" ? (
               <DeptMonthlyPage dept="sqa" title="Enrollee Complaints Monthly Reports" section="complaints"
-                onBack={() => setView("home")} defaultZoneId={userCtx.zoneId} defaultStateId={userCtx.stateId}
+                onBack={() => setView("home")} defaultZoneId={null} defaultStateId={null}
                 FormComponent={ComplaintsMonthlyForm} />
             ) : view === "monthly-reports-list" ? (
               <MonthlyReportsList
                 onBack={() => setView("home")}
                 onNew={(dept) => setView(`${dept === "finance" ? "finance" : dept === "sqa" ? "sqa" : "programmes"}-monthly` as View)}
-                defaultStateId={userCtx.stateId}
+                defaultStateId={null}
               />
             ) : view === "settings" ? (
               <AdminSettingsPage />

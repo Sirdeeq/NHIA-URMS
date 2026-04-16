@@ -1,7 +1,7 @@
 const { DataTypes } = require("sequelize");
 const sequelize = require("../config/database");
 
-const ROLES = ["admin", "state-officer", "zonal-director", "sdo", "hq-department", "dg-ceo"];
+const ROLES = ["admin", "state-officer", "zonal-coordinator", "state-coordinator", "sdo", "hq-department", "dg-ceo"];
 
 const User = sequelize.define(
   "User",

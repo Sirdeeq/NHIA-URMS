@@ -8,18 +8,21 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { usersApi, type AdminUser } from "@/lib/adminApi";
 import AdminModal from "./AdminModal";
 import { MODULE_CONFIG } from "@/src/access/moduleConfig";
+import { flatLeaves } from "@/src/access/moduleConfig";
 
 const ROLE_LABELS: Record<string, string> = {
-  "state-officer": "State Officer", "zonal-director": "Zonal Director",
+  "state-officer": "State Officer", "zonal-coordinator": "Zonal Coordinator",
+  "state-coordinator": "State Coordinator",
   "sdo": "SDO", "hq-department": "HQ Department", "dg-ceo": "DG-CEO", "admin": "Admin",
 };
 const ROLE_COLORS: Record<string, string> = {
-  "admin":          "bg-purple-100 text-purple-700 border-purple-200",
-  "dg-ceo":         "bg-rose-100 text-rose-700 border-rose-200",
-  "zonal-director": "bg-blue-100 text-blue-700 border-blue-200",
-  "hq-department":  "bg-amber-100 text-amber-700 border-amber-200",
-  "sdo":            "bg-[#e8f5ee] text-[#145c3f] border-[#d4e8dc]",
-  "state-officer":  "bg-slate-100 text-slate-700 border-slate-200",
+  "admin":             "bg-purple-100 text-purple-700 border-purple-200",
+  "dg-ceo":            "bg-rose-100 text-rose-700 border-rose-200",
+  "zonal-coordinator": "bg-blue-100 text-blue-700 border-blue-200",
+  "state-coordinator": "bg-cyan-100 text-cyan-700 border-cyan-200",
+  "hq-department":     "bg-amber-100 text-amber-700 border-amber-200",
+  "sdo":               "bg-[#e8f5ee] text-[#145c3f] border-[#d4e8dc]",
+  "state-officer":     "bg-slate-100 text-slate-700 border-slate-200",
 };
 
 // ─── Module tree row ──────────────────────────────────────────────────────────
@@ -31,9 +34,8 @@ function ModuleRow({ mod, granted, onToggleParent, onToggleChild }: {
 }) {
   const [open, setOpen] = React.useState(false);
   const parentChecked = granted.has(mod.title);
-  const allChildPaths = mod.children.map(c => c.path);
-  const checkedChildren = allChildPaths.filter(p => granted.has(p));
-  const someChecked = parentChecked && checkedChildren.length < allChildPaths.length;
+  const allChildTitles = flatLeaves(mod);
+  const someChecked = parentChecked && allChildTitles.filter(t => granted.has(t)).length < allChildTitles.length;
 
   const parentRef = React.useRef<HTMLInputElement>(null);
   React.useEffect(() => {
@@ -44,7 +46,7 @@ function ModuleRow({ mod, granted, onToggleParent, onToggleChild }: {
     <div className={`rounded-xl border transition-all ${parentChecked ? "border-[#25a872]" : "border-[#d4e8dc]"}`}>
       <div className={`flex items-center gap-3 px-3 py-2.5 rounded-xl ${parentChecked ? "bg-[#e8f5ee]" : "bg-white"}`}>
         <input ref={parentRef} type="checkbox" checked={parentChecked}
-          onChange={() => onToggleParent(mod.title, allChildPaths)}
+          onChange={() => onToggleParent(mod.title, allChildTitles)}
           className="w-4 h-4 accent-[#145c3f] shrink-0 cursor-pointer" />
         <div className="flex-1 min-w-0">
           <span className={`text-xs font-bold ${parentChecked ? "text-[#145c3f]" : "text-slate-700"}`}>{mod.title}</span>
@@ -61,19 +63,35 @@ function ModuleRow({ mod, granted, onToggleParent, onToggleChild }: {
           {!parentChecked && (
             <p className="text-[10px] text-amber-600 italic pb-1">Enable parent module first</p>
           )}
-          {mod.children.map(child => {
-            const childChecked = granted.has(child.path);
+          {mod.children.map((child, i) => {
+            if ("type" in child && child.type === "group") {
+              return (
+                <div key={i}>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-1.5 pt-1.5 pb-0.5">{child.label}</p>
+                  {child.children.map((leaf, j) => (
+                    <label key={j}
+                      className={`flex items-center gap-2.5 px-2 py-1.5 rounded-lg cursor-pointer transition-all ${
+                        granted.has(leaf.title) ? "bg-[#e8f5ee]" : "hover:bg-slate-50"
+                      } ${!parentChecked ? "opacity-40 pointer-events-none" : ""}`}>
+                      <input type="checkbox" checked={granted.has(leaf.title)} disabled={!parentChecked}
+                        onChange={() => onToggleChild(mod.title, leaf.title, allChildTitles)}
+                        className="w-3.5 h-3.5 accent-[#145c3f] shrink-0" />
+                      <span className={`text-xs ${granted.has(leaf.title) ? "text-[#145c3f] font-medium" : "text-slate-600"}`}>{leaf.title}</span>
+                    </label>
+                  ))}
+                </div>
+              );
+            }
+            const leaf = child as import("@/src/access/moduleConfig").ChildModule;
             return (
-              <label key={child.path}
+              <label key={i}
                 className={`flex items-center gap-2.5 px-2 py-1.5 rounded-lg cursor-pointer transition-all ${
-                  childChecked ? "bg-[#e8f5ee]" : "hover:bg-slate-50"
+                  granted.has(leaf.title) ? "bg-[#e8f5ee]" : "hover:bg-slate-50"
                 } ${!parentChecked ? "opacity-40 pointer-events-none" : ""}`}>
-                <input type="checkbox" checked={childChecked} disabled={!parentChecked}
-                  onChange={() => onToggleChild(mod.title, child.path, allChildPaths)}
+                <input type="checkbox" checked={granted.has(leaf.title)} disabled={!parentChecked}
+                  onChange={() => onToggleChild(mod.title, leaf.title, allChildTitles)}
                   className="w-3.5 h-3.5 accent-[#145c3f] shrink-0" />
-                <span className={`text-xs flex-1 ${childChecked ? "text-[#145c3f] font-medium" : "text-slate-600"}`}>
-                  {child.title}
-                </span>
+                <span className={`text-xs ${granted.has(leaf.title) ? "text-[#145c3f] font-medium" : "text-slate-600"}`}>{leaf.title}</span>
               </label>
             );
           })}
@@ -120,29 +138,29 @@ export default function AdminPrivilegesPage() {
     setGranted(keys);
   };
 
-  const toggleParent = (title: string, childPaths: string[]) => {
+  const toggleParent = (title: string, childTitles: string[]) => {
     setGranted(prev => {
       const next = new Set(prev);
       if (next.has(title)) {
         next.delete(title);
-        childPaths.forEach(p => next.delete(p));
+        childTitles.forEach(t => next.delete(t));
       } else {
         next.add(title);
-        childPaths.forEach(p => next.add(p));
+        childTitles.forEach(t => next.add(t));
       }
       return next;
     });
   };
 
-  const toggleChild = (parentTitle: string, childPath: string, allChildPaths: string[]) => {
+  const toggleChild = (parentTitle: string, childTitle: string, allChildTitles: string[]) => {
     setGranted(prev => {
       const next = new Set(prev);
-      if (next.has(childPath)) {
-        next.delete(childPath);
-        const remaining = allChildPaths.filter(p => p !== childPath && next.has(p));
+      if (next.has(childTitle)) {
+        next.delete(childTitle);
+        const remaining = allChildTitles.filter(t => t !== childTitle && next.has(t));
         if (remaining.length === 0) next.delete(parentTitle);
       } else {
-        next.add(childPath);
+        next.add(childTitle);
         next.add(parentTitle);
       }
       return next;
@@ -151,7 +169,7 @@ export default function AdminPrivilegesPage() {
 
   const selectAll = () => {
     const all = new Set<string>();
-    MODULE_CONFIG.forEach(m => { all.add(m.title); m.children.forEach(c => all.add(c.path)); });
+    MODULE_CONFIG.forEach(m => { all.add(m.title); flatLeaves(m).forEach(t => all.add(t)); });
     setGranted(all);
   };
   const clearAll = () => setGranted(new Set());

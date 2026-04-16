@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { AccessEntry } from "@/src/access/types";
+import { MODULE_CONFIG, type ChildModule, type SubGroup } from "@/src/access/moduleConfig";
 
 type View = string;
 
@@ -61,22 +62,22 @@ const PATH_TO_VIEW: Record<string, string> = {
   "/settings/units":              "settings",
 };
 
-// ─── Single child link ────────────────────────────────────────────────────────
-function ChildLink({ title, path, view, setView, sidebarOpen }: {
-  title: string; path: string; view: View;
-  setView: (v: View) => void; sidebarOpen: boolean;
+// ─── Leaf link ────────────────────────────────────────────────────────────────
+function NavLeaf({ title, nodeView, currentView, setView, depth, sidebarOpen }: {
+  title: string; nodeView?: string; currentView: View;
+  setView: (v: View) => void; depth: number; sidebarOpen: boolean;
 }) {
-  const mappedView = PATH_TO_VIEW[path];
-  const active = mappedView ? view === mappedView : false;
+  const active = !!nodeView && currentView === nodeView;
+  const indent = depth === 1 ? "pl-7" : depth === 2 ? "pl-11" : "pl-3";
 
   return (
     <button
-      onClick={() => mappedView && setView(mappedView)}
-      className={`w-full flex items-center gap-2.5 pl-7 pr-3 py-2 rounded-xl text-left transition-all group ${
+      onClick={() => nodeView && setView(nodeView)}
+      className={`w-full flex items-center gap-2.5 ${indent} pr-3 py-2 rounded-xl text-left transition-all group ${
         active
           ? "bg-[#25a872] text-white shadow-md shadow-[#25a872]/30"
           : "text-white/60 hover:bg-white/10 hover:text-white"
-      } ${!mappedView ? "opacity-60 cursor-default" : "cursor-pointer"}`}
+      } ${!nodeView ? "opacity-60 cursor-default" : "cursor-pointer"}`}
     >
       <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
         active ? "bg-white" : "bg-white/30 group-hover:bg-white/60"
@@ -87,63 +88,111 @@ function ChildLink({ title, path, view, setView, sidebarOpen }: {
   );
 }
 
-// ─── Parent module group ──────────────────────────────────────────────────────
-function ModuleGroup({ entry, view, setView, sidebarOpen }: {
-  entry: AccessEntry;
-  view: View;
-  setView: (v: View) => void;
-  sidebarOpen: boolean;
+// ─── Sub-group (e.g. "Finance" inside "Finance & Admin Dept") ─────────────────
+function NavSubGroup({ group, allowedTitles, currentView, setView, sidebarOpen }: {
+  group: SubGroup; allowedTitles: Set<string>;
+  currentView: View; setView: (v: View) => void; sidebarOpen: boolean;
 }) {
-  // Auto-open if any child is active
-  const hasActiveChild = entry.functionalities.some(funcTitle => {
-    const path = `/${entry.access_to.toLowerCase().replace(/\s+/g, "-")}/${funcTitle.toLowerCase().replace(/\s+/g, "-")}`;
-    return PATH_TO_VIEW[path] === view;
-  });
+  const visibleChildren = group.children.filter(c => allowedTitles.has(c.title));
+  if (visibleChildren.length === 0) return null;
 
-  const [open, setOpen] = React.useState(hasActiveChild);
-  const hasChildren = entry.functionalities.length > 0;
-  const icon = MODULE_ICONS[entry.access_to];
+  const hasActive = visibleChildren.some(c => c.view && currentView === c.view);
+  const [open, setOpen] = React.useState(hasActive);
+  React.useEffect(() => { if (hasActive) setOpen(true); }, [hasActive]);
 
   return (
     <div>
       <button
-        onClick={() => sidebarOpen && hasChildren && setOpen((o: boolean) => !o)}
-        className="w-full flex items-center gap-2.5 pl-3 pr-3 py-2 rounded-xl text-left transition-all group text-white/60 hover:bg-white/10 hover:text-white"
+        onClick={() => sidebarOpen && setOpen((o: boolean) => !o)}
+        className="w-full flex items-center gap-2.5 pl-7 pr-3 py-2 rounded-xl text-left transition-all group text-white/60 hover:bg-white/10 hover:text-white"
       >
-        <span className="shrink-0 text-white/50 group-hover:text-white">
-          {icon ?? (
-            <span className="w-4 h-4 flex items-center justify-center text-[10px] font-black opacity-70">
-              {entry.access_to.slice(0, 2).toUpperCase()}
+        <span className="w-1.5 h-1.5 rounded-full shrink-0 bg-white/20 group-hover:bg-white/40" />
+        {sidebarOpen && (
+          <>
+            <span className="text-xs font-semibold truncate flex-1">{group.label}</span>
+            <span className="shrink-0 text-white/40">
+              {open ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
             </span>
-          )}
+          </>
+        )}
+      </button>
+      {sidebarOpen && open && (
+        <div className="relative">
+          <div className="absolute top-0 bottom-0 w-px bg-white/10 left-[36px]" />
+          <div className="space-y-0.5">
+            {visibleChildren.map((child, i) => (
+              <NavLeaf key={i} title={child.title} nodeView={child.view}
+                currentView={currentView} setView={setView} depth={2} sidebarOpen={sidebarOpen} />
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Top-level module group ───────────────────────────────────────────────────
+function ModuleGroup({ title, children, allowedTitles, currentView, setView, sidebarOpen, isOpen, onToggle }: {
+  title: string;
+  children: (ChildModule | SubGroup)[];
+  allowedTitles: Set<string>;
+  currentView: View;
+  setView: (v: View) => void;
+  sidebarOpen: boolean;
+  isOpen: boolean;
+  onToggle: () => void;
+}) {
+  // Filter to only allowed children
+  const visibleChildren = children.filter(c => {
+    if ("type" in c && c.type === "group") {
+      return c.children.some(leaf => allowedTitles.has(leaf.title));
+    }
+    return allowedTitles.has((c as ChildModule).title);
+  });
+
+  if (visibleChildren.length === 0) return null;
+
+  const hasActive = visibleChildren.some(c => {
+    if ("type" in c && c.type === "group") return c.children.some(l => l.view && currentView === l.view);
+    return (c as ChildModule).view && currentView === (c as ChildModule).view;
+  });
+
+  return (
+    <div>
+      <button
+        onClick={() => sidebarOpen && onToggle()}
+        className={`w-full flex items-center gap-2.5 pl-3 pr-3 py-2 rounded-xl text-left transition-all group ${
+          hasActive && !isOpen ? "bg-white/10 text-white" : "text-white/60 hover:bg-white/10 hover:text-white"
+        }`}
+      >
+        <span className="shrink-0 text-white/50 group-hover:text-white text-[10px] font-black w-4 h-4 flex items-center justify-center">
+          {title.slice(0, 2).toUpperCase()}
         </span>
         {sidebarOpen && (
           <>
-            <span className="text-xs font-semibold truncate flex-1">{entry.access_to}</span>
-            {hasChildren && (
-              <span className="shrink-0 text-white/40">
-                {open ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
-              </span>
-            )}
+            <span className="text-xs font-semibold truncate flex-1">{title}</span>
+            <span className="shrink-0 text-white/40">
+              {isOpen ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+            </span>
           </>
         )}
       </button>
 
-      {sidebarOpen && open && hasChildren && (
+      {sidebarOpen && isOpen && (
         <div className="mt-0.5 space-y-0.5 relative">
           <div className="absolute top-0 bottom-0 w-px bg-white/10 left-[22px]" />
           <div className="space-y-0.5">
-            {entry.functionalities.map((funcTitle, i) => {
-              const path = `/${entry.access_to.toLowerCase().replace(/\s+/g, "-")}/${funcTitle.toLowerCase().replace(/\s+/g, "-")}`;
+            {visibleChildren.map((child, i) => {
+              if ("type" in child && child.type === "group") {
+                return (
+                  <NavSubGroup key={i} group={child} allowedTitles={allowedTitles}
+                    currentView={currentView} setView={setView} sidebarOpen={sidebarOpen} />
+                );
+              }
+              const leaf = child as ChildModule;
               return (
-                <ChildLink
-                  key={i}
-                  title={funcTitle}
-                  path={path}
-                  view={view}
-                  setView={setView}
-                  sidebarOpen={sidebarOpen}
-                />
+                <NavLeaf key={i} title={leaf.title} nodeView={leaf.view}
+                  currentView={currentView} setView={setView} depth={1} sidebarOpen={sidebarOpen} />
               );
             })}
           </div>
@@ -159,8 +208,7 @@ function SettingsLeaf({ view, setView, sidebarOpen }: {
 }) {
   const active = view === "settings";
   return (
-    <button
-      onClick={() => setView("settings")}
+    <button onClick={() => setView("settings")}
       className={`w-full flex items-center gap-2.5 pl-3 pr-3 py-2 rounded-xl text-left transition-all group ${
         active
           ? "bg-[#25a872] text-white shadow-md shadow-[#25a872]/30"
@@ -176,29 +224,80 @@ function SettingsLeaf({ view, setView, sidebarOpen }: {
   );
 }
 
-// ─── Main SidebarNav ──────────────────────────────────────────────────────────
+// ─── Main ─────────────────────────────────────────────────────────────────────
 export default function SidebarNav({ role, access, view, setView, sidebarOpen }: SidebarNavProps) {
+  const [openModule, setOpenModule] = React.useState<string | null>(null);
+
+  const toggle = (title: string) =>
+    setOpenModule((prev: string | null) => prev === title ? null : title);
+
+  // Build visible modules from user's access array
+  const visibleModules = React.useMemo(() => {
+    if (role === "admin") {
+      // Admin sees everything from MODULE_CONFIG
+      return MODULE_CONFIG.map(mod => ({
+        mod,
+        allowedTitles: new Set<string>(
+          mod.children.flatMap(c =>
+            "type" in c && c.type === "group"
+              ? c.children.map(l => l.title)
+              : [(c as ChildModule).title]
+          )
+        ),
+      }));
+    }
+
+    // Non-admin: only modules in their access array
+    return access
+      .map(entry => {
+        const mod = MODULE_CONFIG.find(m => m.title === entry.access_to);
+        if (!mod) return null;
+        return {
+          mod,
+          allowedTitles: new Set<string>(entry.functionalities),
+        };
+      })
+      .filter(Boolean) as { mod: typeof MODULE_CONFIG[0]; allowedTitles: Set<string> }[];
+  }, [role, access]);
+
   return (
     <ScrollArea className="flex-1 px-2 py-2 scrollbar-thin">
       <nav className="space-y-0.5">
-        {/* Empty state */}
-        {access.length === 0 && role !== "admin" && sidebarOpen && (
+        {visibleModules.length === 0 && role !== "admin" && sidebarOpen && (
           <p className="text-[10px] text-white/30 px-3 py-2 italic">No modules assigned</p>
         )}
 
-        {/* Render modules from user.access */}
-        {access.map((entry, i) => (
-          <ModuleGroup
-            key={i}
-            entry={entry}
-            view={view}
-            setView={setView}
-            sidebarOpen={sidebarOpen}
-          />
-        ))}
+        {visibleModules.map(({ mod, allowedTitles }, i) => {
+          // Single-child modules with a direct view — render as flat leaf
+          const flatChildren = mod.children.filter(c => !("type" in c)) as ChildModule[];
+          if (flatChildren.length === 1 && !("type" in mod.children[0]) && flatChildren[0].view) {
+            const leaf = flatChildren[0];
+            if (mod.title === "Settings" && role === "admin") {
+              return <SettingsLeaf key={i} view={view} setView={setView} sidebarOpen={sidebarOpen} />;
+            }
+            return (
+              <NavLeaf key={i} title={mod.title} nodeView={leaf.view}
+                currentView={view} setView={setView} depth={0} sidebarOpen={sidebarOpen} />
+            );
+          }
+
+          return (
+            <ModuleGroup
+              key={i}
+              title={mod.title}
+              children={mod.children}
+              allowedTitles={allowedTitles}
+              currentView={view}
+              setView={setView}
+              sidebarOpen={sidebarOpen}
+              isOpen={openModule === mod.title}
+              onToggle={() => toggle(mod.title)}
+            />
+          );
+        })}
 
         {/* Admin always sees Settings */}
-        {role === "admin" && (
+        {role === "admin" && !visibleModules.some(({ mod }) => mod.title === "Settings") && (
           <SettingsLeaf view={view} setView={setView} sidebarOpen={sidebarOpen} />
         )}
       </nav>

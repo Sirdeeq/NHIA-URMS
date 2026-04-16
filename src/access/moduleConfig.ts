@@ -1,256 +1,167 @@
 export type UserRole =
-  | "admin" | "state-officer" | "zonal-director"
-  | "sdo"   | "hq-department" | "dg-ceo";
+  | "admin" | "state-officer" | "zonal-coordinator"
+  | "state-coordinator" | "sdo" | "hq-department" | "dg-ceo";
 
 export interface ChildModule {
-  title: string;   // Must match functionality name in user.access
-  path: string;
+  title: string;
+  view?: string;
 }
 
-export interface ParentModule {
-  title: string;   // Must match access_to in user.access
-  roles: UserRole[] | "all";
+export interface SubGroup {
+  type: "group";
+  label: string;
   children: ChildModule[];
 }
 
+export interface ParentModule {
+  title: string;
+  roles: UserRole[] | "all" | string;
+  /** Flat children OR nested sub-groups */
+  children: (ChildModule | SubGroup)[];
+}
+
+/**
+ * Exact match of the sidebar nav JSON structure.
+ * title = access_to key stored in user.functionalities
+ */
 export const MODULE_CONFIG: ParentModule[] = [
   // ── Dashboard ──────────────────────────────────────────────────────────────
   {
     title: "Dashboard",
     roles: "all",
     children: [
-      { title: "Overview",    path: "/dashboard"            },
-      { title: "Statistics",  path: "/dashboard/statistics" },
+      { title: "Dashboard", view: "home" },
     ],
   },
 
   // ── Annual Reports ─────────────────────────────────────────────────────────
   {
     title: "Annual Reports",
-    roles: ["admin", "state-officer", "zonal-director", "sdo", "hq-department"],
+    roles: "!dg-ceo",
     children: [
-      { title: "New Annual Report",  path: "/annual-reports/new"       },
-      { title: "My Submissions",     path: "/annual-reports/mine"      },
-      { title: "Submit Report",      path: "/annual-reports/submit"    },
-      { title: "Review Reports",     path: "/annual-reports/review"    },
-      { title: "Approved Reports",   path: "/annual-reports/approved"  },
+      { title: "New Annual Report", view: "annual-report"       },
+      { title: "My Submissions",    view: "annual-reports-list" },
     ],
   },
-
-  // ── Finance & Admin Department ─────────────────────────────────────────────
   {
-    title: "Finance & Admin",
-    roles: ["admin", "hq-department", "zonal-director", "state-officer"],
+    title: "Finance & Admin Dept",
+    roles: "all",
     children: [
-      { title: "Expenditure Payments",  path: "/finance/expenditure"         },
-      { title: "Payments",              path: "/finance/payments"             },
-      { title: "Reporting",             path: "/finance/reporting"            },
-      { title: "Financial Reporting",   path: "/finance/financial-reporting"  },
-      { title: "Facilities",            path: "/finance/facilities"           },
-      { title: "HR Support",            path: "/finance/hr-support"           },
+      { type: "group", label: "Finance", children: [
+        { title: "Monthly Report", view: "finance-monthly" },
+      ]},
+      { type: "group", label: "Admin", children: [
+        { title: "Monthly Report", view: "admin-monthly" },
+      ]},
     ],
   },
 
   // ── Standards & Quality Assurance ─────────────────────────────────────────
   {
-    title: "Standards & Quality",
-    roles: ["admin", "hq-department", "zonal-director", "state-officer"],
+    title: "Standards & Quality Assurance",
+    roles: "all",
     children: [
-      { title: "QA Officers",           path: "/standards/qa-officers"   },
-      { title: "HMO/HCP Accreditation", path: "/standards/accreditation" },
-      { title: "Enrollee Complaints",   path: "/standards/complaints"    },
-      { title: "SHIA Liaison",          path: "/standards/shia"          },
+      { type: "group", label: "HMO/HCP Quality Assurance", children: [
+        { title: "Monthly Report", view: "sqa-monthly" },
+      ]},
+      { type: "group", label: "Enrollee Complaints / SHIA Liaison", children: [
+        { title: "Monthly Report", view: "complaints-monthly" },
+      ]},
     ],
   },
 
   // ── Zonal ICT Support ──────────────────────────────────────────────────────
   {
-    title: "ICT Support",
-    roles: ["admin", "zonal-director", "sdo", "hq-department"],
+    title: "Zonal ICT Support",
+    roles: "all",
     children: [
-      { title: "ICT Support Desk",  path: "/ict/support-desk" },
-      { title: "Systems & Network", path: "/ict/systems"       },
-      { title: "User Management",   path: "/ict/users"         },
-      { title: "System Logs",       path: "/ict/logs"          },
+      { title: "ICT Support Desk"  },
+      { title: "Systems & Network" },
     ],
   },
 
   // ── Programmes ─────────────────────────────────────────────────────────────
   {
     title: "Programmes",
-    roles: ["admin", "hq-department", "zonal-director", "state-officer", "sdo"],
+    roles: "all",
     children: [
-      { title: "Programme Activities",  path: "/programmes/activities"  },
-      { title: "GIFSHIP",               path: "/programmes/gifship"     },
-      { title: "BHCPF",                 path: "/programmes/bhcpf"       },
-      { title: "CEmONC",                path: "/programmes/cemonc"      },
-      { title: "FFP",                   path: "/programmes/ffp"         },
-      { title: "FSSHIP",                path: "/programmes/fsship"      },
+      { type: "group", label: "Enrolment", children: [
+        { title: "Monthly Report", view: "programmes-monthly" },
+      ]},
+      { type: "group", label: "Enrollment Enquiries & Outreach", children: [
+        { title: "Monthly Report", view: "outreach-monthly" },
+      ]},
     ],
   },
 
   // ── SDO ────────────────────────────────────────────────────────────────────
   {
     title: "SDO",
-    roles: ["admin", "sdo", "zonal-director", "state-officer"],
+    roles: "all",
     children: [
-      { title: "State Office Coordination", path: "/sdo/coordination"        },
-      { title: "Stock Verification",        path: "/sdo/stock-verification"  },
-      { title: "My Verifications",          path: "/sdo/my-verifications"    },
-      { title: "Asset Register",            path: "/sdo/assets"              },
-      { title: "Servicom",                  path: "/sdo/servicom"            },
-      { title: "Special Projects",          path: "/sdo/projects"            },
-      { title: "SDO Performance",           path: "/sdo/performance"         },
+      { title: "Stock Verification", view: "stock-verification"       },
+      { title: "My Verifications",   view: "stock-verifications-list" },
+      { title: "Asset Register",     view: "stock-assets"             },
     ],
   },
 
   // ── Directives ─────────────────────────────────────────────────────────────
   {
     title: "Directives",
-    roles: ["admin", "dg-ceo", "hq-department", "zonal-director"],
-    children: [
-      { title: "Issue Directive",   path: "/directives/issue"   },
-      { title: "View Directives",   path: "/directives/view"    },
-      { title: "Pending Directives",path: "/directives/pending" },
-      { title: "Completed",         path: "/directives/done"    },
-    ],
+    roles: "dg-ceo",
+    children: [{ title: "Directives", view: "directives" }],
   },
 
   // ── Reports ────────────────────────────────────────────────────────────────
   {
-    title: "Reports",
-    roles: ["admin", "dg-ceo", "hq-department", "zonal-director", "sdo"],
-    children: [
-      { title: "National Reports",   path: "/reports/national"    },
-      { title: "Zonal Performance",  path: "/reports/zonal"       },
-      { title: "State Performance",  path: "/reports/state"       },
-      { title: "SDO Performance",    path: "/reports/sdo"         },
-      { title: "Compliance Reports", path: "/reports/compliance"  },
-    ],
+    title: "National Reports",
+    roles: "dg-ceo",
+    children: [{ title: "National Reports", view: "national-reports" }],
+  },
+  {
+    title: "Zonal Performance",
+    roles: "dg-ceo",
+    children: [{ title: "Zonal Performance", view: "zonal-performance" }],
   },
 
   // ── HQ Data ────────────────────────────────────────────────────────────────
   {
     title: "HQ Data",
-    roles: ["admin", "hq-department", "dg-ceo", "zonal-director"],
-    children: [
-      { title: "Data Overview",    path: "/hq-data/overview"    },
-      { title: "Data Entry",       path: "/hq-data/entry"       },
-      { title: "Data Validation",  path: "/hq-data/validation"  },
-      { title: "Export Data",      path: "/hq-data/export"      },
-    ],
-  },
-
-  // ── Audit & Compliance ─────────────────────────────────────────────────────
-  {
-    title: "Audit & Compliance",
-    roles: ["admin", "dg-ceo", "hq-department"],
-    children: [
-      { title: "Audit Log",          path: "/audit/log"          },
-      { title: "Compliance Checks",  path: "/audit/compliance"   },
-      { title: "Flagged Reports",    path: "/audit/flagged"      },
-      { title: "Audit Reports",      path: "/audit/reports"      },
-    ],
-  },
-
-  // ── Human Resources ────────────────────────────────────────────────────────
-  {
-    title: "Human Resources",
-    roles: ["admin", "hq-department"],
-    children: [
-      { title: "Staff Records",     path: "/hr/staff"       },
-      { title: "Leave Management",  path: "/hr/leave"       },
-      { title: "Payroll",           path: "/hr/payroll"     },
-      { title: "Training",          path: "/hr/training"    },
-    ],
-  },
-
-  // ── Planning, Research & Statistics ───────────────────────────────────────
-  {
-    title: "Planning & Research",
-    roles: ["admin", "hq-department", "dg-ceo"],
-    children: [
-      { title: "Strategic Plans",   path: "/planning/strategic"  },
-      { title: "Research Reports",  path: "/planning/research"   },
-      { title: "Statistics",        path: "/planning/statistics" },
-    ],
-  },
-
-  // ── SERVICOM ───────────────────────────────────────────────────────────────
-  {
-    title: "SERVICOM",
-    roles: ["admin", "hq-department", "zonal-director", "state-officer", "sdo"],
-    children: [
-      { title: "Service Charter",   path: "/servicom/charter"   },
-      { title: "Complaints",        path: "/servicom/complaints"},
-      { title: "Reports",           path: "/servicom/reports"   },
-    ],
-  },
-
-  // ── Special Projects ───────────────────────────────────────────────────────
-  {
-    title: "Special Projects",
-    roles: ["admin", "hq-department", "dg-ceo", "zonal-director"],
-    children: [
-      { title: "Active Projects",    path: "/projects/active"    },
-      { title: "Project Reports",    path: "/projects/reports"   },
-      { title: "Project Archive",    path: "/projects/archive"   },
-    ],
-  },
-
-  // ── Communications & Public Affairs ───────────────────────────────────────
-  {
-    title: "Communications",
-    roles: ["admin", "hq-department", "dg-ceo"],
-    children: [
-      { title: "Press Releases",    path: "/comms/press"        },
-      { title: "Announcements",     path: "/comms/announcements"},
-      { title: "Media Relations",   path: "/comms/media"        },
-    ],
-  },
-
-  // ── Legal Services ─────────────────────────────────────────────────────────
-  {
-    title: "Legal Services",
-    roles: ["admin", "hq-department", "dg-ceo"],
-    children: [
-      { title: "Legal Documents",   path: "/legal/documents"  },
-      { title: "Contracts",         path: "/legal/contracts"  },
-      { title: "Litigation",        path: "/legal/litigation" },
-    ],
+    roles: "all",
+    children: [{ title: "HQ Data", view: "hq-data" }],
   },
 
   // ── Archive ────────────────────────────────────────────────────────────────
   {
     title: "Archive",
     roles: "all",
-    children: [
-      { title: "Document Archive",  path: "/archive/documents" },
-      { title: "Report Archive",    path: "/archive/reports"   },
-    ],
+    children: [{ title: "Archive", view: "archive" }],
   },
 
   // ── Notifications ──────────────────────────────────────────────────────────
   {
     title: "Notifications",
     roles: "all",
-    children: [
-      { title: "All Notifications", path: "/notifications"        },
-      { title: "Unread",            path: "/notifications/unread" },
-    ],
+    children: [{ title: "Notifications", view: "notifications" }],
   },
 
   // ── Settings (admin only) ──────────────────────────────────────────────────
   {
     title: "Settings",
-    roles: ["admin"],
-    children: [
-      { title: "Users",       path: "/settings/users"       },
-      { title: "Privileges",  path: "/settings/privileges"  },
-      { title: "Zones",       path: "/settings/zones"       },
-      { title: "States",      path: "/settings/states"      },
-      { title: "Departments", path: "/settings/departments" },
-      { title: "Units",       path: "/settings/units"       },
-    ],
+    roles: "admin",
+    children: [{ title: "Settings", view: "settings" }],
   },
 ];
+
+/** Flatten all leaf titles from a module (for privilege checkboxes) */
+export function flatLeaves(mod: ParentModule): string[] {
+  const out: string[] = [];
+  for (const c of mod.children) {
+    if ("type" in c && c.type === "group") {
+      c.children.forEach(leaf => out.push(leaf.title));
+    } else {
+      out.push((c as ChildModule).title);
+    }
+  }
+  return out;
+}

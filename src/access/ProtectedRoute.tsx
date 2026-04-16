@@ -1,10 +1,11 @@
 import * as React from "react";
-import { useAppSelector } from "@/src/store/hooks";
+import { useSelector } from "react-redux";
+import type { RootState } from "@/src/store/store";
 import { MODULE_CONFIG } from "./moduleConfig";
 import { canAccessModule, canAccessFunctionality } from "./accessUtils";
 
 interface Props {
-  /** Parent module this route belongs to */
+  /** Parent module this route belongs to — if omitted, only auth is checked */
   module?: string;
   /** Specific child functionality required */
   functionality?: string;
@@ -12,30 +13,27 @@ interface Props {
 }
 
 /**
- * Guards a page/view.
+ * Guards a page/view. Reads auth from Redux store.
  *
- * Auth only:
- *   <ProtectedRoute>...</ProtectedRoute>
- *
- * Module + functionality:
- *   <ProtectedRoute module="Zonal ICT Support" functionality="System Logs">
- *     <SystemLogsPage />
+ * Usage:
+ *   <ProtectedRoute>...</ProtectedRoute>                          // auth only
+ *   <ProtectedRoute module="Finance">...</ProtectedRoute>         // module check
+ *   <ProtectedRoute module="Finance" functionality="Payments">    // child check
+ *     <PaymentsPage />
  *   </ProtectedRoute>
  */
 export default function ProtectedRoute({ module, functionality, children }: Props) {
-  const user  = useAppSelector(s => s.auth.user);
-  const token = useAppSelector(s => s.auth.token) ?? localStorage.getItem("nhia@token");
+  const user  = useSelector((s: RootState) => s.auth.user);
+  const token = useSelector((s: RootState) => s.auth.token);
 
+  // Not authenticated
   if (!user || !token) return <Denied type="unauthenticated" />;
 
+  // Module access check
   if (module) {
     const mod = MODULE_CONFIG.find(m => m.title === module);
-    const accessUser = { role: user.role, access: user.access };
-
-    if (!mod || !canAccessModule(mod, accessUser)) {
-      return <Denied type="unauthorized" />;
-    }
-
+    const accessUser = { role: user.role, access: user.functionalities };
+    if (!mod || !canAccessModule(mod, accessUser)) return <Denied type="unauthorized" />;
     if (functionality && !canAccessFunctionality(module, functionality, accessUser)) {
       return <Denied type="unauthorized" />;
     }
