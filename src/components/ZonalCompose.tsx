@@ -5,7 +5,7 @@ import {
   Eye, 
   FileText, 
   Users, 
-  DollarSign, 
+  Banknote, 
   ShieldCheck, 
   ChevronRight, 
   ChevronDown,
@@ -207,7 +207,7 @@ export default function ZonalCompose({ onBack, onForward }: ZonalComposeProps) {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="finance" className="flex items-center gap-2">
-                      <DollarSign className="w-4 h-4 text-slate-400" /> Finance Utilisation %
+                      <Banknote className="w-4 h-4 text-slate-400" /> Finance Utilisation %
                     </Label>
                     <Input id="finance" type="number" defaultValue="78.5" className="font-bold" />
                   </div>

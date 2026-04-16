@@ -49,7 +49,7 @@ import StateOfficeDashboard from "./StateOfficeDashboard";
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Role = "state-officer" | "zonal-coordinator" | "state-coordinator" | "sdo" | "hq-department" | "audit" | "dg-ceo" | "admin";
 type View = "home" | "report-entry" | "report-preview" | "zonal-review" | "zonal-compose" | "annual-report" | "annual-reports-list" | "annual-report-detail" | "settings" | "stock-verification" | "stock-verifications-list" | "stock-assets" | "finance-monthly" | "admin-monthly" | "programmes-monthly" | "outreach-monthly" | "sqa-monthly" | "complaints-monthly" | "monthly-reports-list";
-interface DashboardProps { role: Role; access?: import("@/src/access/types").AccessEntry[]; functionalities?: string; onLogout: () => void; }
+interface DashboardProps { role: Role; user?: import("@/src/store/authSlice").AuthUser; access?: import("@/src/access/types").AccessEntry[]; functionalities?: string; onLogout: () => void; }
 
 // ─── Mock data ────────────────────────────────────────────────────────────────
 const CHART_DATA = [
@@ -386,7 +386,7 @@ function AuditPanel() {
 }
 
 // ─── Main Dashboard ───────────────────────────────────────────────────────────
-export default function Dashboard({ role, access = [], functionalities = "", onLogout }: DashboardProps) {
+export default function Dashboard({ role, user, access = [], functionalities = "", onLogout }: DashboardProps) {
   const [view, setView] = React.useState<View>(role === "admin" ? "home" : "home");
   const [sidebarOpen, setSidebarOpen] = React.useState(true);
   const [selectedReportRef, setSelectedReportRef] = React.useState<string | null>(null);
@@ -526,8 +526,8 @@ export default function Dashboard({ role, access = [], functionalities = "", onL
                   </div>
                 </div>
 
-                {/* KPI row — hidden for SDO, Zonal Coordinator, and State Officer (have their own KPIs) */}
-                {role !== "sdo" && role !== "zonal-coordinator" && role !== "state-officer" && (
+                {/* KPI row — hidden for SDO, Zonal Coordinator, State Officer and State Coordinator (have their own KPIs) */}
+                {role !== "sdo" && role !== "zonal-coordinator" && role !== "state-officer" && role !== "state-coordinator" && (
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                   <KPICard title="Reports Submitted" value="124" trend="+12%" trendUp icon={<FileText className="w-5 h-5 text-blue-600" />} tint="kpi-blue" sub="This month" />
                   <KPICard title="Pending Review"    value="18"  trend="-5%"  icon={<Clock className="w-5 h-5 text-amber-600" />}  tint="kpi-amber" sub="Awaiting action" />
@@ -543,10 +543,10 @@ export default function Dashboard({ role, access = [], functionalities = "", onL
                     <SDOPerformance />
                   </motion.div>
                 ) : role === "zonal-coordinator" ? (
-                  /* Zonal Coordinator: same zone + state drill-down dashboard as Zonal Director */
+                  /* Zonal Coordinator: zone + state drill-down dashboard */
                   <motion.div key={role} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
                     <ZonalDirectorDashboard
-                      zoneName="South West"
+                      zoneName={user?.zone?.description ?? "South West"}
                       onReviewReports={() => setView("zonal-review")}
                     />
                   </motion.div>
@@ -554,8 +554,20 @@ export default function Dashboard({ role, access = [], functionalities = "", onL
                   /* State Officer: state performance + department drill-down */
                   <motion.div key={role} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
                     <StateOfficeDashboard
-                      stateName="Lagos"
-                      zoneName="South West"
+                      stateName={user?.state?.description ?? "Lagos"}
+                      zoneName={user?.zone?.description ?? "South West"}
+                      onNewReport={() => setView("report-entry")}
+                      onAnnualReport={() => setView("annual-report")}
+                      onViewSubmissions={() => setView("annual-reports-list")}
+                      onNewSubmission={(targetView) => setView(targetView as View)}
+                    />
+                  </motion.div>
+                ) : role === "state-coordinator" ? (
+                  /* State Coordinator: same state performance dashboard, scoped to their state only */
+                  <motion.div key={role} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+                    <StateOfficeDashboard
+                      stateName={user?.state?.description ?? "Lagos"}
+                      zoneName={user?.zone?.description ?? "South West"}
                       onNewReport={() => setView("report-entry")}
                       onAnnualReport={() => setView("annual-report")}
                       onViewSubmissions={() => setView("annual-reports-list")}
@@ -615,7 +627,6 @@ export default function Dashboard({ role, access = [], functionalities = "", onL
 
                     {/* Role panel */}
                     <motion.div key={role} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-                      {role === "state-coordinator" && <StateOfficerPanel onNewReport={() => setView("report-entry")} onAnnualReport={() => setView("annual-report")} onViewSubmissions={() => setView("annual-reports-list")} />}
                       {role === "dg-ceo"         && <DGCEOPanel />}
                       {role === "hq-department"  && <HQPanel />}
                       {role === "audit"          && <AuditPanel />}

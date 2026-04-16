@@ -1,6 +1,9 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import type { AccessEntry } from "@/src/access/types";
 
+export interface AuthStateOffice  { id: number; code: string; description: string; zonal_id?: number; }
+export interface AuthZonalOffice  { id: number; zonal_code: string; description: string; }
+
 export interface AuthUser {
   id: number;
   name: string;
@@ -14,6 +17,9 @@ export interface AuthUser {
   department_id?: number;
   unit_id?: number;
   is_active?: boolean;
+  /** Nested objects returned by the backend on login/me */
+  state?: AuthStateOffice;
+  zone?:  AuthZonalOffice;
 }
 
 interface AuthState {

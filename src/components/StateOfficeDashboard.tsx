@@ -6,7 +6,7 @@ import {
 import {
   ArrowLeft, ChevronRight, TrendingUp, TrendingDown,
   FileText, CheckSquare, Clock, AlertCircle, Users,
-  DollarSign, Activity, Building2, Layers, MapPin,
+  Banknote, Activity, Building2, Layers, MapPin,
   ShieldCheck, Wifi, LayoutGrid, Briefcase, Scale,
   Megaphone, BookOpen, PackageSearch, ClipboardList,
 } from "lucide-react";
@@ -21,7 +21,7 @@ import { motion, AnimatePresence } from "motion/react";
 const DEPARTMENTS = [
   {
     code: "FIN", name: "Finance & Accounts",
-    icon: <DollarSign className="w-4 h-4" />, color: "#3b82f6", tint: "kpi-blue",
+    icon: <Banknote className="w-4 h-4" />, color: "#3b82f6", tint: "kpi-blue",
     desc: "Financial operations, budgeting, revenue and expenditure reporting.",
     units: [
       { code: "FIN-REV",  name: "Revenue & IGR Unit",        desc: "Internally Generated Revenue tracking and reporting." },

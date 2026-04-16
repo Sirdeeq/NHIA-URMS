@@ -71,6 +71,7 @@ function AppInner() {
       {isAuthenticated ? (
         <Dashboard
           role={user.role as any}
+          user={user}
           access={Array.isArray(user.functionalities) ? user.functionalities : []}
           onLogout={handleLogout}
         />

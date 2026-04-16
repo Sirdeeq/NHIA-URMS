@@ -5,7 +5,7 @@ import {
   AlertCircle, 
   Edit3, 
   FileText, 
-  DollarSign, 
+  Banknote, 
   Users, 
   ShieldCheck, 
   Calendar,
@@ -136,7 +136,7 @@ export default function ReportPreview({ onBack, onEditSection, onSubmit }: Repor
 
             <SummaryCard 
               title="Financial Summary" 
-              icon={<DollarSign className="w-4 h-4" />} 
+              icon={<Banknote className="w-4 h-4" />} 
               onEdit={() => onEditSection("finance")}
             >
               <div className="grid grid-cols-2 gap-4">

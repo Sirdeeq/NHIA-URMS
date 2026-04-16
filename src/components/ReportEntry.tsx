@@ -6,7 +6,7 @@ import {
   ArrowLeft, 
   Upload, 
   FileText, 
-  DollarSign, 
+  Banknote, 
   Users, 
   CheckCircle2, 
   ShieldCheck,
@@ -265,7 +265,7 @@ export default function ReportEntry({ onBack, onPreview }: ReportEntryProps) {
                       <FileText className="w-4 h-4" /> <span className="hidden sm:inline">Activity</span>
                     </TabsTrigger>
                     <TabsTrigger value="finance" className="gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm">
-                      <DollarSign className="w-4 h-4" /> <span className="hidden sm:inline">Finance</span>
+                      <Banknote className="w-4 h-4" /> <span className="hidden sm:inline">Finance</span>
                     </TabsTrigger>
                     <TabsTrigger value="enrolment" className="gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm">
                       <Users className="w-4 h-4" /> <span className="hidden sm:inline">Enrolment</span>

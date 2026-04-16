@@ -1,7 +1,7 @@
 import * as React from "react";
 import {
   ChevronDown, ChevronRight, Settings, Home, BarChart3, FileText,
-  CheckSquare, DollarSign, ShieldCheck, Wifi, LayoutGrid, Briefcase,
+  CheckSquare, Banknote, ShieldCheck, Wifi, LayoutGrid, Briefcase,
   Flag, Database, Archive, Bell, Users, ClipboardList, PackageSearch,
   FolderKanban, Radio, Wrench, MapPin, Scale, Megaphone, BookOpen,
   Activity, TrendingUp,
@@ -24,7 +24,7 @@ interface SidebarNavProps {
 const MODULE_ICONS: Record<string, React.ReactNode> = {
   "Dashboard":            <Home className="w-4 h-4" />,
   "Annual Reports":       <FileText className="w-4 h-4" />,
-  "Finance & Admin":      <DollarSign className="w-4 h-4" />,
+  "Finance & Admin":      <Banknote className="w-4 h-4" />,
   "Standards & Quality":  <ShieldCheck className="w-4 h-4" />,
   "ICT Support":          <Wifi className="w-4 h-4" />,
   "Programmes":           <LayoutGrid className="w-4 h-4" />,
