@@ -559,6 +559,7 @@ export default function Dashboard({ role, access = [], functionalities = "", onL
                       onNewReport={() => setView("report-entry")}
                       onAnnualReport={() => setView("annual-report")}
                       onViewSubmissions={() => setView("annual-reports-list")}
+                      onNewSubmission={(targetView) => setView(targetView as View)}
                     />
                   </motion.div>
                 ) : (

@@ -136,10 +136,23 @@ const DEPARTMENTS = [
   },
 ] as const;
 
+// ─── Department → monthly view mapping ───────────────────────────────────────
+const DEPT_VIEW_MAP: Record<string, string> = {
+  FIN:  "finance-monthly",
+  HR:   "admin-monthly",
+  HI:   "sqa-monthly",       // Health Insurance → SQA (QA/accreditation)
+  SVC:  "complaints-monthly", // SERVICOM → Complaints
+  COM:  "outreach-monthly",   // Communications → Outreach
+  SPD:  "programmes-monthly", // Special Projects → Programmes
+  ICT:  "sqa-monthly",        // ICT — no dedicated form, closest is SQA
+  AUD:  "sqa-monthly",        // Audit — no dedicated form
+  PLN:  "programmes-monthly", // Planning → Programmes
+  STK:  "stock-verification", // Stock → Stock Verification page
+  LEG:  "finance-monthly",    // Legal — no dedicated form, closest is Finance
+};
+
 type Department = typeof DEPARTMENTS[number];
 type Unit = Department["units"][number];
-
-// ─── Deterministic mock data helpers ─────────────────────────────────────────
 function deptSeed(code: string) {
   return code.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
 }
@@ -222,9 +235,10 @@ function StatCard({
 
 // ─── Department detail panel ──────────────────────────────────────────────────
 function DepartmentDetail({
-  dept, stateName, onBack,
+  dept, stateName, onBack, onNewSubmission,
 }: {
   dept: Department; stateName: string; onBack: () => void;
+  onNewSubmission?: (view: string) => void;
 }) {
   const stats    = mockDeptStats(dept.code);
   const quarterly = mockDeptQuarterly(dept.code);
@@ -273,6 +287,15 @@ function DepartmentDetail({
         }`}>
           {stats.compliance}% Compliance
         </Badge>
+        {onNewSubmission && DEPT_VIEW_MAP[dept.code] && (
+          <Button
+            size="sm"
+            className="bg-orange-action hover:bg-orange-600 gap-1.5 shadow-lg shadow-orange-500/20 shrink-0"
+            onClick={() => onNewSubmission(DEPT_VIEW_MAP[dept.code])}
+          >
+            <FileText className="w-3.5 h-3.5" /> New Submission
+          </Button>
+        )}
       </div>
 
       {/* KPI row */}
@@ -435,13 +458,12 @@ function DepartmentDetail({
 
 // ─── Main StateOfficeDashboard ────────────────────────────────────────────────
 interface StateOfficeDashboardProps {
-  /** State name from the logged-in user's profile. Falls back to "Lagos". */
   stateName?: string;
-  /** Zone the state belongs to */
   zoneName?: string;
   onNewReport?: () => void;
   onAnnualReport?: () => void;
   onViewSubmissions?: () => void;
+  onNewSubmission?: (view: string) => void;
 }
 
 export default function StateOfficeDashboard({
@@ -450,6 +472,7 @@ export default function StateOfficeDashboard({
   onNewReport,
   onAnnualReport,
   onViewSubmissions,
+  onNewSubmission,
 }: StateOfficeDashboardProps) {
   const [selectedDept, setSelectedDept] = React.useState<Department | null>(null);
   const [filterStatus, setFilterStatus] = React.useState<"all" | "pending" | "overdue">("all");
@@ -482,6 +505,7 @@ export default function StateOfficeDashboard({
         dept={selectedDept}
         stateName={stateName}
         onBack={() => setSelectedDept(null)}
+        onNewSubmission={onNewSubmission}
       />
     );
   }
