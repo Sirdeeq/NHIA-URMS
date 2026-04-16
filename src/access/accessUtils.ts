@@ -1,13 +1,26 @@
 import type { AccessEntry, AccessUser } from "./types";
-import type { ParentModule } from "./moduleConfig";
+import type { ParentModule, ChildModule } from "./moduleConfig";
 
 export function findEntry(user: AccessUser, moduleTitle: string): AccessEntry | undefined {
   return (user.access ?? []).find(e => e.access_to === moduleTitle);
 }
 
+/** Get all leaf titles from a module (flattening sub-groups) */
+function allLeafTitles(mod: ParentModule): string[] {
+  return mod.children.flatMap(c =>
+    "type" in c && c.type === "group"
+      ? c.children.map((l: ChildModule) => l.title)
+      : [(c as ChildModule).title]
+  );
+}
+
 export function canAccessModule(mod: ParentModule, user: AccessUser): boolean {
   if (user.role === "admin") return true;
-  if (mod.roles !== "all" && !(mod.roles as string[]).includes(user.role)) return false;
+  const r = mod.roles;
+  if (r !== "all") {
+    if (r === "!dg-ceo" && user.role === "dg-ceo") return false;
+    if (r !== "!dg-ceo" && !(r as string[]).includes(user.role)) return false;
+  }
   return !!(user.access ?? []).find(e => e.access_to === mod.title);
 }
 
@@ -18,10 +31,6 @@ export function canAccessFunctionality(moduleTitle: string, functionalityTitle: 
   return entry.functionalities.includes(functionalityTitle);
 }
 
-/**
- * Build the visible sidebar from user.access — fully dynamic, no hardcoding.
- * Order follows the user's access array order.
- */
 export function filterSidebar(
   config: ParentModule[],
   user: AccessUser
@@ -35,11 +44,16 @@ export function filterSidebar(
   for (const entry of (user.access ?? [])) {
     const mod = config.find(m => m.title === entry.access_to);
     if (!mod) continue;
-    if (mod.roles !== "all" && !(mod.roles as string[]).includes(user.role)) continue;
 
-    const visibleChildren = mod.children.filter(c =>
-      entry.functionalities.includes(c.title)
-    );
+    const allowed = new Set(entry.functionalities);
+
+    const visibleChildren = mod.children.filter(c => {
+      if ("type" in c && c.type === "group") {
+        return c.children.some((l: ChildModule) => allowed.has(l.title));
+      }
+      return allowed.has((c as ChildModule).title);
+    });
+
     if (visibleChildren.length > 0) {
       result.push({ ...mod, visibleChildren });
     }

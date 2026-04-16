@@ -35,7 +35,7 @@ import AdminSettingsPage from "./admin/AdminSettingsPage";
 import SidebarNav from "./SidebarNav";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type Role = "state-officer" | "zonal-director" | "sdo" | "hq-department" | "audit" | "dg-ceo" | "admin";
+type Role = "state-officer" | "zonal-coordinator" | "state-coordinator" | "sdo" | "hq-department" | "audit" | "dg-ceo" | "admin";
 type View = "home" | "report-entry" | "report-preview" | "zonal-review" | "zonal-compose" | "annual-report" | "annual-reports-list" | "annual-report-detail" | "settings";
 interface DashboardProps { role: Role; access?: import("@/src/access/types").AccessEntry[]; functionalities?: string; onLogout: () => void; }
 
@@ -100,7 +100,8 @@ function getMenuItems(role: Role, view: View, setView: (v: View) => void) {
 // ─── Role helpers ─────────────────────────────────────────────────────────────
 function getRoleLabel(r: Role) {
   const map: Record<Role, string> = {
-    "state-officer": "State Officer", "zonal-director": "Zonal Director",
+    "state-officer": "State Officer", "zonal-coordinator": "Zonal Coordinator",
+    "state-coordinator": "State Coordinator",
     "sdo": "SDO / DGO", "hq-department": "HQ Department",
     "audit": "Audit Team", "dg-ceo": "DG / CEO", "admin": "Administrator",
   };
@@ -108,13 +109,14 @@ function getRoleLabel(r: Role) {
 }
 function getUserInfo(r: Role) {
   const map: Record<Role, { name: string; initials: string; email: string; dept: string }> = {
-    "state-officer":  { name: "State Officer",   initials: "SO",    email: "so@nhia.gov.ng",    dept: "State Office"      },
-    "zonal-director": { name: "Zonal Director",  initials: "ZD",    email: "zd@nhia.gov.ng",    dept: "Zonal Directorate" },
-    "sdo":            { name: "SDO / DGO",        initials: "SDO",   email: "sdo@nhia.gov.ng",   dept: "State Directorate" },
-    "hq-department":  { name: "HQ Department",   initials: "HQ",    email: "hq@nhia.gov.ng",    dept: "Headquarters"      },
-    "audit":          { name: "Audit Team",       initials: "AUD",   email: "audit@nhia.gov.ng", dept: "Audit & Compliance"},
-    "dg-ceo":         { name: "DG / CEO",         initials: "DG",    email: "dg@nhia.gov.ng",    dept: "Executive Office"  },
-    "admin":          { name: "Administrator",    initials: "ADM",   email: "admin@nhia.gov.ng", dept: "System Admin"      },
+    "state-officer":     { name: "State Officer",      initials: "SO",  email: "so@nhia.gov.ng",  dept: "State Office"       },
+    "zonal-coordinator": { name: "Zonal Coordinator",  initials: "ZC",  email: "zc@nhia.gov.ng",  dept: "Zonal Coordination" },
+    "state-coordinator": { name: "State Coordinator",  initials: "SC",  email: "sc@nhia.gov.ng",  dept: "State Coordination" },
+    "sdo":               { name: "SDO / DGO",          initials: "SDO", email: "sdo@nhia.gov.ng", dept: "State Directorate"  },
+    "hq-department":     { name: "HQ Department",      initials: "HQ",  email: "hq@nhia.gov.ng",  dept: "Headquarters"       },
+    "audit":             { name: "Audit Team",         initials: "AUD", email: "audit@nhia.gov.ng",dept: "Audit & Compliance" },
+    "dg-ceo":            { name: "DG / CEO",           initials: "DG",  email: "dg@nhia.gov.ng",  dept: "Executive Office"   },
+    "admin":             { name: "Administrator",      initials: "ADM", email: "admin@nhia.gov.ng",dept: "System Admin"       },
   };
   return map[r];
 }
@@ -582,8 +584,9 @@ export default function Dashboard({ role, access = [], functionalities = "", onL
 
                     {/* Role panel */}
                     <motion.div key={role} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-                      {role === "state-officer"  && <StateOfficerPanel onNewReport={() => setView("report-entry")} onAnnualReport={() => setView("annual-report")} onViewSubmissions={() => setView("annual-reports-list")} />}
-                      {role === "zonal-director" && <ZonalDirectorPanel onReviewReports={() => setView("zonal-review")} />}
+                      {role === "state-officer"     && <StateOfficerPanel onNewReport={() => setView("report-entry")} onAnnualReport={() => setView("annual-report")} onViewSubmissions={() => setView("annual-reports-list")} />}
+                      {role === "zonal-coordinator" && <ZonalDirectorPanel onReviewReports={() => setView("zonal-review")} />}
+                      {role === "state-coordinator" && <StateOfficerPanel onNewReport={() => setView("report-entry")} onAnnualReport={() => setView("annual-report")} onViewSubmissions={() => setView("annual-reports-list")} />}
                       {role === "dg-ceo"         && <DGCEOPanel />}
                       {role === "sdo"            && <SDOHub />}
                       {role === "hq-department"  && <HQPanel />}

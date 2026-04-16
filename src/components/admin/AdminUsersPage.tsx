@@ -9,18 +9,20 @@ import { usersApi, zonesApi, statesApi, departmentsApi, unitsApi, type AdminUser
 import AdminModal from "./AdminModal";
 import { MODULE_CONFIG } from "@/src/access/moduleConfig";
 
-const ROLES = ["state-officer", "zonal-director", "sdo", "hq-department", "dg-ceo", "admin"] as const;
+const ROLES = ["state-officer", "zonal-coordinator", "state-coordinator", "sdo", "hq-department", "dg-ceo", "admin"] as const;
 const ROLE_LABELS: Record<string, string> = {
-  "state-officer": "State Officer", "zonal-director": "Zonal Director",
+  "state-officer": "State Officer", "zonal-coordinator": "Zonal Coordinator",
+  "state-coordinator": "State Coordinator",
   "sdo": "SDO", "hq-department": "HQ Department", "dg-ceo": "DG-CEO", "admin": "Admin",
 };
 const ROLE_COLORS: Record<string, string> = {
-  "admin": "bg-purple-100 text-purple-700 border-purple-200",
-  "dg-ceo": "bg-rose-100 text-rose-700 border-rose-200",
-  "zonal-director": "bg-blue-100 text-blue-700 border-blue-200",
-  "hq-department": "bg-amber-100 text-amber-700 border-amber-200",
-  "sdo": "bg-[#e8f5ee] text-[#145c3f] border-[#d4e8dc]",
-  "state-officer": "bg-slate-100 text-slate-700 border-slate-200",
+  "admin":             "bg-purple-100 text-purple-700 border-purple-200",
+  "dg-ceo":            "bg-rose-100 text-rose-700 border-rose-200",
+  "zonal-coordinator": "bg-blue-100 text-blue-700 border-blue-200",
+  "state-coordinator": "bg-cyan-100 text-cyan-700 border-cyan-200",
+  "hq-department":     "bg-amber-100 text-amber-700 border-amber-200",
+  "sdo":               "bg-[#e8f5ee] text-[#145c3f] border-[#d4e8dc]",
+  "state-officer":     "bg-slate-100 text-slate-700 border-slate-200",
 };
 
 const inputCls = "w-full pl-3 pr-3 h-11 rounded-xl border border-[#d4e8dc] bg-[#f4f7f5] text-sm text-slate-800 placeholder:text-slate-400 focus:ring-2 focus:ring-[#25a872] focus:border-[#25a872] outline-none transition-all";

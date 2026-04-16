@@ -25,7 +25,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-export type Role = "admin" | "state-officer" | "zonal-director" | "sdo" | "hq-department" | "dg-ceo";
+export type Role = "admin" | "state-officer" | "zonal-coordinator" | "state-coordinator" | "sdo" | "hq-department" | "dg-ceo";
 
 export interface AdminUser {
   id: number; name: string; staff_id: string; email?: string;

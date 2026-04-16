@@ -6,11 +6,12 @@ import { toast } from "sonner";
 import { authApi, tokenStore } from "@/lib/adminApi";
 
 const ROLES = [
-  { value: "state-officer",  label: "State Officer"   },
-  { value: "zonal-director", label: "Zonal Director"  },
-  { value: "sdo",            label: "SDO"             },
-  { value: "hq-department",  label: "HQ Department"   },
-  { value: "dg-ceo",         label: "DG-CEO"          },
+  { value: "state-officer",    label: "State Officer"      },
+  { value: "zonal-coordinator",label: "Zonal Coordinator"  },
+  { value: "state-coordinator",label: "State Coordinator"  },
+  { value: "sdo",              label: "SDO"                },
+  { value: "hq-department",    label: "HQ Department"      },
+  { value: "dg-ceo",           label: "DG-CEO"             },
 ];
 
 import type { AccessEntry } from "@/src/access/types";
@@ -32,7 +33,8 @@ export default function Login({ onLogin }: LoginProps) {
     if      (id.startsWith("ADMIN")) setRole("admin");
     else if (id.startsWith("HQ"))    setRole("hq-department");
     else if (id.startsWith("SDO"))   setRole("sdo");
-    else if (id.startsWith("ZD"))    setRole("zonal-director");
+    else if (id.startsWith("ZC"))    setRole("zonal-coordinator");
+    else if (id.startsWith("SC"))    setRole("state-coordinator");
     else if (id.startsWith("SO"))    setRole("state-officer");
     else if (id.startsWith("DG"))    setRole("dg-ceo");
     else                             setRole("");
