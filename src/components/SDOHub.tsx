@@ -27,9 +27,164 @@ import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip as RechartsTooltip, ResponsiveContainer, LineChart, Line
 } from "recharts";
+import type { AuthUser } from "@/src/store/authSlice";
+import { zonesApi, statesApi, type ZonalOffice, type StateOffice } from "@/lib/adminApi";
+
 import SDOPerformance from "./SDOPerformance";
 
-// ─── Design tokens ────────────────────────────────────────────────────────────
+// ─── KPI Drill Modal — fetches real zones + states ────────────────────────────
+function KpiDrillModal({ kpi, onClose }: { kpi: typeof KPI_DATA[0]; onClose: () => void }) {
+  const [zones,        setZones]        = React.useState<ZonalOffice[]>([]);
+  const [states,       setStates]       = React.useState<StateOffice[]>([]);
+  const [selectedZone, setSelectedZone] = React.useState<ZonalOffice | null>(null);
+  const [loading,      setLoading]      = React.useState(true);
+  const [error,        setError]        = React.useState<string | null>(null);
+
+  // Fetch all zones on open
+  React.useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    zonesApi.list()
+      .then((r) => { if (!cancelled) setZones(r.data); })
+      .catch((e) => { if (!cancelled) setError(e?.message ?? "Failed to load zones"); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, []);
+
+  // Fetch states when a zone is selected
+  React.useEffect(() => {
+    if (!selectedZone) { setStates([]); return; }
+    let cancelled = false;
+    setLoading(true);
+    statesApi.list(selectedZone.id)
+      .then((r) => { if (!cancelled) setStates(r.data); })
+      .catch((e) => { if (!cancelled) setError(e?.message ?? "Failed to load states"); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [selectedZone?.id]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={onClose}>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+        transition={{ duration: 0.2 }}
+        className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
+          <div className="flex items-center gap-3">
+            <div className={`p-2 rounded-xl border ${STATUS_BADGE[kpi.status]}`}>{kpi.icon}</div>
+            <div>
+              <h3 className="text-base font-black text-slate-900">{kpi.label}</h3>
+              <p className="text-xs text-slate-500">
+                {selectedZone ? `${selectedZone.description} · States` : "Select a zone to see states"}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {selectedZone && (
+              <button onClick={() => { setSelectedZone(null); setStates([]); }}
+                className="text-xs text-slate-400 hover:text-slate-700 underline px-2">
+                ← All Zones
+              </button>
+            )}
+            <button onClick={onClose}
+              className="w-8 h-8 rounded-xl flex items-center justify-center hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        <div className="overflow-y-auto flex-1 p-6">
+          {loading ? (
+            <div className="flex items-center justify-center py-12 gap-3">
+              <div className="w-5 h-5 border-2 border-[#1E3A8A] border-t-transparent rounded-full animate-spin" />
+              <span className="text-sm text-slate-500">Loading {selectedZone ? "states" : "zones"}…</span>
+            </div>
+          ) : error ? (
+            <div className="flex flex-col items-center gap-3 py-10 text-center">
+              <AlertTriangle className="w-8 h-8 text-rose-400" />
+              <p className="text-sm text-slate-600">{error}</p>
+              <Button size="sm" variant="outline" className="text-xs rounded-xl"
+                onClick={() => { setError(null); setLoading(true); zonesApi.list().then(r => setZones(r.data)).catch(e => setError(e?.message)).finally(() => setLoading(false)); }}>
+                <RefreshCw className="w-3.5 h-3.5 mr-1.5" /> Retry
+              </Button>
+            </div>
+          ) : !selectedZone ? (
+            /* Zone list */
+            <div className="space-y-3">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3">
+                {zones.length} Zones · Click to see states
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {zones.map((zone) => (
+                  <button key={zone.id} onClick={() => setSelectedZone(zone)}
+                    className="flex items-center gap-3 p-4 rounded-2xl border border-slate-200 bg-white hover:border-[#1E3A8A] hover:shadow-md transition-all text-left group">
+                    <div className="w-10 h-10 rounded-xl bg-[#1E3A8A] flex items-center justify-center text-white shrink-0">
+                      <MapPin className="w-4 h-4" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-slate-800 group-hover:text-[#1E3A8A] transition-colors truncate">
+                        {zone.description}
+                      </p>
+                      <p className="text-[10px] text-slate-400 font-mono">{zone.zonal_code}</p>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-[#1E3A8A] transition-colors shrink-0" />
+                  </button>
+                ))}
+                {zones.length === 0 && (
+                  <p className="col-span-2 text-center text-sm text-slate-400 py-6">No zones found</p>
+                )}
+              </div>
+            </div>
+          ) : (
+            /* States list for selected zone */
+            <div className="space-y-3">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3">
+                {states.length} States under {selectedZone.description}
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {states.map((state) => (
+                  <div key={state.id}
+                    className="flex items-center gap-3 p-4 rounded-2xl border border-slate-200 bg-[#f8fafc]">
+                    <div className="w-9 h-9 rounded-xl bg-slate-200 flex items-center justify-center shrink-0">
+                      <Building2 className="w-4 h-4 text-slate-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-slate-800 truncate">{state.description}</p>
+                      <p className="text-[10px] text-slate-400 font-mono">{state.code}</p>
+                    </div>
+                    <Badge variant="outline" className="text-[10px] shrink-0 bg-emerald-50 text-emerald-700 border-emerald-200">
+                      Active
+                    </Badge>
+                  </div>
+                ))}
+                {states.length === 0 && (
+                  <p className="col-span-2 text-center text-sm text-slate-400 py-6">No states found for this zone</p>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer summary */}
+        <div className="px-6 py-3 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className={`w-2 h-2 rounded-full ${STATUS_DOT[kpi.status]} animate-pulse`} />
+            <span className="text-xs text-slate-500">{kpi.sub}</span>
+          </div>
+          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${STATUS_BADGE[kpi.status]}`}>
+            {kpi.trend}
+          </span>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
 const PRIMARY = "#1E3A8A";
 const ACCENT  = "#F97316";
 
@@ -848,6 +1003,7 @@ const TABS = [
 
 export default function SDOHub() {
   const [activeTab, setActiveTab] = React.useState("performance");
+  const [kpiModal, setKpiModal]   = React.useState<typeof KPI_DATA[0] | null>(null);
 
   return (
     <div className="space-y-6 pb-12">
@@ -856,11 +1012,17 @@ export default function SDOHub() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {KPI_DATA.map((kpi, i) => (
           <motion.div key={kpi.label} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.07 }}>
-            <Card className="border-none shadow-sm hover:shadow-md transition-all overflow-hidden">
+            <Card
+              className="border-none shadow-sm hover:shadow-md transition-all overflow-hidden cursor-pointer group"
+              onClick={() => setKpiModal(kpi)}
+            >
               <CardContent className="p-5">
                 <div className="flex items-start justify-between mb-3">
                   <div className={`p-2 rounded-xl border ${STATUS_BADGE[kpi.status]}`}>{kpi.icon}</div>
-                  <span className={`w-2.5 h-2.5 rounded-full mt-1 ${STATUS_DOT[kpi.status]} animate-pulse`} />
+                  <div className="flex items-center gap-1.5">
+                    <span className={`w-2.5 h-2.5 rounded-full mt-1 ${STATUS_DOT[kpi.status]} animate-pulse`} />
+                    <ChevronRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-[#1E3A8A] transition-colors mt-0.5" />
+                  </div>
                 </div>
                 <p className="text-3xl font-black text-slate-900">{kpi.value}</p>
                 <p className="text-xs font-semibold text-slate-600 mt-0.5 leading-tight">{kpi.label}</p>
@@ -868,11 +1030,25 @@ export default function SDOHub() {
                 <span className={`text-[10px] font-bold mt-2 inline-block px-2 py-0.5 rounded-full border ${STATUS_BADGE[kpi.status]}`}>
                   {kpi.trend}
                 </span>
+                <p className="text-[9px] text-slate-400 mt-1.5 group-hover:text-[#1E3A8A] transition-colors">
+                  View zones & states →
+                </p>
               </CardContent>
             </Card>
           </motion.div>
         ))}
       </div>
+
+      {/* KPI Drill Modal */}
+      <AnimatePresence>
+        {kpiModal && (
+          <KpiDrillModal
+            key="kpi-drill"
+            kpi={kpiModal}
+            onClose={() => setKpiModal(null)}
+          />
+        )}
+      </AnimatePresence>
 
       {/* ── Tab Navigation ── */}
       <div className="border-b border-slate-200">

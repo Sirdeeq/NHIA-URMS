@@ -16,10 +16,6 @@ const SqaMonthlyReport        = require("./SqaMonthlyReport");
 ZonalOffice.hasMany(StateOffice,   { foreignKey: "zonal_id", as: "states" });
 StateOffice.belongsTo(ZonalOffice, { foreignKey: "zonal_id", as: "zone"   });
 
-// ── State ↔ Department ────────────────────────────────────────────────────────
-StateOffice.hasMany(Department,   { foreignKey: "state_id",      as: "departments" });
-Department.belongsTo(StateOffice, { foreignKey: "state_id",      as: "state"       });
-
 // ── Department ↔ Unit ─────────────────────────────────────────────────────────
 Department.hasMany(Unit,   { foreignKey: "department_id", as: "units"      });
 Unit.belongsTo(Department, { foreignKey: "department_id", as: "department" });

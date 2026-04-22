@@ -78,13 +78,14 @@ const getUser = async (req, res, next) => {
 
 // Role → Staff ID prefix map
 const ROLE_PREFIX = {
-  "admin":             "ADMIN",
-  "state-officer":     "SO",
-  "zonal-coordinator": "ZC",
-  "state-coordinator": "SC",
-  "sdo":               "SDO",
-  "hq-department":     "HQ",
-  "dg-ceo":            "DG",
+  "admin":               "ADMIN",
+  "state-officer":       "SO",
+  "zonal-coordinator":   "ZC",
+  "state-coordinator":   "SC",
+  "department-officer":  "DO",
+  "sdo":                 "SDO",
+  "hq-department":       "HQ",
+  "dg-ceo":              "DG",
 };
 
 const generateStaffId = async (role) => {

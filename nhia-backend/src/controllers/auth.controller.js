@@ -16,8 +16,8 @@ const login = async (req, res, next) => {
       include: [
         { association: "zone",       attributes: ["id", "zonal_code", "description"] },
         { association: "state",      attributes: ["id", "code", "description"] },
-        { association: "department", attributes: ["id", "name"] },
-        { association: "unit",       attributes: ["id", "name"] },
+        { association: "department", attributes: ["id", "name", "department_code"] },
+        { association: "unit",       attributes: ["id", "name", "unit_code"] },
       ],
     });
 

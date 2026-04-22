@@ -6,6 +6,7 @@ import {
 import { Search, TrendingUp, TrendingDown, Award, AlertTriangle, Star, X, ChevronRight, ArrowLeft } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { motion, AnimatePresence } from "motion/react";
+import { zonesApi, statesApi, type ZonalOffice, type StateOffice } from "@/lib/adminApi";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Year = "2023" | "2024" | "2025";
@@ -332,12 +333,18 @@ function ModalShell({ title, subtitle, onClose, onBack, children }: {
 type StateRow = { state: string; zone: string; gifship: number; igr: number; bhcpf: number;
   complaints: number; resolution: number; cemonc: number; ffp: number; fsship: number; status: string; };
 
-function StateFilterTable({ rows, year, highlightField, onStateClick }: {
+function StateFilterTable({ rows, year, highlightField, onStateClick, initialZone }: {
   rows: StateRow[]; year: string; highlightField?: keyof StateRow;
   onStateClick?: (s: StateRow) => void;
+  initialZone?: string;
 }) {
-  const [zoneFilter, setZoneFilter] = React.useState("All");
+  const [zoneFilter, setZoneFilter] = React.useState(initialZone ?? "All");
   const [stateSearch, setStateSearch] = React.useState("");
+
+  // Sync when parent changes the initialZone (API zone selection)
+  React.useEffect(() => {
+    setZoneFilter(initialZone ?? "All");
+  }, [initialZone]);
 
   const filtered = React.useMemo(() => {
     let t = [...rows];
@@ -1441,6 +1448,53 @@ export default function SDOPerformance() {
   const [top12InitZone, setTop12InitZone]   = React.useState<string | undefined>(undefined);
   const [igrZoneInit, setIgrZoneInit]       = React.useState<string | undefined>(undefined);
 
+  // ── Real zone + state data ──────────────────────────────────────────────────
+  const [apiZones,        setApiZones]        = React.useState<ZonalOffice[]>([]);
+  const [apiStates,       setApiStates]       = React.useState<StateOffice[]>([]);
+  const [selectedApiZone, setSelectedApiZone] = React.useState<ZonalOffice | null>(null);
+  const [zonesLoading,    setZonesLoading]    = React.useState(true);
+  const [statesLoading,   setStatesLoading]   = React.useState(false);
+
+  // Fetch all zones on mount
+  React.useEffect(() => {
+    let cancelled = false;
+    zonesApi.list()
+      .then((r) => { if (!cancelled) setApiZones(r.data); })
+      .catch(() => {/* silently ignore — dummy data still works */})
+      .finally(() => { if (!cancelled) setZonesLoading(false); });
+    return () => { cancelled = true; };
+  }, []);
+
+  // Fetch states when a zone is selected
+  React.useEffect(() => {
+    if (!selectedApiZone) { setApiStates([]); return; }
+    let cancelled = false;
+    setStatesLoading(true);
+    statesApi.list(selectedApiZone.id)
+      .then((r) => { if (!cancelled) setApiStates(r.data); })
+      .catch(() => { if (!cancelled) setApiStates([]); })
+      .finally(() => { if (!cancelled) setStatesLoading(false); });
+    return () => { cancelled = true; };
+  }, [selectedApiZone?.id]);
+
+  // Derive the zone filter string from the selected API zone (matches dummy data zone names)
+  // Falls back to "All" if nothing selected
+  const zoneFilterFromApi: string = selectedApiZone?.description ?? "All";
+
+  // Build the effective ZONES list from API (fallback to hardcoded if API not loaded yet)
+  const effectiveZones: string[] = apiZones.length > 0
+    ? apiZones.map((z) => z.description)
+    : ZONES;
+
+  // States for the selected zone — use API states if available, else derive from dummy data
+  const effectiveStates: string[] = selectedApiZone && apiStates.length > 0
+    ? apiStates.map((s) => s.description)
+    : selectedApiZone
+      ? ZONES.includes(selectedApiZone.description)
+        ? (YEAR_DATA[year] ?? []).filter((r) => r.zone === selectedApiZone.description).map((r) => r.state)
+        : []
+      : [];
+
   const rows = YEAR_DATA[year];
   const d    = React.useMemo(() => computeData(rows), [rows]);
 
@@ -1521,6 +1575,106 @@ export default function SDOPerformance() {
               >{y}</button>
             ))}
           </div>
+        </div>
+
+        {/* ── Zone + State selector (real API data) ── */}
+        <div className="rounded-2xl border border-[#d4e8dc] bg-white p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <p className={lbl}>Filter by Zone &amp; State</p>
+            {selectedApiZone && (
+              <button
+                onClick={() => { setSelectedApiZone(null); setApiStates([]); }}
+                className="text-[10px] text-[#145c3f] font-bold hover:underline flex items-center gap-1"
+              >
+                <X className="w-3 h-3" /> Clear filter
+              </button>
+            )}
+          </div>
+
+          {/* Zone pills */}
+          <div className="flex flex-wrap gap-1.5">
+            {zonesLoading ? (
+              <div className="flex items-center gap-2 py-1">
+                <div className="w-3.5 h-3.5 border-2 border-[#25a872] border-t-transparent rounded-full animate-spin" />
+                <span className="text-[10px] text-slate-400">Loading zones…</span>
+              </div>
+            ) : (
+              <>
+                <button
+                  onClick={() => { setSelectedApiZone(null); setApiStates([]); }}
+                  className={`text-[10px] font-bold px-3 py-1 rounded-full border transition-all ${
+                    !selectedApiZone
+                      ? "bg-[#145c3f] text-white border-[#145c3f]"
+                      : "border-[#d4e8dc] text-[#5a7a6a] hover:border-[#25a872] hover:text-[#145c3f]"
+                  }`}
+                >
+                  All Zones
+                </button>
+                {apiZones.map((zone) => {
+                  const isActive = selectedApiZone?.id === zone.id;
+                  const color    = ZONE_COLORS[zone.description] ?? "#145c3f";
+                  return (
+                    <button
+                      key={zone.id}
+                      onClick={() => setSelectedApiZone(isActive ? null : zone)}
+                      className={`text-[10px] font-bold px-3 py-1 rounded-full border transition-all ${
+                        isActive ? "text-white" : "hover:opacity-90"
+                      }`}
+                      style={
+                        isActive
+                          ? { backgroundColor: color, borderColor: color }
+                          : { borderColor: color + "60", color }
+                      }
+                    >
+                      {zone.description}
+                    </button>
+                  );
+                })}
+              </>
+            )}
+          </div>
+
+          {/* States for selected zone */}
+          <AnimatePresence>
+            {selectedApiZone && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.2 }}
+                className="overflow-hidden"
+              >
+                <div className="pt-2 border-t border-[#e8f5ee]">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+                    States under {selectedApiZone.description}
+                    {statesLoading && (
+                      <span className="ml-2 inline-flex items-center gap-1">
+                        <span className="w-2.5 h-2.5 border border-[#25a872] border-t-transparent rounded-full animate-spin inline-block" />
+                        loading…
+                      </span>
+                    )}
+                  </p>
+                  {!statesLoading && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {effectiveStates.length === 0 ? (
+                        <span className="text-[10px] text-slate-400">No states found</span>
+                      ) : (
+                        effectiveStates.map((stateName) => (
+                          <button
+                            key={stateName}
+                            onClick={() => setDrillState(stateName)}
+                            className="text-[10px] font-semibold px-2.5 py-1 rounded-full border border-[#d4e8dc] bg-[#f0fdf7] text-[#145c3f] hover:bg-[#e8f5ee] hover:border-[#25a872] transition-all"
+                          >
+                            {stateName}
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         {/* ── Data Insights ── */}
@@ -1779,7 +1933,7 @@ export default function SDOPerformance() {
             <p className="text-sm font-bold text-slate-800">State Performance Table — {year}</p>
             <p className="text-[10px] text-[#5a7a6a] mt-0.5">Filter by zone or state · click a row for full detail</p>
           </div>
-          <StateFilterTable rows={d.stateTable} year={year} onStateClick={row => setDrillState(row.state)} />
+          <StateFilterTable rows={d.stateTable} year={year} onStateClick={row => setDrillState(row.state)} initialZone={zoneFilterFromApi} />
         </div>
 
         {/* ── Complaint management ── */}

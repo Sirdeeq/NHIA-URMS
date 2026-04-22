@@ -43,12 +43,15 @@ import MonthlyReportsList from "./monthly/MonthlyReportsList";
 import DeptMonthlyPage from "./monthly/DeptMonthlyPage";
 import SidebarNav from "./SidebarNav";
 import AdminSettingsPage from "./admin/AdminSettingsPage";
+import AdminDashboard from "./admin/AdminDashboard";
+import StateCoordinatorPanel from "./StateCoordinatorPanel";
 import ZonalDirectorDashboard from "./ZonalDirectorDashboard";
 import StateOfficeDashboard from "./StateOfficeDashboard";
+import DepartmentalDashboard from "./DepartmentalDashboard";
 import ReportReviewPage from "./ReportReviewPage";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type Role = "state-officer" | "zonal-coordinator" | "state-coordinator" | "sdo" | "hq-department" | "audit" | "dg-ceo" | "admin";
+type Role = "state-officer" | "zonal-coordinator" | "state-coordinator" | "department-officer" | "sdo" | "hq-department" | "audit" | "dg-ceo" | "admin";
 type View = "home" | "report-entry" | "report-preview" | "zonal-review" | "zonal-compose" | "annual-report" | "annual-reports-list" | "annual-report-detail" | "settings" | "stock-verification" | "stock-verifications-list" | "stock-assets" | "finance-monthly" | "admin-monthly" | "programmes-monthly" | "outreach-monthly" | "sqa-monthly" | "complaints-monthly" | "monthly-reports-list" | "report-review";
 interface DashboardProps { role: Role; user?: import("@/src/store/authSlice").AuthUser; access?: import("@/src/access/types").AccessEntry[]; functionalities?: string; onLogout: () => void; }
 
@@ -114,7 +117,7 @@ function getMenuItems(role: Role, view: View, setView: (v: View) => void) {
 function getRoleLabel(r: Role) {
   const map: Record<Role, string> = {
     "state-officer": "State Officer", "zonal-coordinator": "Zonal Coordinator",
-    "state-coordinator": "State Coordinator",
+    "state-coordinator": "State Coordinator", "department-officer": "Department Officer",
     "sdo": "SDO / DGO", "hq-department": "HQ Department",
     "audit": "Audit Team", "dg-ceo": "DG / CEO", "admin": "Administrator",
   };
@@ -122,14 +125,15 @@ function getRoleLabel(r: Role) {
 }
 function getUserInfo(r: Role) {
   const map: Record<Role, { name: string; initials: string; email: string; dept: string }> = {
-    "state-officer":     { name: "State Officer",      initials: "SO",  email: "so@nhia.gov.ng",  dept: "State Office"       },
-    "zonal-coordinator": { name: "Zonal Coordinator",  initials: "ZC",  email: "zc@nhia.gov.ng",  dept: "Zonal Coordination" },
-    "state-coordinator": { name: "State Coordinator",  initials: "SC",  email: "sc@nhia.gov.ng",  dept: "State Coordination" },
-    "sdo":               { name: "SDO / DGO",          initials: "SDO", email: "sdo@nhia.gov.ng", dept: "State Directorate"  },
-    "hq-department":     { name: "HQ Department",      initials: "HQ",  email: "hq@nhia.gov.ng",  dept: "Headquarters"       },
-    "audit":             { name: "Audit Team",         initials: "AUD", email: "audit@nhia.gov.ng",dept: "Audit & Compliance" },
-    "dg-ceo":            { name: "DG / CEO",           initials: "DG",  email: "dg@nhia.gov.ng",  dept: "Executive Office"   },
-    "admin":             { name: "Administrator",      initials: "ADM", email: "admin@nhia.gov.ng",dept: "System Admin"       },
+    "state-officer":      { name: "State Officer",      initials: "SO",  email: "so@nhia.gov.ng",  dept: "State Office"       },
+    "zonal-coordinator":  { name: "Zonal Coordinator",  initials: "ZC",  email: "zc@nhia.gov.ng",  dept: "Zonal Coordination" },
+    "state-coordinator":  { name: "State Coordinator",  initials: "SC",  email: "sc@nhia.gov.ng",  dept: "State Coordination" },
+    "department-officer": { name: "Department Officer", initials: "DO",  email: "do@nhia.gov.ng",  dept: "Department"         },
+    "sdo":                { name: "SDO / DGO",          initials: "SDO", email: "sdo@nhia.gov.ng", dept: "State Directorate"  },
+    "hq-department":      { name: "HQ Department",      initials: "HQ",  email: "hq@nhia.gov.ng",  dept: "Headquarters"       },
+    "audit":              { name: "Audit Team",         initials: "AUD", email: "audit@nhia.gov.ng",dept: "Audit & Compliance" },
+    "dg-ceo":             { name: "DG / CEO",           initials: "DG",  email: "dg@nhia.gov.ng",  dept: "Executive Office"   },
+    "admin":              { name: "Administrator",      initials: "ADM", email: "admin@nhia.gov.ng",dept: "System Admin"       },
   };
   return map[r];
 }
@@ -392,7 +396,7 @@ export default function Dashboard({ role, user, access = [], functionalities = "
   const [sidebarOpen, setSidebarOpen] = React.useState(true);
   const [selectedReportRef, setSelectedReportRef] = React.useState<string | null>(null);
   const [selectedVerifId, setSelectedVerifId] = React.useState<number | null>(null);
-  const userInfo = getUserInfo(role);
+  const userInfo = getUserInfo(role) ?? { name: "User", initials: "U", email: "user@nhia.gov.ng", dept: "NHIA" };
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-[#f4f7f5]">
@@ -412,12 +416,22 @@ export default function Dashboard({ role, user, access = [], functionalities = "
           <div className="mx-3 mt-4 mb-2 p-3 rounded-xl bg-white/10 border border-white/10">
             <div className="flex items-center gap-2.5">
               <Avatar className="w-9 h-9 border-2 border-white/30">
-                <AvatarImage src={`https://picsum.photos/seed/${userInfo.initials}/200`} />
-                <AvatarFallback className="bg-[#25a872] text-white text-xs font-bold">{userInfo.initials}</AvatarFallback>
+                <AvatarImage src={`https://picsum.photos/seed/${user?.staff_id || userInfo.initials}/200`} />
+                <AvatarFallback className="bg-[#25a872] text-white text-xs font-bold">
+                  {user?.name?.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase() || userInfo.initials}
+                </AvatarFallback>
               </Avatar>
               <div className="min-w-0">
-                <p className="text-xs font-bold text-white truncate">{userInfo.name}</p>
-                <p className="text-[10px] text-white/50 truncate">{userInfo.dept}</p>
+                <p className="text-xs font-bold text-white truncate">{user?.name || userInfo.name}</p>
+                <p className="text-[10px] text-white/50 truncate">
+                  {role === "department-officer" && user?.department?.name 
+                    ? user.department.name 
+                    : role === "state-officer" && user?.state?.description
+                    ? user.state.description
+                    : role === "zonal-coordinator" && user?.zone?.description
+                    ? user.zone.description
+                    : userInfo.dept}
+                </p>
               </div>
             </div>
             <div className="mt-2.5">
@@ -482,12 +496,14 @@ export default function Dashboard({ role, user, access = [], functionalities = "
             <DropdownMenu>
               <DropdownMenuTrigger className="flex items-center gap-2 pl-1 pr-3 py-1 rounded-xl hover:bg-[#e8f5ee] transition-colors outline-none cursor-pointer border border-[#d4e8dc]">
                 <Avatar className="w-7 h-7">
-                  <AvatarImage src={`https://picsum.photos/seed/${userInfo.initials}/200`} />
-                  <AvatarFallback className="bg-[#25a872] text-white text-[10px] font-bold">{userInfo.initials}</AvatarFallback>
+                  <AvatarImage src={`https://picsum.photos/seed/${user?.staff_id || userInfo.initials}/200`} />
+                  <AvatarFallback className="bg-[#25a872] text-white text-[10px] font-bold">
+                    {user?.name?.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase() || userInfo.initials}
+                  </AvatarFallback>
                 </Avatar>
                 <div className="text-left hidden md:block">
-                  <p className="text-xs font-bold text-slate-800 leading-none">{userInfo.name}</p>
-                  <p className="text-[10px] text-slate-400">{userInfo.email}</p>
+                  <p className="text-xs font-bold text-slate-800 leading-none">{user?.name || userInfo.name}</p>
+                  <p className="text-[10px] text-slate-400">{user?.email || userInfo.email}</p>
                 </div>
                 <ChevronDown className="w-3 h-3 text-slate-400" />
               </DropdownMenuTrigger>
@@ -521,14 +537,14 @@ export default function Dashboard({ role, user, access = [], functionalities = "
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div>
                     <h1 className="text-xl font-black text-slate-900 tracking-tight">
-                      Good morning, {userInfo.initials} 👋
+                      Good morning, {user?.name?.split(" ")[0] || userInfo.initials} 👋
                     </h1>
                     <p className="text-sm text-slate-500 mt-0.5">Here's your NHIA Reporting Management Dashboard overview for today.</p>
                   </div>
                 </div>
 
-                {/* KPI row — hidden for SDO, Zonal Coordinator, State Officer and State Coordinator (have their own KPIs) */}
-                {role !== "sdo" && role !== "zonal-coordinator" && role !== "state-officer" && role !== "state-coordinator" && (
+                {/* KPI row — hidden for SDO, Zonal Coordinator, State Officer, State Coordinator, Department Officer and Admin (have their own KPIs) */}
+                {role !== "sdo" && role !== "zonal-coordinator" && role !== "state-officer" && role !== "state-coordinator" && role !== "department-officer" && role !== "admin" && (
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                   <KPICard title="Reports Submitted" value="124" trend="+12%" trendUp icon={<FileText className="w-5 h-5 text-blue-600" />} tint="kpi-blue" sub="This month" />
                   <KPICard title="Pending Review"    value="18"  trend="-5%"  icon={<Clock className="w-5 h-5 text-amber-600" />}  tint="kpi-amber" sub="Awaiting action" />
@@ -547,14 +563,17 @@ export default function Dashboard({ role, user, access = [], functionalities = "
                   /* Zonal Coordinator: zone + state drill-down dashboard */
                   <motion.div key={role} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
                     <ZonalDirectorDashboard
+                      user={user}
                       zoneName={user?.zone?.description ?? "South West"}
                       onReviewReports={() => setView("zonal-review")}
                     />
                   </motion.div>
                 ) : role === "state-officer" ? (
-                  /* State Officer: state performance + department drill-down */
+                  /* State Officer: scoped to their assigned department only */
                   <motion.div key={role} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
                     <StateOfficeDashboard
+                      user={user}
+                      role="state-officer"
                       stateName={user?.state?.description ?? "Lagos"}
                       zoneName={user?.zone?.description ?? "South West"}
                       onNewReport={() => setView("report-entry")}
@@ -564,9 +583,11 @@ export default function Dashboard({ role, user, access = [], functionalities = "
                     />
                   </motion.div>
                 ) : role === "state-coordinator" ? (
-                  /* State Coordinator: same state performance dashboard, scoped to their state only */
+                  /* State Coordinator: sees all departments in the state */
                   <motion.div key={role} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
                     <StateOfficeDashboard
+                      user={user}
+                      role="state-coordinator"
                       stateName={user?.state?.description ?? "Lagos"}
                       zoneName={user?.zone?.description ?? "South West"}
                       onNewReport={() => setView("report-entry")}
@@ -575,6 +596,17 @@ export default function Dashboard({ role, user, access = [], functionalities = "
                       onNewSubmission={(targetView) => setView(targetView as View)}
                     />
                   </motion.div>
+                ) : role === "department-officer" ? (
+                  /* Department Officer: department stats + unit drill-down */
+                  <motion.div key={role} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+                    <DepartmentalDashboard
+                      user={user}
+                      onNewSubmission={(targetView) => setView(targetView as View)}
+                    />
+                  </motion.div>
+                ) : role === "admin" ? (
+                  /* Admin: full system overview with live stats */
+                  <AdminDashboard onNavigate={() => setView("settings")} />
                 ) : (
                 <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
                   <div className="xl:col-span-2 space-y-6">
@@ -628,9 +660,9 @@ export default function Dashboard({ role, user, access = [], functionalities = "
 
                     {/* Role panel */}
                     <motion.div key={role} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-                      {role === "dg-ceo"         && <DGCEOPanel />}
-                      {role === "hq-department"  && <HQPanel />}
-                      {role === "audit"          && <AuditPanel />}
+                      {role === "dg-ceo"        && <DGCEOPanel />}
+                      {role === "hq-department" && <HQPanel />}
+                      {role === "audit"         && <AuditPanel />}
                     </motion.div>
                   </div>
 

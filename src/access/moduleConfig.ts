@@ -1,6 +1,6 @@
 export type UserRole =
   | "admin" | "state-officer" | "zonal-coordinator"
-  | "state-coordinator" | "sdo" | "hq-department" | "dg-ceo";
+  | "state-coordinator" | "department-officer" | "sdo" | "hq-department" | "dg-ceo";
 
 export interface ChildModule {
   title: string;

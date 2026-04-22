@@ -11,18 +11,21 @@ import { MODULE_CONFIG } from "@/src/access/moduleConfig";
 import { flatLeaves } from "@/src/access/moduleConfig";
 
 const ROLE_LABELS: Record<string, string> = {
-  "state-officer": "State Officer", "zonal-coordinator": "Zonal Coordinator",
-  "state-coordinator": "State Coordinator",
+  "state-officer":      "State Officer",
+  "zonal-coordinator":  "Zonal Coordinator",
+  "state-coordinator":  "State Coordinator",
+  "department-officer": "Department Officer",
   "sdo": "SDO", "hq-department": "HQ Department", "dg-ceo": "DG-CEO", "admin": "Admin",
 };
 const ROLE_COLORS: Record<string, string> = {
-  "admin":             "bg-purple-100 text-purple-700 border-purple-200",
-  "dg-ceo":            "bg-rose-100 text-rose-700 border-rose-200",
-  "zonal-coordinator": "bg-blue-100 text-blue-700 border-blue-200",
-  "state-coordinator": "bg-cyan-100 text-cyan-700 border-cyan-200",
-  "hq-department":     "bg-amber-100 text-amber-700 border-amber-200",
-  "sdo":               "bg-[#e8f5ee] text-[#145c3f] border-[#d4e8dc]",
-  "state-officer":     "bg-slate-100 text-slate-700 border-slate-200",
+  "admin":              "bg-purple-100 text-purple-700 border-purple-200",
+  "dg-ceo":             "bg-rose-100 text-rose-700 border-rose-200",
+  "zonal-coordinator":  "bg-blue-100 text-blue-700 border-blue-200",
+  "state-coordinator":  "bg-cyan-100 text-cyan-700 border-cyan-200",
+  "department-officer": "bg-indigo-100 text-indigo-700 border-indigo-200",
+  "hq-department":      "bg-amber-100 text-amber-700 border-amber-200",
+  "sdo":                "bg-[#e8f5ee] text-[#145c3f] border-[#d4e8dc]",
+  "state-officer":      "bg-slate-100 text-slate-700 border-slate-200",
 };
 
 // ─── Module tree row ──────────────────────────────────────────────────────────

@@ -4,28 +4,33 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { SearchSelect } from "@/components/ui/search-select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { usersApi, zonesApi, statesApi, departmentsApi, unitsApi, type AdminUser, type ZonalOffice, type StateOffice, type Department, type Unit } from "@/lib/adminApi";
 import AdminModal from "./AdminModal";
 import { MODULE_CONFIG } from "@/src/access/moduleConfig";
 
-const ROLES = ["state-officer", "zonal-coordinator", "state-coordinator", "sdo", "hq-department", "dg-ceo", "admin"] as const;
+const ROLES = ["state-officer", "zonal-coordinator", "state-coordinator", "department-officer", "sdo", "hq-department", "dg-ceo", "admin"] as const;
 const ROLE_LABELS: Record<string, string> = {
-  "state-officer": "State Officer", "zonal-coordinator": "Zonal Coordinator",
-  "state-coordinator": "State Coordinator",
+  "state-officer":      "State Officer",
+  "zonal-coordinator":  "Zonal Coordinator",
+  "state-coordinator":  "State Coordinator",
+  "department-officer": "Department Officer",
   "sdo": "SDO", "hq-department": "HQ Department", "dg-ceo": "DG-CEO", "admin": "Admin",
 };
 const ROLE_COLORS: Record<string, string> = {
-  "admin":             "bg-purple-100 text-purple-700 border-purple-200",
-  "dg-ceo":            "bg-rose-100 text-rose-700 border-rose-200",
-  "zonal-coordinator": "bg-blue-100 text-blue-700 border-blue-200",
-  "state-coordinator": "bg-cyan-100 text-cyan-700 border-cyan-200",
-  "hq-department":     "bg-amber-100 text-amber-700 border-amber-200",
-  "sdo":               "bg-[#e8f5ee] text-[#145c3f] border-[#d4e8dc]",
-  "state-officer":     "bg-slate-100 text-slate-700 border-slate-200",
+  "admin":              "bg-purple-100 text-purple-700 border-purple-200",
+  "dg-ceo":             "bg-rose-100 text-rose-700 border-rose-200",
+  "zonal-coordinator":  "bg-blue-100 text-blue-700 border-blue-200",
+  "state-coordinator":  "bg-cyan-100 text-cyan-700 border-cyan-200",
+  "department-officer": "bg-indigo-100 text-indigo-700 border-indigo-200",
+  "hq-department":      "bg-amber-100 text-amber-700 border-amber-200",
+  "sdo":                "bg-[#e8f5ee] text-[#145c3f] border-[#d4e8dc]",
+  "state-officer":      "bg-slate-100 text-slate-700 border-slate-200",
 };
 
-const inputCls = "w-full pl-3 pr-3 h-11 rounded-xl border border-[#d4e8dc] bg-[#f4f7f5] text-sm text-slate-800 placeholder:text-slate-400 focus:ring-2 focus:ring-[#25a872] focus:border-[#25a872] outline-none transition-all";
 const EMPTY = { name: "", email: "", password: "", role: "state-officer", zone_id: "", state_id: "", department_id: "", unit_id: "", is_active: true };
 
 export default function AdminUsersPage({ showOverview = false }: { showOverview?: boolean }) {
@@ -107,12 +112,8 @@ export default function AdminUsersPage({ showOverview = false }: { showOverview?
     accessArr.forEach((entry: any) => {
       if (!entry?.access_to) return;
       keys.add(entry.access_to);
-      const mod = MODULE_CONFIG.find(m => m.title === entry.access_to);
-      if (mod && Array.isArray(entry.functionalities)) {
-        entry.functionalities.forEach((funcTitle: string) => {
-          const child = mod.children.find(c => c.title === funcTitle);
-          if (child) keys.add(child.path);
-        });
+      if (Array.isArray(entry.functionalities)) {
+        entry.functionalities.forEach((funcTitle: string) => keys.add(funcTitle));
       }
     });
     setGranted(keys);
@@ -127,14 +128,24 @@ export default function AdminUsersPage({ showOverview = false }: { showOverview?
     e.preventDefault(); setSaving(true);
     try {
       // Build structured access array from granted set
+      // granted contains: parent module titles + child titles
       const access = MODULE_CONFIG
         .filter(mod => granted.has(mod.title))
-        .map(mod => ({
-          access_to: mod.title,
-          functionalities: mod.children
-            .filter(c => granted.has(c.path))
-            .map(c => c.title),
-        }));
+        .map(mod => {
+          // Flatten all leaf titles from this module
+          const allLeaves: string[] = [];
+          mod.children.forEach(c => {
+            if ("type" in c && c.type === "group") {
+              c.children.forEach(leaf => allLeaves.push(leaf.title));
+            } else {
+              allLeaves.push((c as { title: string }).title);
+            }
+          });
+          return {
+            access_to: mod.title,
+            functionalities: allLeaves.filter(t => granted.has(t)),
+          };
+        });
 
       const payload: any = {
         name: form.name, email: form.email || undefined, role: form.role,
@@ -167,22 +178,22 @@ export default function AdminUsersPage({ showOverview = false }: { showOverview?
     catch (e: any) { toast.error(e.message); }
   };
 
-  const toggleParent = (title: string, childPaths: string[]) => {
+  const toggleParent = (title: string, childTitles: string[]) => {
     setGranted(prev => {
       const next = new Set(prev);
-      if (next.has(title)) { next.delete(title); childPaths.forEach(p => next.delete(p)); }
-      else { next.add(title); childPaths.forEach(p => next.add(p)); }
+      if (next.has(title)) { next.delete(title); childTitles.forEach(t => next.delete(t)); }
+      else { next.add(title); childTitles.forEach(t => next.add(t)); }
       return next;
     });
   };
 
-  const toggleChild = (parentTitle: string, childPath: string, allChildPaths: string[]) => {
+  const toggleChild = (parentTitle: string, childTitle: string, allChildTitles: string[]) => {
     setGranted(prev => {
       const next = new Set(prev);
-      if (next.has(childPath)) {
-        next.delete(childPath);
-        if (allChildPaths.filter(p => p !== childPath && next.has(p)).length === 0) next.delete(parentTitle);
-      } else { next.add(childPath); next.add(parentTitle); }
+      if (next.has(childTitle)) {
+        next.delete(childTitle);
+        if (allChildTitles.filter(t => t !== childTitle && next.has(t)).length === 0) next.delete(parentTitle);
+      } else { next.add(childTitle); next.add(parentTitle); }
       return next;
     });
   };
@@ -294,53 +305,83 @@ export default function AdminUsersPage({ showOverview = false }: { showOverview?
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="sm:col-span-2">
               <Field label="Full Name" required>
-                <input className={inputCls} placeholder="e.g. Amina Yusuf" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required />
+                <Input placeholder="e.g. Amina Yusuf" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required />
               </Field>
               {modal === "create" && <p className="text-[10px] text-slate-400 mt-1">Staff ID auto-generated from role (e.g. SO-0001)</p>}
             </div>
             <Field label="Email">
-              <input type="email" className={inputCls} placeholder="user@nhia.gov.ng" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
+              <Input type="email" placeholder="user@nhia.gov.ng" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
             </Field>
             <Field label={modal === "create" ? "Password" : "New Password"} required={modal === "create"}>
-              <input type="password" className={inputCls} placeholder="••••••••" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} required={modal === "create"} />
+              <Input type="password" placeholder="••••••••" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} required={modal === "create"} />
             </Field>
+
             <Field label="Role" required>
-              <select className={inputCls} value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))} required>
-                {ROLES.map(r => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
-              </select>
+              <Select value={form.role} onValueChange={v => setForm(f => ({ ...f, role: v }))}>
+                <SelectTrigger displayValue={ROLE_LABELS[form.role] ?? form.role}>
+                  <SelectValue placeholder="Select role" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ROLES.map(r => (
+                    <SelectItem key={r} value={r}>{ROLE_LABELS[r]}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </Field>
+
             {modal === "edit" && (
               <Field label="Status">
-                <select className={inputCls} value={form.is_active ? "1" : "0"} onChange={e => setForm(f => ({ ...f, is_active: e.target.value === "1" }))}>
-                  <option value="1">Active</option>
-                  <option value="0">Inactive</option>
-                </select>
+                <Select value={form.is_active ? "1" : "0"} onValueChange={v => setForm(f => ({ ...f, is_active: v === "1" }))}>
+                  <SelectTrigger displayValue={form.is_active ? "Active" : "Inactive"}>
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">Active</SelectItem>
+                    <SelectItem value="0">Inactive</SelectItem>
+                  </SelectContent>
+                </Select>
               </Field>
             )}
+
             <Field label="Zone">
-              <select className={inputCls} value={form.zone_id} onChange={e => setForm(f => ({ ...f, zone_id: e.target.value, state_id: "" }))}>
-                <option value="">— None —</option>
-                {zones.map(z => <option key={z.id} value={z.id}>{z.zonal_code} – {z.description}</option>)}
-              </select>
+              <SearchSelect
+                clearable
+                value={form.zone_id}
+                onChange={v => setForm(f => ({ ...f, zone_id: v, state_id: "" }))}
+                placeholder="— Select Zone —"
+                options={zones.map(z => ({ value: String(z.id), label: z.description, sub: z.zonal_code }))}
+              />
             </Field>
+
             <Field label="State">
-              <select className={inputCls} value={form.state_id} onChange={e => setForm(f => ({ ...f, state_id: e.target.value }))}>
-                <option value="">— None —</option>
-                {filteredStates.map(s => <option key={s.id} value={s.id}>{s.code} – {s.description}</option>)}
-              </select>
+              <SearchSelect
+                clearable
+                value={form.state_id}
+                onChange={v => setForm(f => ({ ...f, state_id: v }))}
+                placeholder="— Select State —"
+                options={filteredStates.map(s => ({ value: String(s.id), label: s.description, sub: s.code }))}
+              />
             </Field>
+
             <Field label="Department">
-              <select className={inputCls} value={form.department_id} onChange={e => handleDeptChange(e.target.value)}>
-                <option value="">— None —</option>
-                {depts.map(d => <option key={d.id} value={d.id}>{d.department_code} – {d.name}</option>)}
-              </select>
+              <SearchSelect
+                clearable
+                value={form.department_id}
+                onChange={v => handleDeptChange(v)}
+                placeholder="— Select Department —"
+                options={depts.map(d => ({ value: String(d.id), label: d.name, sub: d.department_code }))}
+              />
             </Field>
+
             <Field label="Unit">
-              <select className={inputCls} value={form.unit_id} onChange={e => setForm(f => ({ ...f, unit_id: e.target.value }))} disabled={!form.department_id}>
-                <option value="">— None —</option>
-                {formUnits.map(u => <option key={u.id} value={u.id}>{u.unit_code} – {u.name}</option>)}
-              </select>
-              {!form.department_id && <p className="text-[10px] text-slate-400 mt-1">Select a department first</p>}
+              <SearchSelect
+                clearable
+                disabled={!form.department_id}
+                value={form.unit_id}
+                onChange={v => setForm(f => ({ ...f, unit_id: v }))}
+                placeholder={form.department_id ? "— Select Unit —" : "Select a department first"}
+                options={formUnits.map(u => ({ value: String(u.id), label: u.name, sub: u.unit_code }))}
+              />
             </Field>
           </div>
 
@@ -354,17 +395,31 @@ export default function AdminUsersPage({ showOverview = false }: { showOverview?
                 </span>
               </p>
               <div className="flex gap-3">
-                <button type="button" onClick={() => { const all = new Set<string>(); MODULE_CONFIG.forEach(m => { all.add(m.title); m.children.forEach(c => all.add(c.path)); }); setGranted(all); }} className="text-xs text-[#145c3f] hover:underline font-medium">Select all</button>
+                <button type="button" onClick={() => {
+                  const all = new Set<string>();
+                  MODULE_CONFIG.forEach(m => {
+                    all.add(m.title);
+                    m.children.forEach(c => {
+                      if ("type" in c && c.type === "group") c.children.forEach(leaf => all.add(leaf.title));
+                      else all.add((c as { title: string }).title);
+                    });
+                  });
+                  setGranted(all);
+                }} className="text-xs text-[#145c3f] hover:underline font-medium">Select all</button>
                 <span className="text-slate-300">|</span>
                 <button type="button" onClick={() => setGranted(new Set())} className="text-xs text-rose-500 hover:underline font-medium">Clear all</button>
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {MODULE_CONFIG.map(mod => {
-                const allChildPaths = mod.children.map(c => c.path);
+                const allChildTitles: string[] = [];
+                mod.children.forEach(c => {
+                  if ("type" in c && c.type === "group") c.children.forEach(leaf => allChildTitles.push(leaf.title));
+                  else allChildTitles.push((c as { title: string }).title);
+                });
                 const parentChecked = granted.has(mod.title);
-                const checkedCount = allChildPaths.filter(p => granted.has(p)).length;
-                const someChecked = parentChecked && checkedCount < allChildPaths.length;
+                const checkedCount = allChildTitles.filter(t => granted.has(t)).length;
+                const someChecked = parentChecked && checkedCount < allChildTitles.length;
                 return (
                   <ModuleAccessRow key={mod.title} mod={mod}
                     parentChecked={parentChecked} someChecked={someChecked}
@@ -403,38 +458,54 @@ function ModuleAccessRow({ mod, parentChecked, someChecked, granted, onTogglePar
   parentChecked: boolean;
   someChecked: boolean;
   granted: Set<string>;
-  onToggleParent: (title: string, childPaths: string[]) => void;
-  onToggleChild: (parentTitle: string, childPath: string, allChildPaths: string[]) => void;
+  onToggleParent: (title: string, childTitles: string[]) => void;
+  onToggleChild: (parentTitle: string, childTitle: string, allChildTitles: string[]) => void;
 }) {
   const [open, setOpen] = React.useState(false);
-  const allChildPaths = mod.children.map(c => c.path);
+  // Flatten all leaf titles (handles both flat children and sub-groups)
+  const allChildTitles: string[] = [];
+  mod.children.forEach(c => {
+    if ("type" in c && c.type === "group") c.children.forEach(leaf => allChildTitles.push(leaf.title));
+    else allChildTitles.push((c as { title: string }).title);
+  });
   const parentRef = React.useRef<HTMLInputElement>(null);
   React.useEffect(() => { if (parentRef.current) parentRef.current.indeterminate = someChecked; }, [someChecked]);
+
+  // Flatten children for rendering (include group labels)
+  const renderChildren: { title: string; groupLabel?: string }[] = [];
+  mod.children.forEach(c => {
+    if ("type" in c && c.type === "group") {
+      c.children.forEach(leaf => renderChildren.push({ title: leaf.title, groupLabel: c.label }));
+    } else {
+      renderChildren.push({ title: (c as { title: string }).title });
+    }
+  });
 
   return (
     <div className={`rounded-xl border transition-all ${parentChecked ? "border-[#25a872]" : "border-[#d4e8dc]"}`}>
       <div className={`flex items-center gap-2.5 px-3 py-2 rounded-xl ${parentChecked ? "bg-[#e8f5ee]" : "bg-white"}`}>
         <input ref={parentRef} type="checkbox" checked={parentChecked}
-          onChange={() => onToggleParent(mod.title, allChildPaths)}
+          onChange={() => onToggleParent(mod.title, allChildTitles)}
           className="w-3.5 h-3.5 accent-[#145c3f] shrink-0 cursor-pointer" />
         <span className={`text-xs font-semibold flex-1 ${parentChecked ? "text-[#145c3f]" : "text-slate-700"}`}>{mod.title}</span>
-        {mod.children.length > 0 && (
+        {renderChildren.length > 0 && (
           <button type="button" onClick={() => setOpen(o => !o)} className="p-0.5 text-slate-400 hover:text-slate-600">
             {open ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
           </button>
         )}
       </div>
-      {open && mod.children.length > 0 && (
+      {open && renderChildren.length > 0 && (
         <div className="border-t border-[#d4e8dc] px-3 py-1.5 space-y-1 bg-white rounded-b-xl">
           {!parentChecked && <p className="text-[10px] text-amber-600 italic">Enable parent first</p>}
-          {mod.children.map(child => (
-            <label key={child.path} className={`flex items-center gap-2 px-1.5 py-1 rounded-lg cursor-pointer ${
-              granted.has(child.path) ? "bg-[#e8f5ee]" : "hover:bg-slate-50"
+          {renderChildren.map(child => (
+            <label key={child.title} className={`flex items-center gap-2 px-1.5 py-1 rounded-lg cursor-pointer ${
+              granted.has(child.title) ? "bg-[#e8f5ee]" : "hover:bg-slate-50"
             } ${!parentChecked ? "opacity-40 pointer-events-none" : ""}`}>
-              <input type="checkbox" checked={granted.has(child.path)} disabled={!parentChecked}
-                onChange={() => onToggleChild(mod.title, child.path, allChildPaths)}
+              <input type="checkbox" checked={granted.has(child.title)} disabled={!parentChecked}
+                onChange={() => onToggleChild(mod.title, child.title, allChildTitles)}
                 className="w-3 h-3 accent-[#145c3f] shrink-0" />
-              <span className={`text-xs ${granted.has(child.path) ? "text-[#145c3f] font-medium" : "text-slate-600"}`}>
+              <span className={`text-xs ${granted.has(child.title) ? "text-[#145c3f] font-medium" : "text-slate-600"}`}>
+                {child.groupLabel ? <span className="text-slate-400 mr-1">{child.groupLabel} ›</span> : null}
                 {child.title}
               </span>
             </label>

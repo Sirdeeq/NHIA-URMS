@@ -10,39 +10,86 @@ const {
 
 const router = Router();
 
-// All admin routes require authentication + admin role
-router.use(authenticate, authorize("admin"));
+// All routes require a valid token
+router.use(authenticate);
+
+// ─── Read-only lookups — any authenticated role ───────────────────────────────
+// Departments & Units are needed by department-officer, sdo, hq-department, etc.
+router.get("/departments", listDepartments);
+router.get("/units",       listUnits);
+
+// Zones & States are needed by zonal/state coordinators and state officers
+router.get("/zones",  listZones);
+router.get("/states", listStates);
+
+// Staff count — scoped to the caller's own state/zone (non-admin safe)
+// Returns only count + minimal fields; no passwords, no sensitive data
+router.get("/staff-count", async (req, res, next) => {
+  try {
+    const { User } = require("../models");
+    const { Op }   = require("sequelize");
+    const where    = {};
+
+    // Non-admins can only query their own state or zone
+    if (req.user.role !== "admin") {
+      if (req.query.state_id) {
+        // Must match the caller's own state
+        if (String(req.user.state_id) !== String(req.query.state_id)) {
+          return res.status(403).json({ success: false, message: "Access denied: not your state" });
+        }
+        where.state_id = req.query.state_id;
+      } else if (req.query.zone_id) {
+        if (String(req.user.zone_id) !== String(req.query.zone_id)) {
+          return res.status(403).json({ success: false, message: "Access denied: not your zone" });
+        }
+        where.zone_id = req.query.zone_id;
+      } else {
+        // Default: scope to caller's own state
+        if (req.user.state_id) where.state_id = req.user.state_id;
+      }
+    } else {
+      // Admin: honour any filter
+      if (req.query.state_id)  where.state_id  = req.query.state_id;
+      if (req.query.zone_id)   where.zone_id   = req.query.zone_id;
+    }
+
+    if (req.query.role) where.role = req.query.role;
+    where.is_active = true;
+
+    const total = await User.count({ where });
+    res.json({ success: true, total });
+  } catch (err) { next(err); }
+});
+
+// ─── Everything else is admin-only ───────────────────────────────────────────
+router.use(authorize("admin"));
 
 // Users
-router.get("/users", listUsers);
-router.get("/users/:id", getUser);
-router.post("/users", createUser);
-router.put("/users/:id", updateUser);
+router.get("/users",                listUsers);
+router.get("/users/:id",            getUser);
+router.post("/users",               createUser);
+router.put("/users/:id",            updateUser);
 router.patch("/users/:id/privileges", updatePrivileges);
-router.delete("/users/:id", deleteUser);
+router.delete("/users/:id",         deleteUser);
 
-// Zonal Offices
-router.get("/zones", listZones);
-router.post("/zones", createZone);
-router.put("/zones/:id", updateZone);
-router.delete("/zones/:id", deleteZone);
+// Zonal Offices (write)
+router.post("/zones",        createZone);
+router.put("/zones/:id",     updateZone);
+router.delete("/zones/:id",  deleteZone);
 
-// State Offices
-router.get("/states", listStates);
-router.post("/states", createState);
-router.put("/states/:id", updateState);
-router.delete("/states/:id", deleteState);
+// State Offices (write)
+router.post("/states",        createState);
+router.put("/states/:id",     updateState);
+router.delete("/states/:id",  deleteState);
 
-// Departments
-router.get("/departments", listDepartments);
-router.post("/departments", createDepartment);
-router.put("/departments/:id", updateDepartment);
-router.delete("/departments/:id", deleteDepartment);
+// Departments (write)
+router.post("/departments",        createDepartment);
+router.put("/departments/:id",     updateDepartment);
+router.delete("/departments/:id",  deleteDepartment);
 
-// Units
-router.get("/units", listUnits);
-router.post("/units", createUnit);
-router.put("/units/:id", updateUnit);
-router.delete("/units/:id", deleteUnit);
+// Units (write)
+router.post("/units",        createUnit);
+router.put("/units/:id",     updateUnit);
+router.delete("/units/:id",  deleteUnit);
 
 module.exports = router;
