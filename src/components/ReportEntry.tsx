@@ -96,6 +96,11 @@ const Stepper = ({ currentStep }: { currentStep: Step }) => {
           );
         })}
       </div>
+
+      <div className="relative">
+        <img src="" alt="" />
+        <div className="absolute"></div>
+      </div>
     </div>
   );
 };
