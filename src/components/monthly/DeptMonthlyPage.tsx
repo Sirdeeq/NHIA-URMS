@@ -237,53 +237,49 @@ export default function DeptMonthlyPage({ dept, title, section, onBack, defaultS
               </div>
 
               {/* Filters */}
-              <Card className="rounded-2xl border-[#d4e8dc]">
-                <CardContent className="pt-4 pb-4">
-                  <div className="flex flex-wrap gap-3 items-center">
-                    <Select value={filterYear} onValueChange={setFilterYear}>
-                      <SelectTrigger className="w-[120px]"
-                        displayValue={filterYear === "all" ? "All Years" : filterYear}>
-                        <SelectValue placeholder="All Years" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Years</SelectItem>
-                        {YEARS.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
+              <div className="flex flex-row gap-3 items-center bg-white rounded-2xl border border-[#d4e8dc] px-5 py-4">
+                <Select value={filterYear} onValueChange={setFilterYear}>
+                  <SelectTrigger className="flex-1 min-w-0"
+                    displayValue={filterYear === "all" ? "All Years" : filterYear}>
+                    <SelectValue placeholder="All Years" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Years</SelectItem>
+                    {YEARS.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
+                  </SelectContent>
+                </Select>
 
-                    <Select value={filterMonth} onValueChange={setFilterMonth}>
-                      <SelectTrigger className="w-[140px]"
-                        displayValue={filterMonth === "all" ? "All Months" : (MONTHS.find(m => m.v === filterMonth)?.l ?? filterMonth)}>
-                        <SelectValue placeholder="All Months" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Months</SelectItem>
-                        {MONTHS.map(m => <SelectItem key={m.v} value={m.v}>{m.l}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
+                <Select value={filterMonth} onValueChange={setFilterMonth}>
+                  <SelectTrigger className="flex-1 min-w-0"
+                    displayValue={filterMonth === "all" ? "All Months" : (MONTHS.find(m => m.v === filterMonth)?.l ?? filterMonth)}>
+                    <SelectValue placeholder="All Months" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Months</SelectItem>
+                    {MONTHS.map(m => <SelectItem key={m.v} value={m.v}>{m.l}</SelectItem>)}
+                  </SelectContent>
+                </Select>
 
-                    <Select value={filterStatus} onValueChange={setFilterStatus}>
-                      <SelectTrigger className="w-[140px]"
-                        displayValue={filterStatus === "all" ? "All Statuses" : filterStatus.charAt(0).toUpperCase() + filterStatus.slice(1)}>
-                        <SelectValue placeholder="All Statuses" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Statuses</SelectItem>
-                        <SelectItem value="draft">Draft</SelectItem>
-                        <SelectItem value="submitted">Submitted</SelectItem>
-                        <SelectItem value="approved">Approved</SelectItem>
-                      </SelectContent>
-                    </Select>
+                <Select value={filterStatus} onValueChange={setFilterStatus}>
+                  <SelectTrigger className="flex-1 min-w-0"
+                    displayValue={filterStatus === "all" ? "All Statuses" : filterStatus.charAt(0).toUpperCase() + filterStatus.slice(1)}>
+                    <SelectValue placeholder="All Statuses" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    <SelectItem value="draft">Draft</SelectItem>
+                    <SelectItem value="submitted">Submitted</SelectItem>
+                    <SelectItem value="approved">Approved</SelectItem>
+                  </SelectContent>
+                </Select>
 
-                    {hasFilters && (
-                      <Button variant="ghost" size="sm" className="text-slate-500 gap-1"
-                        onClick={() => { setFilterYear("all"); setFilterMonth("all"); setFilterStatus("all"); }}>
-                        <XCircle className="w-3.5 h-3.5" /> Clear
-                      </Button>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+                {hasFilters && (
+                  <Button variant="ghost" size="sm" className="text-slate-500 gap-1 shrink-0"
+                    onClick={() => { setFilterYear("all"); setFilterMonth("all"); setFilterStatus("all"); }}>
+                    <XCircle className="w-3.5 h-3.5" /> Clear
+                  </Button>
+                )}
+              </div>
 
               {/* Table */}
               <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden">

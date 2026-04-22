@@ -173,52 +173,61 @@ export default function AnnualReportsList({ onBack, onNewReport, onViewReport }:
           </div>
 
           {/* Filters */}
-          <Card className="rounded-2xl border-[#d4e8dc]">
-            <CardContent className="pt-5 pb-4">
-              <div className="flex flex-wrap gap-3 items-center">
-                <div className="relative flex-1 min-w-[200px]">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                  <Input
-                    placeholder="Search by reference, state..."
-                    value={search}
-                    onChange={e => setSearch(e.target.value)}
-                    className="pl-9"
-                  />
-                </div>
-                <Select value={filterYear} onValueChange={setFilterYear}>
-                  <SelectTrigger className="w-[130px]"><SelectValue placeholder="Year" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Years</SelectItem>
-                    {YEARS.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-                <Select value={filterState} onValueChange={setFilterState}>
-                  <SelectTrigger className="w-[160px]"><SelectValue placeholder="State" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All States</SelectItem>
-                    {NIGERIAN_STATES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-                <Select value={filterStatus} onValueChange={setFilterStatus}>
-                  <SelectTrigger className="w-[150px]"><SelectValue placeholder="Status" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Statuses</SelectItem>
-                    <SelectItem value="draft">Draft</SelectItem>
-                    <SelectItem value="submitted">Submitted</SelectItem>
-                    <SelectItem value="under_review">Under Review</SelectItem>
-                    <SelectItem value="approved">Approved</SelectItem>
-                    <SelectItem value="rejected">Rejected</SelectItem>
-                  </SelectContent>
-                </Select>
-                {(filterYear !== "all" || filterState !== "all" || filterStatus !== "all" || search) && (
-                  <Button variant="ghost" size="sm" className="text-slate-500 gap-1"
-                    onClick={() => { setFilterYear("all"); setFilterState("all"); setFilterStatus("all"); setSearch(""); }}>
-                    <XCircle className="w-3.5 h-3.5" /> Clear
-                  </Button>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+          <div className="bg-white rounded-2xl border border-[#d4e8dc] px-5 py-4 space-y-3">
+            {/* Search — full width row */}
+            <div className="relative w-full">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <Input
+                placeholder="Search by reference, state..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="pl-9 w-full"
+              />
+            </div>
+            {/* Selects — second row */}
+            <div className="flex flex-row gap-3 items-center">
+              <Select value={filterYear} onValueChange={setFilterYear}>
+                <SelectTrigger className="flex-1 min-w-0"
+                  displayValue={filterYear === "all" ? "All Years" : filterYear}>
+                  <SelectValue placeholder="Year" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Years</SelectItem>
+                  {YEARS.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Select value={filterState} onValueChange={setFilterState}>
+                <SelectTrigger className="flex-1 min-w-0"
+                  displayValue={filterState === "all" ? "All States" : filterState}>
+                  <SelectValue placeholder="State" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All States</SelectItem>
+                  {NIGERIAN_STATES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Select value={filterStatus} onValueChange={setFilterStatus}>
+                <SelectTrigger className="flex-1 min-w-0"
+                  displayValue={filterStatus === "all" ? "All Statuses" : filterStatus.replace(/_/g,' ').replace(/\b\w/g, c => c.toUpperCase())}>
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="draft">Draft</SelectItem>
+                  <SelectItem value="submitted">Submitted</SelectItem>
+                  <SelectItem value="under_review">Under Review</SelectItem>
+                  <SelectItem value="approved">Approved</SelectItem>
+                  <SelectItem value="rejected">Rejected</SelectItem>
+                </SelectContent>
+              </Select>
+              {(filterYear !== "all" || filterState !== "all" || filterStatus !== "all" || search) && (
+                <Button variant="ghost" size="sm" className="text-slate-500 gap-1 shrink-0"
+                  onClick={() => { setFilterYear("all"); setFilterState("all"); setFilterStatus("all"); setSearch(""); }}>
+                  <XCircle className="w-3.5 h-3.5" /> Clear
+                </Button>
+              )}
+            </div>
+          </div>
 
           {/* Table */}
           <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden">
