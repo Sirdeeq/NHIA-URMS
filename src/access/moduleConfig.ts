@@ -110,7 +110,7 @@ export const MODULE_CONFIG: ParentModule[] = [
 
   // ── State Offices (Unified Monthly Report) ───────────────────────────────────
   {
-    title: "State Offices",
+    title: "SOC/Zones",
     roles: "all",
     children: [
       { type: "group", label: "Enrolment", children: [
