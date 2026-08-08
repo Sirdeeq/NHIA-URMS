@@ -162,7 +162,7 @@ function DisabledInput({ label, value, placeholder }: { label: string; value?: s
 }
 
 function FieldText({
-  label, value, onChange, readOnly, type = "text", placeholder, mono,
+  label, value, onChange, readOnly, type = "text", placeholder, mono, max, min,
 }: {
   label: string;
   value: string;
@@ -171,6 +171,8 @@ function FieldText({
   type?: string;
   placeholder?: string;
   mono?: boolean;
+  max?: string;
+  min?: string;
 }) {
   if (readOnly) {
     return (
@@ -188,6 +190,8 @@ function FieldText({
         type={type}
         placeholder={placeholder}
         value={value}
+        max={max}
+        min={min}
         onChange={(e) => onChange?.(e.target.value)}
       />
     </div>
@@ -196,6 +200,7 @@ function FieldText({
 
 export default function ServicomComplaintsPage({ onBack, defaultStateId, defaultZoneId }: Props) {
   const geoLocked = !!(defaultZoneId && defaultStateId);
+  const today = new Date().toISOString().slice(0, 10);
   const [mode, setMode] = React.useState<Mode>("list");
   const [complaints, setComplaints] = React.useState<any[]>([]);
   const [selected, setSelected] = React.useState<any | null>(null);
@@ -411,6 +416,11 @@ export default function ServicomComplaintsPage({ onBack, defaultStateId, default
       } else if (stage === "resolution") {
         if (!f.date_closed || !f.outcome) {
           toast.error("Date closed and outcome are required.");
+          setSaving(false);
+          return;
+        }
+        if (f.date_closed > today) {
+          toast.error("Date closed cannot be later than today.");
           setSaving(false);
           return;
         }
@@ -694,7 +704,7 @@ export default function ServicomComplaintsPage({ onBack, defaultStateId, default
           </>
         )}
         <FieldText label="Date Closed" type="date" value={readOnly ? (row?.date_closed ?? row?.resolution_date) : f.date_closed}
-          onChange={(v) => set("date_closed", v)} readOnly={readOnly} />
+          onChange={(v) => set("date_closed", v)} readOnly={readOnly} max={readOnly ? undefined : today} />
         <FieldSelect label="Outcome" value={readOnly ? row?.outcome : f.outcome}
           options={COMPLAINT_OUTCOMES} readOnly={readOnly} onChange={(v) => set("outcome", v)} />
         <div className="md:col-span-2">

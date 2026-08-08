@@ -12,6 +12,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { servicomApi, stockApi } from "@/lib/api";
 import { pickGeoLabel } from "./servicomConstants";
+import AccreditedProviderSelect from "@/src/components/stateOffice/AccreditedProviderSelect";
 import {
   SATISFACTION_QUESTIONS, YES_NO_OPTIONS, computeSatisfactionScore,
 } from "./servicomSurveyConstants";
@@ -86,8 +87,10 @@ export default function ServicomSatisfactionSurveyPage({
   const [filterState, setFilterState] = React.useState(defaultStateId ?? "all");
   const [filterSearch, setFilterSearch] = React.useState("");
   const [filterDate, setFilterDate] = React.useState("");
+  const [selectedProviderId, setSelectedProviderId] = React.useState("");
 
   const scoreSummary = React.useMemo(() => computeSatisfactionScore(f.responses), [f.responses]);
+  const activeStateId = defaultStateId ?? f.state_id;
 
   const load = React.useCallback(async () => {
     setLoading(true);
@@ -130,6 +133,7 @@ export default function ServicomSatisfactionSurveyPage({
 
   const openForm = () => {
     setF(emptyForm(defaultZoneId, defaultStateId, userName));
+    setSelectedProviderId("");
     setSelected(null);
     setMode("form");
   };
@@ -209,10 +213,15 @@ export default function ServicomSatisfactionSurveyPage({
             {readOnly ? (
               <p className="text-sm font-medium">{row?.provider_name}</p>
             ) : (
-              <Input
-                placeholder="Healthcare facility name"
-                value={f.provider_name}
-                onChange={(e) => setF((p) => ({ ...p, provider_name: e.target.value }))}
+              <AccreditedProviderSelect
+                type="hcp"
+                stateId={activeStateId || undefined}
+                value={selectedProviderId}
+                onChange={(p) => {
+                  setSelectedProviderId(p?.id ?? "");
+                  setF((prev) => ({ ...prev, provider_name: p?.name ?? "" }));
+                }}
+                placeholder="Select healthcare facility"
               />
             )}
           </div>
@@ -262,7 +271,10 @@ export default function ServicomSatisfactionSurveyPage({
                   </SelectTrigger>
                   <SelectContent>{zones.map((z) => <SelectItem key={z.id} value={String(z.id)}>{z.description}</SelectItem>)}</SelectContent>
                 </Select>
-                <Select value={f.state_id} onValueChange={(v) => setF((p) => ({ ...p, state_id: v }))}>
+                <Select value={f.state_id} onValueChange={(v) => {
+                  setSelectedProviderId("");
+                  setF((p) => ({ ...p, state_id: v, provider_name: "" }));
+                }}>
                   <SelectTrigger displayValue={pickGeoLabel(states, f.state_id, "State")}>
                     <SelectValue placeholder="State" />
                   </SelectTrigger>

@@ -203,7 +203,7 @@ export default function ServicomDashboard({ onBack, defaultStateId, defaultZoneI
                         {(data.state_satisfaction_rankings ?? []).slice(0, 10).map((s: any, i: number) => (
                           <TableRow key={s.state_id}>
                             <TableCell className="text-xs font-bold">{i + 1}</TableCell>
-                            <TableCell className="text-sm font-semibold">State #{s.state_id}</TableCell>
+                            <TableCell className="text-sm font-semibold">{s.state_name ?? `State #${s.state_id}`}</TableCell>
                             <TableCell className="text-xs text-right">{s.surveys}</TableCell>
                             <TableCell className="text-xs text-right font-bold text-[#25a872]">{s.avg_score}%</TableCell>
                           </TableRow>
@@ -219,7 +219,7 @@ export default function ServicomDashboard({ onBack, defaultStateId, defaultZoneI
                     <CardContent className="space-y-2">
                       {(data.top_states || []).map((s: any) => (
                         <div key={s.state_id} className="flex justify-between text-sm">
-                          <span className="font-semibold">State #{s.state_id}</span>
+                          <span className="font-semibold">{s.state_name ?? `State #${s.state_id}`}</span>
                           <Badge variant="outline" className="text-emerald-700 border-emerald-300">{s.avg_score}%</Badge>
                         </div>
                       ))}
@@ -231,7 +231,7 @@ export default function ServicomDashboard({ onBack, defaultStateId, defaultZoneI
                     <CardContent className="space-y-2">
                       {(data.low_states || []).map((s: any) => (
                         <div key={s.state_id} className="flex justify-between text-sm">
-                          <span className="font-semibold">State #{s.state_id}</span>
+                          <span className="font-semibold">{s.state_name ?? `State #${s.state_id}`}</span>
                           <Badge variant="outline" className="text-rose-700 border-rose-300">{s.avg_score}%</Badge>
                         </div>
                       ))}

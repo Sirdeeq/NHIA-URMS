@@ -1,18 +1,15 @@
 import type { AccessEntry, AccessUser } from "./types";
 import type { ParentModule, ChildModule } from "./moduleConfig";
-
-const MODULE_TITLE_ALIASES: Record<string, string> = {
-  "State Offices": "SOC/Zones",
-};
+import { resolveModuleTitle } from "./moduleConfig";
 
 /** Map retired module titles to current MODULE_CONFIG titles */
 export function normalizeModuleTitle(title: string): string {
-  return MODULE_TITLE_ALIASES[title] ?? title;
+  return resolveModuleTitle(title);
 }
 
 export function findEntry(user: AccessUser, moduleTitle: string): AccessEntry | undefined {
-  const normalized = normalizeModuleTitle(moduleTitle);
-  return (user.access ?? []).find(e => normalizeModuleTitle(e.access_to) === normalized);
+  const normalized = resolveModuleTitle(moduleTitle);
+  return (user.access ?? []).find(e => resolveModuleTitle(e.access_to) === normalized);
 }
 
 /** Get all leaf titles from a module (flattening sub-groups) */
@@ -55,7 +52,7 @@ export function canAccessFunctionality(moduleTitle: string, functionalityTitle: 
   if (entry?.functionalities.some(f => normalizeFunctionalityTitle(f) === normalized)) return true;
 
   // Legacy SDO privilege grants Monitoring Visits under SOC/Zones
-  if (normalizeModuleTitle(moduleTitle) === "SOC/Zones" && normalized === "Monitoring Visits") {
+  if (resolveModuleTitle(moduleTitle) === "SOC/Zones" && normalized === "Monitoring Visits") {
     const sdo = findEntry(user, "SDO");
     return !!sdo?.functionalities.some(f => normalizeFunctionalityTitle(f) === "Monitoring Visits");
   }
@@ -65,13 +62,13 @@ export function canAccessFunctionality(moduleTitle: string, functionalityTitle: 
 /** Expand stored privileges for sidebar rendering (legacy SDO → SOC bridges) */
 export function expandAccessEntries(access: AccessEntry[]): AccessEntry[] {
   const out = [...(access ?? [])];
-  const sdo = out.find(e => normalizeModuleTitle(e.access_to) === "SDO");
+  const sdo = out.find(e => resolveModuleTitle(e.access_to) === "SDO");
   const hasLegacyVisits = sdo?.functionalities.some(
     f => normalizeFunctionalityTitle(f) === "Monitoring Visits",
   );
   if (!hasLegacyVisits) return out;
 
-  const socIdx = out.findIndex(e => normalizeModuleTitle(e.access_to) === "SOC/Zones");
+  const socIdx = out.findIndex(e => resolveModuleTitle(e.access_to) === "SOC/Zones");
   if (socIdx >= 0) {
     const funcs = out[socIdx].functionalities;
     if (!funcs.some(f => normalizeFunctionalityTitle(f) === "Monitoring Visits")) {
@@ -94,7 +91,7 @@ export function filterSidebar(
   const result: Array<ParentModule & { visibleChildren: ParentModule["children"] }> = [];
 
   for (const entry of (user.access ?? [])) {
-    const mod = config.find(m => m.title === normalizeModuleTitle(entry.access_to));
+    const mod = config.find(m => m.title === resolveModuleTitle(entry.access_to));
     if (!mod) continue;
 
     const allowed = normalizeAllowedTitles(entry.functionalities);

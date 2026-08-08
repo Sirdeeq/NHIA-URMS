@@ -1,7 +1,8 @@
 export type StateOfficeReportType =
   | "enrolment" | "migration" | "cemonc"
   | "complaints" | "accreditation" | "stakeholder" | "hmo-selection" | "challenges"
-  | "igr" | "sshia-financial" | "expenditure-profile";
+  | "igr" | "sshia-financial" | "expenditure-profile"
+  | "weekly-actionable" | "contracted-services";
 
 export const MONTHS = [
   { value: 1, label: "January" },   { value: 2, label: "February" },
@@ -151,6 +152,48 @@ export const SSHIA_COLUMNS = [
   { key: "variance_pct",       label: "Variance %",            code: "F", hint: "C÷D×100", unit: "%" },
 ] as const;
 
+// ─── Weekly Actionable ────────────────────────────────────────────────────────
+export const ACTIONABLE_CATEGORIES = [
+  { value: "operational",   label: "Operational"   },
+  { value: "budgetary",     label: "Budgetary"     },
+  { value: "administrative",label: "Administrative"},
+  { value: "policy",        label: "Policy"        },
+];
+
+export const ACTIONABLE_IMPACTS = [
+  { value: "high",   label: "High"   },
+  { value: "medium", label: "Medium" },
+  { value: "low",    label: "Low"    },
+];
+
+export const ACTIONABLE_STATUSES = [
+  { value: "escalated",                label: "Escalated"                   },
+  { value: "awaiting_further_info",    label: "Awaiting Further Information"},
+  { value: "awaiting_response",        label: "Awaiting Response"           },
+  { value: "resolved",                 label: "Resolved"                    },
+];
+
+export const ACTIONABLE_PRIORITY_MAP: Record<string, string> = {
+  dg:         "p1",
+  department: "p2",
+  zone_state: "p3",
+};
+
+/** Auto-derived priority based on user department selection */
+export function derivePriority(userDept: string): string {
+  const deptLower = userDept.toLowerCase();
+  if (deptLower === "dg" || deptLower === "dg office" || deptLower === "dg/ceo") return "P1 (High – DG attention)";
+  if (deptLower.includes("zone") || deptLower.includes("state") || deptLower.includes("zonal") || deptLower.includes("soc")) return "P3 (Low – Zone/State)";
+  return "P2 (Medium – Depts)";
+}
+
+// ─── Contracted Services ──────────────────────────────────────────────────────
+export const CONTRACTED_SERVICES = [
+  { value: "security",     label: "Security Services"             },
+  { value: "cleaning",     label: "Cleaning/Horticulture Service" },
+  { value: "generator",    label: "Generator Services"            },
+];
+
 export const EXPENDITURE_SUB_HEADS = [
   { value: "fuel_lub",               label: "FUEL & LUB" },
   { value: "newspapers_periodicals", label: "NEWSPAPERS & PERIODICALS" },
@@ -232,6 +275,20 @@ export const REPORT_CONFIG: Record<StateOfficeReportType, {
     countLabel: "Amount (₦)",
     totalLabel: "Total Allocated (₦)",
   },
+  "weekly-actionable": {
+    title: "Weekly Actionable",
+    subtitle: "State Office Coordination — Weekly Actionable Points",
+    refLabel: "Issue/Request",
+    countLabel: "Priority Level",
+    totalLabel: "Total Items",
+  },
+  "contracted-services": {
+    title: "Contracted Services",
+    subtitle: "State Office Coordination — Monthly Contracted Services",
+    refLabel: "Service",
+    countLabel: "Amount (NGN)",
+    totalLabel: "Total Amount (NGN)",
+  },
 };
 
 export function monthLabel(month: number | string) {
@@ -296,6 +353,9 @@ export function reportLineCount(reportType: StateOfficeReportType, report: any) 
   if (reportType === "challenges") {
     return (report.challenges ? 1 : 0) + (report.recommendations ? 1 : 0);
   }
+  if (reportType === "weekly-actionable" || reportType === "contracted-services") {
+    return report.lines?.length ?? 0;
+  }
   return report.lines?.length ?? 0;
 }
 
@@ -330,6 +390,12 @@ export function reportLineTotal(reportType: StateOfficeReportType, report: any) 
     return (report.lines ?? []).reduce((s: number, l: any) => s + (Number(l.balance) || 0), 0);
   }
   if (reportType === "expenditure-profile") {
+    return (report.lines ?? []).reduce((s: number, l: any) => s + (Number(l.amount) || 0), 0);
+  }
+  if (reportType === "weekly-actionable") {
+    return report.lines?.length ?? 0;
+  }
+  if (reportType === "contracted-services") {
     return (report.lines ?? []).reduce((s: number, l: any) => s + (Number(l.amount) || 0), 0);
   }
   return 0;

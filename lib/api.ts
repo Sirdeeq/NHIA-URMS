@@ -443,6 +443,8 @@ export const stateOfficeApi = {
   igr: makeStateOfficeApi("igr"),
   "sshia-financial": makeStateOfficeApi("sshia-financial"),
   "expenditure-profile": makeStateOfficeApi("expenditure-profile"),
+  "weekly-actionable": makeStateOfficeApi("weekly-actionable"),
+  "contracted-services": makeStateOfficeApi("contracted-services"),
 };
 
 const stateOfficeFilters = (filters?: Record<string, string | undefined>) => {
@@ -481,7 +483,7 @@ export const stateOfficeEnrolleeComplaintsApi = {
 export const stateOfficeAccreditedProvidersApi = {
   list: (filters: { type: "hmo" | "hcp"; q?: string; limit?: string; state_id?: string }) =>
     request<{ success: boolean; data: any[] }>(
-      `/state-office/accredited-providers${stateOfficeFilters(filters)}`
+      `/accredited-providers${stateOfficeFilters(filters)}`
     ),
   sync: () =>
     request<{ success: boolean; data: { hmoCount: number; hcpCount: number; total: number } }>(
@@ -518,6 +520,36 @@ export const stateOfficeComplianceVisitsApi = {
   update: (id: number | string, payload: any) =>
     request<{ success: boolean; data: any }>(`/state-office/compliance-visits/${id}`, {
       method: "PUT", body: JSON.stringify(payload),
+    }),
+};
+
+// ─── SQA Compliance Management (Facility Compliance Reporting) ────────────────
+
+const complianceFilters = (filters?: Record<string, string | undefined>) => {
+  const p = new URLSearchParams(
+    Object.entries(filters || {}).filter(([, v]) => !!v) as [string, string][],
+  ).toString();
+  return p ? `?${p}` : "";
+};
+
+export const complianceApi = {
+  list: (filters?: { state_id?: string; zone_id?: string; year?: string; status?: string }) =>
+    request<{ success: boolean; data: any[] }>(
+      `/sqa/compliance-reports${complianceFilters(filters)}`,
+    ),
+  get: (id: number | string) =>
+    request<{ success: boolean; data: any }>(`/sqa/compliance-reports/${id}`),
+  create: (payload: any) =>
+    request<{ success: boolean; data: any }>("/sqa/compliance-reports", {
+      method: "POST", body: JSON.stringify(payload),
+    }),
+  update: (id: number | string, payload: any) =>
+    request<{ success: boolean; data: any }>(`/sqa/compliance-reports/${id}`, {
+      method: "PUT", body: JSON.stringify(payload),
+    }),
+  updateStatus: (id: number | string, status: string) =>
+    request<{ success: boolean; data: any }>(`/sqa/compliance-reports/${id}/status`, {
+      method: "PATCH", body: JSON.stringify({ status }),
     }),
 };
 
