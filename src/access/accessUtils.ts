@@ -1,8 +1,11 @@
 import type { AccessEntry, AccessUser } from "./types";
 import type { ParentModule, ChildModule } from "./moduleConfig";
+import { resolveModuleTitle } from "./moduleConfig";
 
 export function findEntry(user: AccessUser, moduleTitle: string): AccessEntry | undefined {
-  return (user.access ?? []).find(e => e.access_to === moduleTitle);
+  return (user.access ?? []).find(
+    e => resolveModuleTitle(e.access_to) === resolveModuleTitle(moduleTitle),
+  );
 }
 
 /** Get all leaf titles from a module (flattening sub-groups) */
@@ -21,7 +24,9 @@ export function canAccessModule(mod: ParentModule, user: AccessUser): boolean {
     if (r === "!dg-ceo" && user.role === "dg-ceo") return false;
     if (r !== "!dg-ceo" && !(r as string[]).includes(user.role)) return false;
   }
-  return !!(user.access ?? []).find(e => e.access_to === mod.title);
+  return !!(user.access ?? []).find(
+    e => resolveModuleTitle(e.access_to) === mod.title,
+  );
 }
 
 /** Map retired privilege labels to current module titles */
@@ -54,7 +59,7 @@ export function filterSidebar(
   const result: Array<ParentModule & { visibleChildren: ParentModule["children"] }> = [];
 
   for (const entry of (user.access ?? [])) {
-    const mod = config.find(m => m.title === entry.access_to);
+    const mod = config.find(m => m.title === resolveModuleTitle(entry.access_to));
     if (!mod) continue;
 
     const allowed = normalizeAllowedTitles(entry.functionalities);

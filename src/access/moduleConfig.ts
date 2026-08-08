@@ -20,6 +20,23 @@ export interface ParentModule {
   children: (ChildModule | SubGroup)[];
 }
 
+/** Parent module key for SOC/Zonal reporting (sidebar label: SOC/Zones) */
+export const SOC_ZONES_MODULE = "SOC/Zones";
+
+/** Older user records may still store this access_to value */
+export const SOC_ZONES_LEGACY_ALIASES = ["State Offices"] as const;
+
+export function resolveModuleTitle(accessTo: string): string {
+  if ((SOC_ZONES_LEGACY_ALIASES as readonly string[]).includes(accessTo)) {
+    return SOC_ZONES_MODULE;
+  }
+  return accessTo;
+}
+
+export function moduleConfigForAccess(accessTo: string): ParentModule | undefined {
+  return MODULE_CONFIG.find(m => m.title === resolveModuleTitle(accessTo));
+}
+
 /**
  * Exact match of the sidebar nav JSON structure.
  * title = access_to key stored in user.functionalities
@@ -66,6 +83,9 @@ export const MODULE_CONFIG: ParentModule[] = [
       { type: "group", label: "Enrollee Complaints / SHIA Liaison", children: [
         { title: "Monthly Report", view: "complaints-monthly" },
       ]},
+      { type: "group", label: "Compliance Management", children: [
+        { title: "Compliance Management", view: "sqa-compliance" },
+      ]},
     ],
   },
 
@@ -108,9 +128,9 @@ export const MODULE_CONFIG: ParentModule[] = [
     ],
   },
 
-  // ── State Offices (Unified Monthly Report) ───────────────────────────────────
+  // ── SOC/Zonal (state office monthly & weekly reports) ───────────────────────
   {
-    title: "SOC/Zones",
+    title: SOC_ZONES_MODULE,
     roles: "all",
     children: [
       { type: "group", label: "Enrolment", children: [
@@ -144,6 +164,8 @@ export const MODULE_CONFIG: ParentModule[] = [
         { title: "SSHIA Financial Report", view: "state-sshia-financial" },
         { title: "Expenditure Profile", view: "state-expenditure-profile" },
       ]},
+      { title: "Weekly Actionable",   view: "state-weekly-actionable"   },
+      { title: "Contracted Services", view: "state-contracted-services" },
     ],
   },
 

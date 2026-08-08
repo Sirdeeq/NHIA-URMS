@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { AccessEntry } from "@/src/access/types";
-import { MODULE_CONFIG, type ChildModule, type SubGroup, hasRoutableView, flatLeaves } from "@/src/access/moduleConfig";
+import { MODULE_CONFIG, SOC_ZONES_MODULE, type ChildModule, type SubGroup, hasRoutableView, flatLeaves, moduleConfigForAccess } from "@/src/access/moduleConfig";
 import { hasModuleAccess } from "@/src/access/roles";
 import { normalizeAllowedTitles } from "@/src/access/accessUtils";
 
@@ -41,6 +41,7 @@ const MODULE_ICONS: Record<string, React.ReactNode> = {
   "Communications":       <Megaphone className="w-4 h-4" />,
   "Legal Services":       <Scale className="w-4 h-4" />,
   "Notifications":        <Bell className="w-4 h-4" />,
+  "SOC/Zones":            <MapPin className="w-4 h-4" />,
   "Settings":             <Settings className="w-4 h-4" />,
 };
 
@@ -310,7 +311,7 @@ export default function SidebarNav({ role, access, view, setView, sidebarOpen }:
   const [openModule, setOpenModule] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    if (String(view).startsWith("state-")) setOpenModule("State Offices");
+    if (String(view).startsWith("state-")) setOpenModule(SOC_ZONES_MODULE);
   }, [view]);
 
   const toggle = (title: string) =>
@@ -335,12 +336,14 @@ export default function SidebarNav({ role, access, view, setView, sidebarOpen }:
     // Non-admin: only modules in their access array
     return access
       .map(entry => {
-        const mod = MODULE_CONFIG.find(m => m.title === entry.access_to);
+        const mod = moduleConfigForAccess(entry.access_to);
         if (!mod) return null;
-        // State Offices: always show all configured sections (Enrolment, Migration, CEmONC, IGR)
-        const allowedTitles = mod.title === "State Offices"
-          ? new Set(flatLeaves(mod))
-          : normalizeAllowedTitles(entry.functionalities);
+
+        const funcs = Array.isArray(entry.functionalities) ? entry.functionalities : [];
+        const allowedTitles = funcs.length > 0
+          ? normalizeAllowedTitles(funcs)
+          : new Set(flatLeaves(mod));
+
         return { mod, allowedTitles };
       })
       .filter(Boolean) as { mod: typeof MODULE_CONFIG[0]; allowedTitles: Set<string> }[];

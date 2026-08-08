@@ -8,6 +8,10 @@ import AccreditationReportForm from "./AccreditationReportForm";
 import StakeholderReportForm from "./StakeholderReportForm";
 import HmoSelectionReportForm from "./HmoSelectionReportForm";
 import ChallengesReportForm from "./ChallengesReportForm";
+import WeeklyActionableForm from "./WeeklyActionableForm";
+import WeeklyActionableDetail from "./WeeklyActionableDetail";
+import ContractedServicesForm from "./ContractedServicesForm";
+import ContractedServicesDetail from "./ContractedServicesDetail";
 
 const EXTENDED_DETAIL = new Set<StateOfficeReportType>([
   "complaints", "accreditation", "stakeholder", "hmo-selection", "challenges",
@@ -22,6 +26,8 @@ const FORM_COMPONENTS: Partial<Record<StateOfficeReportType, React.ComponentType
   stakeholder: StakeholderReportForm,
   "hmo-selection": HmoSelectionReportForm,
   challenges: ChallengesReportForm,
+  "weekly-actionable": WeeklyActionableForm,
+  "contracted-services": ContractedServicesForm,
 };
 
 export function StateOfficeFormRouter(props: {
@@ -41,6 +47,12 @@ export function StateOfficeDetailRouter(props: {
   onBack: () => void;
   onEdit?: () => void;
 }) {
+  if (props.reportType === "weekly-actionable") {
+    return <WeeklyActionableDetail {...props} />;
+  }
+  if (props.reportType === "contracted-services") {
+    return <ContractedServicesDetail {...props} />;
+  }
   if (EXTENDED_DETAIL.has(props.reportType)) {
     return <ExtendedReportDetail {...props} />;
   }

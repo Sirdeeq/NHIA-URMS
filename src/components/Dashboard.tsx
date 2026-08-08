@@ -45,6 +45,7 @@ import ProgrammesMonthlyForm from "./monthly/ProgrammesMonthlyForm";
 import OutreachMonthlyForm from "./monthly/OutreachMonthlyForm";
 import SqaMonthlyForm from "./monthly/SqaMonthlyForm";
 import ComplaintsMonthlyForm from "./monthly/ComplaintsMonthlyForm";
+import ComplianceManagementPage from "./compliance/ComplianceManagementPage";
 import MonthlyReportsList from "./monthly/MonthlyReportsList";
 import DeptMonthlyPage from "./monthly/DeptMonthlyPage";
 import SidebarNav from "./SidebarNav";
@@ -60,7 +61,7 @@ import { getMonthlyReportContext } from "@/src/access/monthlyReportAccess";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Role = "state-officer" | "zonal-coordinator" | "state-coordinator" | "department-officer" | "sdo" | "hq-department" | "audit" | "dg-ceo" | "admin";
-type View = "home" | "report-entry" | "report-preview" | "zonal-review" | "zonal-compose" | "annual-report" | "annual-reports-list" | "annual-report-detail" | "settings" | "stock-verifications-list" | "stock-assets" | "servicom-dashboard" | "servicom-visits" | "servicom-complaints" | "finance-monthly" | "admin-monthly" | "programmes-monthly" | "outreach-monthly" | "sqa-monthly" | "complaints-monthly" | "monthly-reports-list" | "report-review" | "notifications" | "state-enrolment" | "state-migration" | "state-cemonc" | "state-complaints" | "state-compliance-monitoring" | "state-reconciliation" | "state-accreditation" | "state-stakeholder" | "state-hmo-selection" | "state-challenges" | "state-igr" | "state-sshia-financial" | "state-expenditure-profile";
+type View = "home" | "report-entry" | "report-preview" | "zonal-review" | "zonal-compose" | "annual-report" | "annual-reports-list" | "annual-report-detail" | "settings" | "stock-verifications-list" | "stock-assets" | "servicom-dashboard" | "servicom-visits" | "servicom-complaints" | "finance-monthly" | "admin-monthly" | "programmes-monthly" | "outreach-monthly" | "sqa-monthly" | "sqa-compliance" | "complaints-monthly" | "monthly-reports-list" | "report-review" | "notifications" | "state-enrolment" | "state-migration" | "state-cemonc" | "state-complaints" | "state-compliance-monitoring" | "state-reconciliation" | "state-accreditation" | "state-stakeholder" | "state-hmo-selection" | "state-challenges" | "state-igr" | "state-sshia-financial" | "state-expenditure-profile" | "state-weekly-actionable" | "state-contracted-services";
 interface DashboardProps { role: Role; user?: import("@/src/store/authSlice").AuthUser; access?: import("@/src/access/types").AccessEntry[]; functionalities?: string; onLogout: () => void; }
 
 // ─── Mock data ────────────────────────────────────────────────────────────────
@@ -832,6 +833,12 @@ export default function Dashboard({ role, user, access = [], functionalities = "
                 onBack={() => setView("home")} defaultZoneId={monthlyCtx.defaultZoneId} defaultStateId={monthlyCtx.defaultStateId}
                 canCreate={monthlyCtx.canCreateMonthly}
                 FormComponent={SqaMonthlyForm} />
+            ) : view === "sqa-compliance" ? (
+              <ComplianceManagementPage
+                onBack={() => setView("home")}
+                defaultZoneId={monthlyCtx.defaultZoneId}
+                defaultStateId={monthlyCtx.defaultStateId}
+              />
             ) : view === "complaints-monthly" ? (
               <DeptMonthlyPage dept="sqa" title="Enrollee Complaints Monthly Reports" section="complaints"
                 onBack={() => setView("home")} defaultZoneId={monthlyCtx.defaultZoneId} defaultStateId={monthlyCtx.defaultStateId}
@@ -894,6 +901,14 @@ export default function Dashboard({ role, user, access = [], functionalities = "
                 defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />
             ) : view === "state-expenditure-profile" ? (
               <StateOfficeReportsList reportType="expenditure-profile" onBack={() => setView("home")}
+                defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId}
+                defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />
+            ) : view === "state-weekly-actionable" ? (
+              <StateOfficeReportsList key="state-weekly-actionable" reportType="weekly-actionable" onBack={() => setView("home")}
+                defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId}
+                defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />
+            ) : view === "state-contracted-services" ? (
+              <StateOfficeReportsList key="state-contracted-services" reportType="contracted-services" onBack={() => setView("home")}
                 defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId}
                 defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />
             ) : view === "settings" ? (

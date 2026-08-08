@@ -352,6 +352,9 @@ export default function StateOfficeReportsList({
                         )}
                         <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Year</TableHead>
                         <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Month</TableHead>
+                        {reportType === "weekly-actionable" && (
+                          <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Week</TableHead>
+                        )}
                         <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Quarter</TableHead>
                         <TableHead className="text-xs font-bold text-slate-600 text-right whitespace-nowrap">Entries</TableHead>
                         <TableHead className="text-xs font-bold text-slate-600 text-right whitespace-nowrap">{cfg.totalLabel}</TableHead>
@@ -379,6 +382,11 @@ export default function StateOfficeReportsList({
                             )}
                             <TableCell className="text-sm font-semibold text-slate-800 whitespace-nowrap">{r.reporting_year}</TableCell>
                             <TableCell className="text-sm text-slate-600 whitespace-nowrap">{monthLabel(r.reporting_month)}</TableCell>
+                            {reportType === "weekly-actionable" && (
+                              <TableCell className="text-sm text-slate-600 whitespace-nowrap">
+                                {(r as any).reporting_week ? `Wk ${(r as any).reporting_week}` : "—"}
+                              </TableCell>
+                            )}
                             <TableCell className="text-sm text-slate-500 whitespace-nowrap">Q{quarterFromMonth(r.reporting_month)}</TableCell>
                             <TableCell className="text-sm text-slate-500 text-right tabular-nums">{reportLineCount(reportType, r)}</TableCell>
                             <TableCell className="text-sm font-semibold text-slate-800 text-right tabular-nums">{formatCount(reportLineTotal(reportType, r))}</TableCell>
