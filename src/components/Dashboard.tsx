@@ -39,6 +39,8 @@ import StateOfficeReconciliationPage from "./stateOffice/StateOfficeReconciliati
 import ServicomDashboard from "./servicom/ServicomDashboard";
 import ServicomVisitsPage from "./servicom/ServicomVisitsPage";
 import ServicomComplaintsPage from "./servicom/ServicomComplaintsPage";
+import ServicomSatisfactionSurveyPage from "./servicom/ServicomSatisfactionSurveyPage";
+import ServicomCommentCardPage from "./servicom/ServicomCommentCardPage";
 import FinanceMonthlyForm from "./monthly/FinanceMonthlyForm";
 import AdminMonthlyForm from "./monthly/AdminMonthlyForm";
 import ProgrammesMonthlyForm from "./monthly/ProgrammesMonthlyForm";
@@ -57,10 +59,12 @@ import DepartmentalDashboard from "./DepartmentalDashboard";
 import ReportReviewPage from "./ReportReviewPage";
 import NotificationsPage from "./NotificationsPage";
 import { getMonthlyReportContext } from "@/src/access/monthlyReportAccess";
+import { canAccessFunctionality, expandAccessEntries } from "@/src/access/accessUtils";
+import { STATE_VIEW_TO_FUNCTIONALITY } from "@/src/access/moduleConfig";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Role = "state-officer" | "zonal-coordinator" | "state-coordinator" | "department-officer" | "sdo" | "hq-department" | "audit" | "dg-ceo" | "admin";
-type View = "home" | "report-entry" | "report-preview" | "zonal-review" | "zonal-compose" | "annual-report" | "annual-reports-list" | "annual-report-detail" | "settings" | "stock-verifications-list" | "stock-assets" | "servicom-dashboard" | "servicom-visits" | "servicom-complaints" | "finance-monthly" | "admin-monthly" | "programmes-monthly" | "outreach-monthly" | "sqa-monthly" | "complaints-monthly" | "monthly-reports-list" | "report-review" | "notifications" | "state-enrolment" | "state-migration" | "state-cemonc" | "state-complaints" | "state-compliance-monitoring" | "state-reconciliation" | "state-accreditation" | "state-stakeholder" | "state-hmo-selection" | "state-challenges" | "state-igr" | "state-sshia-financial" | "state-expenditure-profile";
+type View = "home" | "report-entry" | "report-preview" | "zonal-review" | "zonal-compose" | "annual-report" | "annual-reports-list" | "annual-report-detail" | "settings" | "stock-verifications-list" | "stock-assets" | "servicom-dashboard" | "servicom-visits" | "servicom-complaints" | "servicom-satisfaction" | "servicom-comment-card" | "finance-monthly" | "admin-monthly" | "programmes-monthly" | "outreach-monthly" | "sqa-monthly" | "complaints-monthly" | "monthly-reports-list" | "report-review" | "notifications" | "state-enrolment" | "state-migration" | "state-cemonc" | "state-complaints" | "state-compliance-monitoring" | "state-reconciliation" | "state-accreditation" | "state-stakeholder" | "state-hmo-selection" | "state-challenges" | "state-igr" | "state-sshia-financial" | "state-expenditure-profile";
 interface DashboardProps { role: Role; user?: import("@/src/store/authSlice").AuthUser; access?: import("@/src/access/types").AccessEntry[]; functionalities?: string; onLogout: () => void; }
 
 // ─── Mock data ────────────────────────────────────────────────────────────────
@@ -405,6 +409,21 @@ export default function Dashboard({ role, user, access = [], functionalities = "
   const [selectedReportRef, setSelectedReportRef] = React.useState<string | null>(null);
   const userInfo = getUserInfo(role) ?? { name: "User", initials: "U", email: "user@nhia.gov.ng", dept: "NHIA" };
   const monthlyCtx = getMonthlyReportContext(role, user);
+
+  React.useEffect(() => {
+    if (role === "admin") return;
+    if (view === "servicom-visits") {
+      const expanded = expandAccessEntries(access);
+      const allowed = canAccessFunctionality("SOC/Zones", "Monitoring Visits", { role, access: expanded });
+      if (!allowed) setView("home");
+      return;
+    }
+    if (!String(view).startsWith("state-")) return;
+    const functionality = STATE_VIEW_TO_FUNCTIONALITY[view];
+    if (!functionality) return;
+    const allowed = canAccessFunctionality("SOC/Zones", functionality, { role, access });
+    if (!allowed) setView("home");
+  }, [view, role, access]);
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-[#f4f7f5]">
@@ -806,6 +825,23 @@ export default function Dashboard({ role, user, access = [], functionalities = "
                 onBack={() => setView("home")}
                 defaultStateId={monthlyCtx.defaultStateId}
                 defaultZoneId={monthlyCtx.defaultZoneId}
+              />
+            ) : view === "servicom-satisfaction" ? (
+              <ServicomSatisfactionSurveyPage
+                onBack={() => setView("home")}
+                defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId}
+                defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId}
+                defaultStateName={user?.state?.description}
+                defaultZoneName={user?.zone?.description}
+                userName={user?.name}
+              />
+            ) : view === "servicom-comment-card" ? (
+              <ServicomCommentCardPage
+                onBack={() => setView("home")}
+                defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId}
+                defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId}
+                defaultStateName={user?.state?.description}
+                defaultZoneName={user?.zone?.description}
               />
             ) : view === "finance-monthly" ? (
               <DeptMonthlyPage dept="finance" title="Finance Monthly Reports" section="finance"

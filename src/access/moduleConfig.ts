@@ -101,9 +101,10 @@ export const MODULE_CONFIG: ParentModule[] = [
       { title: "Stock Verification", view: "stock-verifications-list" },
       { title: "Asset Register",     view: "stock-assets"             },
       { type: "group", label: "SERVICOM", children: [
-        { title: "Dashboard",         view: "servicom-dashboard"  },
-        { title: "Monitoring Visits", view: "servicom-visits"     },
-        { title: "Complaints",        view: "servicom-complaints" },
+        { title: "Dashboard",                    view: "servicom-dashboard"           },
+        { title: "Complaints Management",      view: "servicom-complaints"          },
+        { title: "Customer Satisfaction Survey", view: "servicom-satisfaction"        },
+        { title: "Charter Performance",          view: "servicom-comment-card"        },
       ]},
     ],
   },
@@ -121,6 +122,9 @@ export const MODULE_CONFIG: ParentModule[] = [
       ]},
       { type: "group", label: "CEmONC & FFP", children: [
         { title: "CEmONC & FFP Beneficiaries", view: "state-cemonc" },
+      ]},
+      { type: "group", label: "Monitoring", children: [
+        { title: "Monitoring Visits", view: "servicom-visits" },
       ]},
       { type: "group", label: "Complaints & Compliance", children: [
         { title: "Enrollee Complaints", view: "state-complaints" },
@@ -161,6 +165,23 @@ export const MODULE_CONFIG: ParentModule[] = [
     children: [{ title: "Settings", view: "settings" }],
   },
 ];
+
+/** Map state-* view keys to SOC/Zones functionality titles (for access guards) */
+export const STATE_VIEW_TO_FUNCTIONALITY: Record<string, string> = (() => {
+  const out: Record<string, string> = {};
+  const mod = MODULE_CONFIG.find(m => m.title === "SOC/Zones");
+  if (!mod) return out;
+  for (const c of mod.children) {
+    if ("type" in c && c.type === "group") {
+      c.children.forEach(leaf => {
+        if (leaf.view) out[leaf.view] = leaf.title;
+      });
+    } else if ((c as ChildModule).view) {
+      out[(c as ChildModule).view!] = (c as ChildModule).title;
+    }
+  }
+  return out;
+})();
 
 /** Flatten all leaf titles from a module (for privilege checkboxes) */
 export function flatLeaves(mod: ParentModule): string[] {

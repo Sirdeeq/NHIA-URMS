@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { usersApi, rolesApi, zonesApi, statesApi, departmentsApi, unitsApi, type AdminUser, type AppRole, type ZonalOffice, type StateOffice, type Department, type Unit } from "@/lib/adminApi";
 import AdminModal from "./AdminModal";
 import { MODULE_CONFIG } from "@/src/access/moduleConfig";
-import { normalizeFunctionalityTitle } from "@/src/access/accessUtils";
+import { normalizeFunctionalityTitle, normalizeModuleTitle } from "@/src/access/accessUtils";
 
 const ROLE_COLORS: Record<string, string> = {
   "admin":              "bg-purple-100 text-purple-700 border-purple-200",
@@ -117,7 +117,7 @@ export default function AdminUsersPage({ showOverview = false }: { showOverview?
     const accessArr = Array.isArray(u.functionalities) ? u.functionalities : [];
     accessArr.forEach((entry: any) => {
       if (!entry?.access_to) return;
-      keys.add(entry.access_to);
+      keys.add(normalizeModuleTitle(entry.access_to));
       if (Array.isArray(entry.functionalities)) {
         entry.functionalities.forEach((funcTitle: string) => keys.add(normalizeFunctionalityTitle(funcTitle)));
       }

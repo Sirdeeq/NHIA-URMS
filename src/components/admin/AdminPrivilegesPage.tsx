@@ -9,7 +9,7 @@ import { usersApi, type AdminUser } from "@/lib/adminApi";
 import AdminModal from "./AdminModal";
 import { MODULE_CONFIG } from "@/src/access/moduleConfig";
 import { flatLeaves } from "@/src/access/moduleConfig";
-import { normalizeFunctionalityTitle } from "@/src/access/accessUtils";
+import { normalizeFunctionalityTitle, normalizeModuleTitle } from "@/src/access/accessUtils";
 
 const ROLE_LABELS: Record<string, string> = {
   "state-officer":      "State Officer",
@@ -130,8 +130,8 @@ export default function AdminPrivilegesPage() {
     const accessArr = Array.isArray(u.functionalities) ? u.functionalities : [];
     accessArr.forEach((entry: any) => {
       if (!entry?.access_to) return;
-      keys.add(entry.access_to);
-      const mod = MODULE_CONFIG.find(m => m.title === entry.access_to);
+      keys.add(normalizeModuleTitle(entry.access_to));
+      const mod = MODULE_CONFIG.find(m => m.title === normalizeModuleTitle(entry.access_to));
       if (mod && Array.isArray(entry.functionalities)) {
         entry.functionalities.forEach((funcTitle: string) => {
           keys.add(normalizeFunctionalityTitle(funcTitle));
@@ -243,12 +243,12 @@ export default function AdminPrivilegesPage() {
                       ) : (
                         <div className="flex flex-wrap gap-1">
                           {parents.map((entry: any) => {
-                            const mod = MODULE_CONFIG.find(m => m.title === entry.access_to);
+                            const mod = MODULE_CONFIG.find(m => m.title === normalizeModuleTitle(entry.access_to));
                             const granted = Array.isArray(entry.functionalities) ? entry.functionalities.length : 0;
                             const total = mod?.children.length ?? 0;
                             return (
                               <span key={entry.access_to} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-[#e8f5ee] text-[#145c3f] border border-[#d4e8dc]">
-                                {entry.access_to}
+                                {normalizeModuleTitle(entry.access_to)}
                               </span>
                             );
                           })}

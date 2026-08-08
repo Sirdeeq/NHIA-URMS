@@ -355,6 +355,9 @@ export const servicomApi = {
   listComplaints: (filters?: Record<string, string | undefined>) =>
     request<{ success: boolean; data: any[] }>(`/servicom/complaints${servicomFilters(filters)}`),
 
+  getComplaint: (id: number | string) =>
+    request<{ success: boolean; data: any }>(`/servicom/complaints/${id}`),
+
   createComplaint: (payload: any) =>
     request<{ success: boolean; data: any }>("/servicom/complaints", {
       method: "POST", body: JSON.stringify(payload),
@@ -362,6 +365,38 @@ export const servicomApi = {
 
   updateComplaint: (id: number | string, payload: any) =>
     request<{ success: boolean; data: any }>(`/servicom/complaints/${id}`, {
+      method: "PUT", body: JSON.stringify(payload),
+    }),
+
+  listSatisfactionSurveys: (filters?: Record<string, string | undefined>) =>
+    request<{ success: boolean; data: any[] }>(`/servicom/satisfaction-surveys${servicomFilters(filters)}`),
+
+  getSatisfactionSurvey: (id: number | string) =>
+    request<{ success: boolean; data: any }>(`/servicom/satisfaction-surveys/${id}`),
+
+  createSatisfactionSurvey: (payload: any) =>
+    request<{ success: boolean; data: any }>("/servicom/satisfaction-surveys", {
+      method: "POST", body: JSON.stringify(payload),
+    }),
+
+  updateSatisfactionSurvey: (id: number | string, payload: any) =>
+    request<{ success: boolean; data: any }>(`/servicom/satisfaction-surveys/${id}`, {
+      method: "PUT", body: JSON.stringify(payload),
+    }),
+
+  listCommentCards: (filters?: Record<string, string | undefined>) =>
+    request<{ success: boolean; data: any[] }>(`/servicom/comment-cards${servicomFilters(filters)}`),
+
+  getCommentCard: (id: number | string) =>
+    request<{ success: boolean; data: any }>(`/servicom/comment-cards/${id}`),
+
+  createCommentCard: (payload: any) =>
+    request<{ success: boolean; data: any }>("/servicom/comment-cards", {
+      method: "POST", body: JSON.stringify(payload),
+    }),
+
+  updateCommentCard: (id: number | string, payload: any) =>
+    request<{ success: boolean; data: any }>(`/servicom/comment-cards/${id}`, {
       method: "PUT", body: JSON.stringify(payload),
     }),
 };

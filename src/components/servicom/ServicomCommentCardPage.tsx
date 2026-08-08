@@ -1,0 +1,507 @@
+import * as React from "react";
+import { ArrowLeft, Plus, RefreshCw, Loader2, MessageSquareText, Eye, MapPin, Search } from "lucide-react";
+import { motion } from "motion/react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { toast } from "sonner";
+import { servicomApi, stockApi } from "@/lib/api";
+import { pickGeoLabel } from "./servicomConstants";
+import {
+  COMMENT_CARD_QUESTIONS, computeCommentCardScore, commentCardScaleOptions,
+} from "./servicomSurveyConstants";
+
+interface Props {
+  onBack: () => void;
+  defaultStateId?: string | null;
+  defaultZoneId?: string | null;
+  defaultStateName?: string;
+  defaultZoneName?: string;
+}
+
+const emptyForm = (defaultZoneId?: string | null, defaultStateId?: string | null) => ({
+  reference_id: "",
+  zone_id: defaultZoneId ?? "",
+  state_id: defaultStateId ?? "",
+  respondent_name: "",
+  organisation: "",
+  card_date: new Date().toISOString().slice(0, 10),
+  responses: {} as Record<string, string>,
+});
+
+function parseStoredResponses(raw: unknown): Record<string, string> {
+  let rows: { question_id: string; response?: string }[] = [];
+  if (Array.isArray(raw)) rows = raw;
+  else if (typeof raw === "string") {
+    try {
+      const parsed = JSON.parse(raw);
+      rows = Array.isArray(parsed) ? parsed : [];
+    } catch { rows = []; }
+  }
+  return Object.fromEntries(rows.map((r) => [r.question_id, r.response ?? ""]));
+}
+
+function buildResponsesPayload(responses: Record<string, string>) {
+  return COMMENT_CARD_QUESTIONS.map((q) => {
+    const response = responses[q.id] || null;
+    const score = response ? Number(response) : null;
+    return { question_id: q.id, section: q.section, question: q.question, response, score };
+  });
+}
+
+export default function ServicomCommentCardPage({
+  onBack,
+  defaultStateId,
+  defaultZoneId,
+  defaultStateName,
+  defaultZoneName,
+}: Props) {
+  const geoLocked = !!(defaultZoneId && defaultStateId);
+  const [mode, setMode] = React.useState<"list" | "form" | "view">("list");
+  const [cards, setCards] = React.useState<any[]>([]);
+  const [selected, setSelected] = React.useState<any | null>(null);
+  const [loading, setLoading] = React.useState(true);
+  const [saving, setSaving] = React.useState(false);
+  const [zones, setZones] = React.useState<any[]>([]);
+  const [states, setStates] = React.useState<any[]>([]);
+  const [filterStates, setFilterStates] = React.useState<any[]>([]);
+  const [f, setF] = React.useState(emptyForm(defaultZoneId, defaultStateId));
+
+  const [filterZone, setFilterZone] = React.useState(defaultZoneId ?? "all");
+  const [filterState, setFilterState] = React.useState(defaultStateId ?? "all");
+  const [filterSearch, setFilterSearch] = React.useState("");
+  const [filterDate, setFilterDate] = React.useState("");
+
+  const scoreSummary = React.useMemo(() => computeCommentCardScore(f.responses), [f.responses]);
+
+  const load = React.useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await servicomApi.listCommentCards({
+        state_id: geoLocked ? (defaultStateId ?? undefined) : (filterState !== "all" ? filterState : undefined),
+        zone_id: geoLocked ? (defaultZoneId ?? undefined) : (filterZone !== "all" ? filterZone : undefined),
+      });
+      setCards(res.data);
+    } catch (err: any) {
+      toast.error("Failed to load records", { description: err.message });
+    } finally { setLoading(false); }
+  }, [defaultStateId, defaultZoneId, filterState, filterZone, geoLocked]);
+
+  React.useEffect(() => { if (mode === "list") load(); }, [load, mode]);
+  React.useEffect(() => { stockApi.getZones().then((r) => setZones(r.data)).catch(() => {}); }, []);
+  React.useEffect(() => {
+    if (geoLocked || !f.zone_id) { if (!geoLocked) setStates([]); return; }
+    stockApi.getStates(f.zone_id).then((r) => setStates(r.data)).catch(() => {});
+  }, [f.zone_id, geoLocked]);
+  React.useEffect(() => {
+    if (geoLocked || filterZone === "all") { setFilterStates([]); return; }
+    stockApi.getStates(filterZone).then((r) => setFilterStates(r.data)).catch(() => {});
+  }, [filterZone, geoLocked]);
+
+  const filteredCards = React.useMemo(() => {
+    const q = filterSearch.trim().toLowerCase();
+    return cards.filter((c) => {
+      if (q) {
+        const hay = [c.reference_id, c.respondent_name, c.organisation]
+          .filter(Boolean).join(" ").toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      if (filterDate && c.card_date !== filterDate) return false;
+      return true;
+    });
+  }, [cards, filterSearch, filterDate]);
+
+  const openForm = () => {
+    setF(emptyForm(defaultZoneId, defaultStateId));
+    setSelected(null);
+    setMode("form");
+  };
+
+  const openView = async (row: any) => {
+    try {
+      const res = await servicomApi.getCommentCard(row.id);
+      setSelected(res.data);
+      setMode("view");
+    } catch (err: any) {
+      toast.error("Failed to load record", { description: err.message });
+    }
+  };
+
+  const closeSub = () => {
+    setMode("list");
+    setSelected(null);
+    load();
+  };
+
+  const setResponse = (questionId: string, value: string) => {
+    setF((p) => ({ ...p, responses: { ...p.responses, [questionId]: value } }));
+  };
+
+  const handleSave = async () => {
+    if (!f.card_date) {
+      toast.error("Date is required.");
+      return;
+    }
+    if (scoreSummary.answered < COMMENT_CARD_QUESTIONS.length) {
+      toast.error("Please answer all questions.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const payload = {
+        ...f,
+        reference_id: f.reference_id.trim() || undefined,
+        zone_id: f.zone_id ? Number(f.zone_id) : null,
+        state_id: f.state_id ? Number(f.state_id) : null,
+        responses: buildResponsesPayload(f.responses),
+      };
+      if (selected?.id) await servicomApi.updateCommentCard(selected.id, payload);
+      else await servicomApi.createCommentCard(payload);
+      toast.success("Record saved");
+      closeSub();
+    } catch (err: any) {
+      toast.error("Failed to save record", { description: err.message });
+    } finally { setSaving(false); }
+  };
+
+  const renderDetailsCard = (readOnly: boolean, row?: any) => (
+    <Card className="rounded-2xl border-[#d4e8dc] shadow-sm">
+      <CardHeader className="pb-3 border-b bg-[#f8fbf9]">
+        <CardTitle className="text-sm font-bold text-[#145c3f]">Response Details</CardTitle>
+      </CardHeader>
+      <CardContent className="pt-5 pb-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+          <div className="space-y-1.5">
+            <Label className="text-xs text-slate-500">Response ID</Label>
+            {readOnly ? (
+              <p className="text-sm font-mono font-semibold text-primary">{row?.reference_id}</p>
+            ) : (
+              <>
+                <Input
+                  className="font-mono"
+                  placeholder="Leave blank to auto-generate"
+                  value={f.reference_id}
+                  onChange={(e) => setF((p) => ({ ...p, reference_id: e.target.value }))}
+                />
+              </>
+            )}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs text-slate-500">Respondent Name</Label>
+            {readOnly ? (
+              <p className="text-sm">{row?.respondent_name || "—"}</p>
+            ) : (
+              <Input
+                placeholder="Optional"
+                value={f.respondent_name}
+                onChange={(e) => setF((p) => ({ ...p, respondent_name: e.target.value }))}
+              />
+            )}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs text-slate-500">Organisation</Label>
+            {readOnly ? (
+              <p className="text-sm">{row?.organisation || "—"}</p>
+            ) : (
+              <Input
+                placeholder="Organisation name"
+                value={f.organisation}
+                onChange={(e) => setF((p) => ({ ...p, organisation: e.target.value }))}
+              />
+            )}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs text-slate-500">Date *</Label>
+            {readOnly ? (
+              <p className="text-sm">{row?.card_date}</p>
+            ) : (
+              <Input
+                type="date"
+                value={f.card_date}
+                onChange={(e) => setF((p) => ({ ...p, card_date: e.target.value }))}
+              />
+            )}
+          </div>
+
+          <div className="space-y-1.5 md:col-span-2 xl:col-span-2">
+            <Label className="text-xs text-slate-500">Location</Label>
+            {readOnly ? (
+              <div className="flex flex-wrap gap-2 pt-1">
+                {row?.zone?.description && (
+                  <Badge variant="outline" className="text-xs bg-white">{row.zone.description}</Badge>
+                )}
+                {row?.state?.description && (
+                  <Badge variant="outline" className="text-xs bg-white">{row.state.description}</Badge>
+                )}
+                {!row?.zone?.description && !row?.state?.description && <span className="text-sm text-slate-400">—</span>}
+              </div>
+            ) : geoLocked ? (
+              <div className="flex items-center gap-2 rounded-xl border border-[#d4e8dc] bg-[#f0fdf7] px-3 py-2.5">
+                <MapPin className="w-4 h-4 text-[#25a872] shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-slate-800 truncate">
+                    {defaultStateName ?? pickGeoLabel(states, f.state_id, "State")}
+                  </p>
+                  <p className="text-[11px] text-slate-500 truncate">
+                    {defaultZoneName ?? pickGeoLabel(zones, f.zone_id, "Zone")}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                <Select value={f.zone_id} onValueChange={(v) => setF((p) => ({ ...p, zone_id: v, state_id: "" }))}>
+                  <SelectTrigger displayValue={pickGeoLabel(zones, f.zone_id, "Zone")}>
+                    <SelectValue placeholder="Zone" />
+                  </SelectTrigger>
+                  <SelectContent>{zones.map((z) => <SelectItem key={z.id} value={String(z.id)}>{z.description}</SelectItem>)}</SelectContent>
+                </Select>
+                <Select value={f.state_id} onValueChange={(v) => setF((p) => ({ ...p, state_id: v }))}>
+                  <SelectTrigger displayValue={pickGeoLabel(states, f.state_id, "State")}>
+                    <SelectValue placeholder="State" />
+                  </SelectTrigger>
+                  <SelectContent>{states.map((s) => <SelectItem key={s.id} value={String(s.id)}>{s.description}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+
+  const renderQuestionTable = (responses: Record<string, string>, readOnly = false) => (
+    <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden">
+      <CardHeader className="pb-3 border-b bg-[#f8fbf9]">
+        <CardTitle className="text-sm font-bold text-[#145c3f]">Citizens&apos; Comment Card</CardTitle>
+      
+      </CardHeader>
+      <CardContent className="p-0">
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-[#f0fdf7] hover:bg-[#f0fdf7]">
+                <TableHead className="text-slate-600 text-xs font-bold whitespace-nowrap">Section</TableHead>
+                <TableHead className="text-slate-600 text-xs font-bold w-16">ID</TableHead>
+                <TableHead className="text-slate-600 text-xs font-bold min-w-[280px]">Question</TableHead>
+                <TableHead className="text-slate-600 text-xs font-bold min-w-[180px]">Response Scale</TableHead>
+                <TableHead className="text-slate-600 text-xs font-bold w-44">Response</TableHead>
+                <TableHead className="text-slate-600 text-xs font-bold w-20 text-center">Score</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {COMMENT_CARD_QUESTIONS.map((q, i) => {
+                const val = responses[q.id] ?? "";
+                const options = commentCardScaleOptions(q.scale);
+                const label = options.find((o) => o.value === val)?.label;
+                return (
+                  <TableRow key={q.id} className={i % 2 ? "bg-sky-50/40" : "bg-white"}>
+                    <TableCell className="text-xs font-bold text-[#145c3f] align-middle whitespace-nowrap py-3">
+                      {q.section}
+                    </TableCell>
+                    <TableCell className="text-xs font-mono align-middle py-3">{q.id}</TableCell>
+                    <TableCell className="text-sm align-middle py-3 leading-snug">{q.question}</TableCell>
+                    <TableCell className="text-xs text-slate-500 align-middle py-3">{q.scaleLabel}</TableCell>
+                    <TableCell className="align-middle py-3">
+                      {readOnly ? (
+                        label ? (
+                          <Badge variant="outline" className="text-xs bg-white">{label}</Badge>
+                        ) : (
+                          <span className="text-sm text-slate-400">—</span>
+                        )
+                      ) : (
+                        <Select value={val} onValueChange={(v) => setResponse(q.id, v)}>
+                          <SelectTrigger className="h-9 text-xs w-full">
+                            <SelectValue placeholder="Select" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {options.map((o) => (
+                              <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-center text-sm font-semibold align-middle py-3">{val || "—"}</TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
+      </CardContent>
+    </Card>
+  );
+
+  if (mode === "form" || mode === "view") {
+    const row = mode === "view" ? selected : null;
+    const responses = mode === "view" ? parseStoredResponses(row?.responses) : f.responses;
+    const summary = mode === "view"
+      ? { total: row?.total_score ?? 0, average: Number(row?.average_score ?? 0) }
+      : scoreSummary;
+
+    return (
+      <div className="flex flex-col h-full bg-slate-50/30">
+        <div className="bg-white border-b px-4 md:px-6 py-3 flex items-center sticky top-0 z-30">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" onClick={closeSub} className="rounded-full">
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <div>
+              <h2 className="text-xl font-bold tracking-tight">Charter Performance</h2>
+              <p className="text-xs text-muted-foreground">Citizens&apos; Comment Card</p>
+            </div>
+          </div>
+        </div>
+
+        <ScrollArea className="flex-1">
+          <div className="w-full px-4 md:px-6 py-4 pb-24 space-y-4">
+            {renderDetailsCard(mode === "view", row ?? undefined)}
+            {renderQuestionTable(responses, mode === "view")}
+
+            <Card className="rounded-xl border-[#d4e8dc] bg-[#f0fdf7]">
+              <CardContent className="py-4 flex flex-wrap gap-6 text-sm">
+                <div><span className="text-slate-500">Total Score:</span> <strong>{summary.total}</strong></div>
+                <div><span className="text-slate-500">Average Score:</span> <strong>{summary.average}</strong></div>
+              </CardContent>
+            </Card>
+          </div>
+        </ScrollArea>
+
+        {mode === "form" && (
+          <div className="sticky bottom-0 z-30 bg-white border-t border-border/50 px-4 md:px-6 py-3 flex items-center justify-end gap-3">
+            <Button variant="outline" onClick={closeSub}>Cancel</Button>
+            <Button onClick={handleSave} disabled={saving} className="bg-orange-action hover:bg-orange-600 gap-2">
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+              Save Record
+            </Button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col h-full bg-slate-50/30">
+      <div className="bg-white border-b px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" onClick={onBack} className="rounded-full">
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
+          <div>
+            <h2 className="text-xl font-bold tracking-tight">Charter Performance</h2>
+            <p className="text-xs text-muted-foreground">Citizens&apos; Comment Card records</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
+            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
+          </Button>
+          <Button className="bg-orange-action hover:bg-orange-600 gap-2" onClick={openForm}>
+            <Plus className="w-4 h-4" /> New Record
+          </Button>
+        </div>
+      </div>
+
+      <ScrollArea className="flex-1">
+        <div className="w-full px-4 md:px-6 py-4 space-y-4">
+          <Card className="rounded-2xl border-[#d4e8dc]">
+            <CardContent className="pt-4 pb-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
+                <div className="relative lg:col-span-2">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <Input
+                    className="pl-9"
+                    placeholder="Search ID, respondent, organisation..."
+                    value={filterSearch}
+                    onChange={(e) => setFilterSearch(e.target.value)}
+                  />
+                </div>
+                {!geoLocked && (
+                  <>
+                    <Select value={filterZone} onValueChange={(v) => { setFilterZone(v); setFilterState("all"); }}>
+                      <SelectTrigger displayValue={filterZone === "all" ? "All Zones" : pickGeoLabel(zones, filterZone, "Zone")}>
+                        <SelectValue placeholder="All Zones" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Zones</SelectItem>
+                        {zones.map((z) => <SelectItem key={z.id} value={String(z.id)}>{z.description}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                    <Select value={filterState} onValueChange={setFilterState}>
+                      <SelectTrigger displayValue={filterState === "all" ? "All States" : pickGeoLabel(filterStates, filterState, "State")}>
+                        <SelectValue placeholder="All States" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All States</SelectItem>
+                        {filterStates.map((s) => <SelectItem key={s.id} value={String(s.id)}>{s.description}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </>
+                )}
+                <Input type="date" value={filterDate} onChange={(e) => setFilterDate(e.target.value)} />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-2xl border-[#d4e8dc] overflow-hidden">
+            <CardHeader className="pb-3 border-b">
+              <CardTitle className="text-sm font-bold flex items-center gap-2">
+                <MessageSquareText className="w-4 h-4" />
+                {loading ? "Loading..." : `${filteredCards.length} record(s)`}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              {loading ? (
+                <div className="flex justify-center py-16"><Loader2 className="w-5 h-5 animate-spin text-slate-400" /></div>
+              ) : filteredCards.length === 0 ? (
+                <div className="flex justify-center py-16 text-sm text-slate-400">No records found</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-[#f0fdf7]">
+                        <TableHead className="text-xs font-bold">Response ID</TableHead>
+                        <TableHead className="text-xs font-bold">Respondent</TableHead>
+                        <TableHead className="text-xs font-bold">Organisation</TableHead>
+                        <TableHead className="text-xs font-bold">State</TableHead>
+                        <TableHead className="text-xs font-bold">Date</TableHead>
+                        <TableHead className="text-xs font-bold">Avg Score</TableHead>
+                        <TableHead className="text-xs font-bold w-16"></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredCards.map((c, i) => (
+                        <motion.tr key={c.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.02 }}
+                          className="border-b border-slate-100">
+                          <TableCell className="font-mono text-xs font-bold text-primary">{c.reference_id}</TableCell>
+                          <TableCell className="text-sm">{c.respondent_name || "—"}</TableCell>
+                          <TableCell className="text-sm">{c.organisation || "—"}</TableCell>
+                          <TableCell className="text-xs">{c.state?.description ?? "—"}</TableCell>
+                          <TableCell className="text-xs text-slate-500">{c.card_date}</TableCell>
+                          <TableCell className="text-sm font-semibold">{c.average_score ?? "—"}</TableCell>
+                          <TableCell>
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openView(c)}>
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                          </TableCell>
+                        </motion.tr>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </ScrollArea>
+    </div>
+  );
+}
