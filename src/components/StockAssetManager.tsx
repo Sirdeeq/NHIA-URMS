@@ -11,6 +11,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { stockApi } from "@/lib/api";
+import type { GeoScopeProps } from "@/src/access/reportScopeAccess";
+import { ALL_GEO, useGeoFilters } from "@/src/hooks/useGeoFilters";
 
 const ALL = "all";
 
@@ -59,16 +61,33 @@ const statusLabel = (value: string) =>
 const labelOf = (options: Option[], value: string, fallback: string) =>
   value && value !== ALL ? (options.find(o => String(o.id) === value)?.label ?? fallback) : fallback;
 
-interface Props { onBack: () => void; }
+interface Props extends GeoScopeProps {
+  onBack: () => void;
+}
 
-export default function StockAssetManager({ onBack }: Props) {
-  const [zones,       setZones]       = React.useState<Option[]>([]);
-  const [states,      setStates]      = React.useState<Option[]>([]);
+export default function StockAssetManager({
+  onBack, defaultZoneId, defaultStateId, reportScope = "national",
+}: Props) {
+  const lockFormZone = !!defaultZoneId;
+  const lockFormState = !!defaultStateId;
+
+  const {
+    zones,
+    states,
+    zoneId: filterZone,
+    setZoneId: setFilterZone,
+    stateId: filterState,
+    setStateId: setFilterState,
+    lockZone: lockFilterZone,
+    lockState: lockFilterState,
+    allowAllZones,
+    allowAllStates,
+    handleZoneChange,
+  } = useGeoFilters({ defaultZoneId, defaultStateId, reportScope, filterMode: true });
+
   const [assets,      setAssets]      = React.useState<Asset[]>([]);
   const [loading,     setLoading]     = React.useState(true);
 
-  const [filterZone,    setFilterZone]    = React.useState(ALL);
-  const [filterState,   setFilterState]   = React.useState(ALL);
   const [filterStatus,  setFilterStatus]  = React.useState(ALL);
 
   const [showForm,    setShowForm]    = React.useState(false);
@@ -79,21 +98,14 @@ export default function StockAssetManager({ onBack }: Props) {
   const [formUnits,   setFormUnits]   = React.useState<Option[]>([]);
   const [saving,      setSaving]      = React.useState(false);
 
-  React.useEffect(() => {
-    stockApi.getZones().then(r =>
-      setZones(r.data.map((z: any) => ({ id: z.id, label: z.description })))
-    ).catch(() => {});
-  }, []);
-
-  React.useEffect(() => {
-    stockApi.getStates(filterZone === ALL ? undefined : filterZone).then(r => {
-      const list = r.data.map((s: any) => ({ id: s.id, label: s.description }));
-      setStates(list);
-      setFilterState(prev =>
-        prev === ALL || list.some(s => String(s.id) === prev) ? prev : ALL
-      );
-    }).catch(() => {});
-  }, [filterZone]);
+  const zoneOptions = React.useMemo(
+    () => zones.map((z) => ({ id: z.id, label: z.description })),
+    [zones],
+  );
+  const stateOptions = React.useMemo(
+    () => states.map((s) => ({ id: s.id, label: s.description })),
+    [states],
+  );
 
   const loadFilteredAssets = React.useCallback(async () => {
     setLoading(true);
@@ -108,8 +120,8 @@ export default function StockAssetManager({ onBack }: Props) {
         ...a,
         is_active: isAssetActive(a.is_active),
       }));
-      if (filterState === ALL && filterZone !== ALL) {
-        const zoneStateIds = new Set(states.map(s => s.id));
+      if (filterState === ALL_GEO && filterZone !== ALL_GEO) {
+        const zoneStateIds = new Set(stateOptions.map(s => s.id));
         data = data.filter(a => zoneStateIds.has(a.state_id));
       }
       setAssets(data);
@@ -118,7 +130,7 @@ export default function StockAssetManager({ onBack }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [filterZone, filterState, filterStatus, states]);
+  }, [filterZone, filterState, filterStatus, stateOptions]);
 
   React.useEffect(() => { loadFilteredAssets(); }, [loadFilteredAssets]);
 
@@ -189,12 +201,18 @@ export default function StockAssetManager({ onBack }: Props) {
     setFormUnits([]);
   };
 
-  const openCreate = () => {
+  const openCreate = async () => {
     setEditId(null);
-    setForm(emptyForm());
-    setFormStates([]);
+    const initial = {
+      ...emptyForm(),
+      zone_id: defaultZoneId ?? "",
+      state_id: defaultStateId ?? "",
+    };
+    setForm(initial);
     setFormDepts([]);
     setFormUnits([]);
+    if (defaultZoneId) await loadFormStates(defaultZoneId);
+    if (defaultStateId) await loadFormDepartments(defaultStateId);
     setShowForm(true);
   };
 
@@ -291,17 +309,17 @@ export default function StockAssetManager({ onBack }: Props) {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="space-y-2">
               <Label className="text-xs">Zone <span className="text-red-500">*</span></Label>
-              <Select value={form.zone_id} onValueChange={handleFormZone}>
+              <Select value={form.zone_id} onValueChange={handleFormZone} disabled={lockFormZone}>
                 <SelectTrigger className="w-full"
-                  displayValue={labelOf(zones, form.zone_id, "Select Zone")}>
+                  displayValue={labelOf(zoneOptions, form.zone_id, "Select Zone")}>
                   <SelectValue placeholder="Select Zone" />
                 </SelectTrigger>
-                <SelectContent>{zones.map(z => <SelectItem key={z.id} value={String(z.id)}>{z.label}</SelectItem>)}</SelectContent>
+                <SelectContent>{zoneOptions.map(z => <SelectItem key={z.id} value={String(z.id)}>{z.label}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
               <Label className="text-xs">State <span className="text-red-500">*</span></Label>
-              <Select value={form.state_id} onValueChange={handleFormState} disabled={!form.zone_id}>
+              <Select value={form.state_id} onValueChange={handleFormState} disabled={lockFormState || !form.zone_id}>
                 <SelectTrigger className="w-full"
                   displayValue={labelOf(formStates, form.state_id, "Select State")}>
                   <SelectValue placeholder="Select State" />
@@ -395,27 +413,27 @@ export default function StockAssetManager({ onBack }: Props) {
                   <div className="flex flex-row items-end gap-3 w-full">
                     <div className="flex-1 min-w-0 space-y-2">
                       <Label className="text-xs">Zone</Label>
-                      <Select value={filterZone} onValueChange={setFilterZone}>
+                      <Select value={filterZone} onValueChange={handleZoneChange} disabled={lockFilterZone}>
                         <SelectTrigger className="w-full"
-                          displayValue={filterZone === ALL ? "All Zones" : labelOf(zones, filterZone, "All Zones")}>
+                          displayValue={filterZone === ALL ? "All Zones" : labelOf(zoneOptions, filterZone, "All Zones")}>
                           <SelectValue placeholder="All Zones" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value={ALL}>All Zones</SelectItem>
-                          {zones.map(z => <SelectItem key={z.id} value={String(z.id)}>{z.label}</SelectItem>)}
+                          {allowAllZones && <SelectItem value={ALL}>All Zones</SelectItem>}
+                          {zoneOptions.map(z => <SelectItem key={z.id} value={String(z.id)}>{z.label}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </div>
                     <div className="flex-1 min-w-0 space-y-2">
                       <Label className="text-xs">State</Label>
-                      <Select value={filterState} onValueChange={setFilterState}>
+                      <Select value={filterState} onValueChange={setFilterState} disabled={lockFilterState}>
                         <SelectTrigger className="w-full"
-                          displayValue={filterState === ALL ? "All States" : labelOf(states, filterState, "All States")}>
+                          displayValue={filterState === ALL ? "All States" : labelOf(stateOptions, filterState, "All States")}>
                           <SelectValue placeholder="All States" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value={ALL}>All States</SelectItem>
-                          {states.map(s => <SelectItem key={s.id} value={String(s.id)}>{s.label}</SelectItem>)}
+                          {allowAllStates && <SelectItem value={ALL}>All States</SelectItem>}
+                          {stateOptions.map(s => <SelectItem key={s.id} value={String(s.id)}>{s.label}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </div>

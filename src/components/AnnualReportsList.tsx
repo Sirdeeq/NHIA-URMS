@@ -7,7 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { annualReportApi, stockApi, type OperationalDataRow } from "@/lib/api";
+import { annualReportApi, type OperationalDataRow } from "@/lib/api";
+import { ALL_GEO, useGeoFilters } from "@/src/hooks/useGeoFilters";
+import type { GeoScopeProps } from "@/src/access/reportScopeAccess";
 import { AnnualReportDetailView } from "./AnnualReportDetailView";
 import { formatMetricValue } from "./annualReportConfig";
 import { downloadAnnualReport } from "@/src/utils/annualReportExport";
@@ -22,15 +24,12 @@ import {
   type SectionDef,
 } from "./annualReportConfig";
 
-interface AnnualReportsListProps {
+interface AnnualReportsListProps extends GeoScopeProps {
   onBack: () => void;
-  defaultZoneId?: string | null;
-  defaultStateId?: string | null;
-  reportScope?: "national" | "zonal" | "state" | "none";
 }
 
 const YEARS = ["2025", "2024", "2023", "2022"];
-const ALL = "__all__";
+const ALL = ALL_GEO;
 
 type ColKind = "text" | "num" | "money";
 type ViewMode = "table" | "readable";
@@ -214,18 +213,22 @@ export default function AnnualReportsList({
   defaultStateId,
   reportScope = "national",
 }: AnnualReportsListProps) {
-  const lockZone = reportScope === "zonal" || reportScope === "state";
-  const lockState = reportScope === "state";
-
-  const initialZone = defaultZoneId ?? ALL;
-  const initialState = defaultStateId ?? ALL;
-
-  const [zones, setZones] = React.useState<{ id: number; description: string; zonal_code?: string }[]>([]);
-  const [states, setStates] = React.useState<{ id: number; description: string }[]>([]);
+  const {
+    zones,
+    states,
+    zoneId,
+    stateId,
+    setStateId,
+    lockZone,
+    lockState,
+    allowAllZones,
+    allowAllStates,
+    initialZone,
+    initialState,
+    handleZoneChange,
+  } = useGeoFilters({ defaultZoneId, defaultStateId, reportScope, filterMode: true });
 
   const [year, setYear] = React.useState("2025");
-  const [zoneId, setZoneId] = React.useState(initialZone);
-  const [stateId, setStateId] = React.useState(initialState);
   const [reportType, setReportType] = React.useState<ReportTypeId>("all");
   const isStateSelected = stateId !== ALL;
   const [viewMode, setViewMode] = React.useState<ViewMode>(
@@ -237,45 +240,10 @@ export default function AnnualReportsList({
   const [displayTitle, setDisplayTitle] = React.useState("");
   const [rows, setRows] = React.useState<OperationalDataRow[]>([]);
 
-  React.useEffect(() => {
-    stockApi.getZones().then((r) => setZones(r.data)).catch(() => {});
-  }, []);
-
-  React.useEffect(() => {
-    if (zoneId === ALL) {
-      stockApi.getStates().then((r) => setStates(r.data)).catch(() => setStates([]));
-      return;
-    }
-    stockApi.getStates(zoneId).then((r) => setStates(r.data)).catch(() => setStates([]));
-  }, [zoneId]);
-
-  React.useEffect(() => {
-    if (defaultZoneId) setZoneId(defaultZoneId);
-  }, [defaultZoneId]);
-
-  React.useEffect(() => {
-    if (defaultStateId) setStateId(defaultStateId);
-  }, [defaultStateId]);
-
   // State selected → detail view; all states → table view
   React.useEffect(() => {
     setViewMode(stateId !== ALL ? "readable" : "table");
   }, [stateId]);
-
-  const handleZoneChange = (value: string) => {
-    setZoneId(value);
-    if (value === ALL) {
-      if (!lockState) setStateId(ALL);
-      return;
-    }
-    if (!lockState && stateId !== ALL) {
-      stockApi.getStates(value).then((r) => {
-        if (!r.data.some((s: { id: number }) => String(s.id) === stateId)) {
-          setStateId(ALL);
-        }
-      });
-    }
-  };
 
   const showZoneColumn = zoneId !== ALL && stateId === ALL;
   const sections = React.useMemo(
@@ -465,7 +433,7 @@ export default function AnnualReportsList({
                 <SelectValue placeholder="All zones" />
               </SelectTrigger>
               <SelectContent>
-                {!lockZone && <SelectItem value={ALL}>All zones</SelectItem>}
+                {!lockZone && allowAllZones && <SelectItem value={ALL}>All zones</SelectItem>}
                 {zones.map((z) => (
                   <SelectItem key={z.id} value={String(z.id)}>
                     {z.zonal_code ? `${z.zonal_code} — ` : ""}{z.description}
@@ -482,7 +450,7 @@ export default function AnnualReportsList({
                 <SelectValue placeholder="All states" />
               </SelectTrigger>
               <SelectContent>
-                {!lockState && (
+                {!lockState && allowAllStates && (
                   <SelectItem value={ALL}>
                     {zoneId !== ALL ? "All states in zone" : "All states"}
                   </SelectItem>

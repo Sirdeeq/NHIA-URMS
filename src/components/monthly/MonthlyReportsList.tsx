@@ -37,14 +37,16 @@ function safeDate(v: string | null | undefined) {
   return isNaN(d.getTime()) ? "—" : d.toLocaleDateString("en-NG", { day: "2-digit", month: "short", year: "numeric" });
 }
 
-interface Props {
+import type { GeoScopeProps } from "@/src/access/reportScopeAccess";
+
+interface Props extends GeoScopeProps {
   onBack: () => void;
   onNew: (dept: MonthlyDept) => void;
-  defaultStateId?: string | null;
-  defaultZoneId?: string | null;
 }
 
-export default function MonthlyReportsList({ onBack, onNew, defaultStateId, defaultZoneId }: Props) {
+export default function MonthlyReportsList({
+  onBack, onNew, defaultStateId, defaultZoneId, reportScope,
+}: Props) {
   const [dept,         setDept]         = React.useState<MonthlyDept>("finance");
   const [filterYear,   setFilterYear]   = React.useState(String(new Date().getFullYear()));
   const [filterMonth,  setFilterMonth]  = React.useState("all");
@@ -59,7 +61,7 @@ export default function MonthlyReportsList({ onBack, onNew, defaultStateId, defa
     setFilterState,
     apiStateId,
     stateFilterActive,
-  } = useMonthlyStateFilter(defaultStateId, defaultZoneId);
+  } = useMonthlyStateFilter(defaultStateId, defaultZoneId, reportScope);
 
   const load = React.useCallback(async () => {
     setLoading(true);

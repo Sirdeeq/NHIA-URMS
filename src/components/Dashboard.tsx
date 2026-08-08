@@ -56,7 +56,7 @@ import StateOfficeDashboard from "./StateOfficeDashboard";
 import DepartmentalDashboard from "./DepartmentalDashboard";
 import ReportReviewPage from "./ReportReviewPage";
 import NotificationsPage from "./NotificationsPage";
-import { getMonthlyReportContext } from "@/src/access/monthlyReportAccess";
+import { getMonthlyReportContext, getStateOfficeContext } from "@/src/access/monthlyReportAccess";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Role = "state-officer" | "zonal-coordinator" | "state-coordinator" | "department-officer" | "sdo" | "hq-department" | "audit" | "dg-ceo" | "admin";
@@ -405,6 +405,7 @@ export default function Dashboard({ role, user, access = [], functionalities = "
   const [selectedReportRef, setSelectedReportRef] = React.useState<string | null>(null);
   const userInfo = getUserInfo(role) ?? { name: "User", initials: "U", email: "user@nhia.gov.ng", dept: "NHIA" };
   const monthlyCtx = getMonthlyReportContext(role, user);
+  const stateOfficeCtx = getStateOfficeContext(role, user);
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-[#f4f7f5]">
@@ -772,13 +773,19 @@ export default function Dashboard({ role, user, access = [], functionalities = "
             ) : view === "zonal-review" ? (
               <ZonalReview onCompose={() => setView("zonal-compose")} />
             ) : view === "annual-report" ? (
-              <AnnualReportForm onBack={() => setView("home")} onSubmit={(_refId) => setView("annual-reports-list")} />
+              <AnnualReportForm
+                onBack={() => setView("home")}
+                onSubmit={(_refId) => setView("annual-reports-list")}
+                defaultZoneId={stateOfficeCtx.defaultZoneId}
+                defaultStateId={stateOfficeCtx.defaultStateId}
+                reportScope={stateOfficeCtx.reportScope}
+              />
             ) : view === "annual-reports-list" ? (
               <AnnualReportsList
                 onBack={() => setView("home")}
-                defaultZoneId={monthlyCtx.defaultZoneId ?? (user?.zone_id ? String(user.zone_id) : null)}
-                defaultStateId={monthlyCtx.defaultStateId}
-                reportScope={(user?.role_config?.report_scope as "national" | "zonal" | "state" | "none") ?? "national"}
+                defaultZoneId={stateOfficeCtx.defaultZoneId}
+                defaultStateId={stateOfficeCtx.defaultStateId}
+                reportScope={stateOfficeCtx.reportScope}
               />
             ) : view === "annual-report-detail" ? (
               <AnnualReportDetail
@@ -786,9 +793,19 @@ export default function Dashboard({ role, user, access = [], functionalities = "
                 onBack={() => setView("annual-reports-list")}
               />
             ) : view === "stock-verifications-list" ? (
-              <StockVerificationsList onBack={() => setView("home")} />
+              <StockVerificationsList
+                onBack={() => setView("home")}
+                defaultZoneId={stateOfficeCtx.defaultZoneId}
+                defaultStateId={stateOfficeCtx.defaultStateId}
+                reportScope={stateOfficeCtx.reportScope}
+              />
             ) : view === "stock-assets" ? (
-              <StockAssetManager onBack={() => setView("home")} />
+              <StockAssetManager
+                onBack={() => setView("home")}
+                defaultZoneId={stateOfficeCtx.defaultZoneId}
+                defaultStateId={stateOfficeCtx.defaultStateId}
+                reportScope={stateOfficeCtx.reportScope}
+              />
             ) : view === "servicom-dashboard" ? (
               <ServicomDashboard
                 onBack={() => setView("home")}
@@ -810,31 +827,37 @@ export default function Dashboard({ role, user, access = [], functionalities = "
             ) : view === "finance-monthly" ? (
               <DeptMonthlyPage dept="finance" title="Finance Monthly Reports" section="finance"
                 onBack={() => setView("home")} defaultZoneId={monthlyCtx.defaultZoneId} defaultStateId={monthlyCtx.defaultStateId}
+                reportScope={monthlyCtx.reportScope}
                 canCreate={monthlyCtx.canCreateMonthly}
                 FormComponent={FinanceMonthlyForm} />
             ) : view === "admin-monthly" ? (
               <DeptMonthlyPage dept="finance" title="Admin / HR Monthly Reports" section="admin"
                 onBack={() => setView("home")} defaultZoneId={monthlyCtx.defaultZoneId} defaultStateId={monthlyCtx.defaultStateId}
+                reportScope={monthlyCtx.reportScope}
                 canCreate={monthlyCtx.canCreateMonthly}
                 FormComponent={AdminMonthlyForm} />
             ) : view === "programmes-monthly" ? (
               <DeptMonthlyPage dept="programmes" title="Enrolment Monthly Reports" section="enrolment"
                 onBack={() => setView("home")} defaultZoneId={monthlyCtx.defaultZoneId} defaultStateId={monthlyCtx.defaultStateId}
+                reportScope={monthlyCtx.reportScope}
                 canCreate={monthlyCtx.canCreateMonthly}
                 FormComponent={ProgrammesMonthlyForm} />
             ) : view === "outreach-monthly" ? (
               <DeptMonthlyPage dept="programmes" title="Outreach Monthly Reports" section="outreach"
                 onBack={() => setView("home")} defaultZoneId={monthlyCtx.defaultZoneId} defaultStateId={monthlyCtx.defaultStateId}
+                reportScope={monthlyCtx.reportScope}
                 canCreate={monthlyCtx.canCreateMonthly}
                 FormComponent={OutreachMonthlyForm} />
             ) : view === "sqa-monthly" ? (
               <DeptMonthlyPage dept="sqa" title="HMO/HCP Quality Assurance Monthly Reports" section="sqa"
                 onBack={() => setView("home")} defaultZoneId={monthlyCtx.defaultZoneId} defaultStateId={monthlyCtx.defaultStateId}
+                reportScope={monthlyCtx.reportScope}
                 canCreate={monthlyCtx.canCreateMonthly}
                 FormComponent={SqaMonthlyForm} />
             ) : view === "complaints-monthly" ? (
               <DeptMonthlyPage dept="sqa" title="Enrollee Complaints Monthly Reports" section="complaints"
                 onBack={() => setView("home")} defaultZoneId={monthlyCtx.defaultZoneId} defaultStateId={monthlyCtx.defaultStateId}
+                reportScope={monthlyCtx.reportScope}
                 canCreate={monthlyCtx.canCreateMonthly}
                 FormComponent={ComplaintsMonthlyForm} />
             ) : view === "monthly-reports-list" ? (
@@ -843,59 +866,60 @@ export default function Dashboard({ role, user, access = [], functionalities = "
                 onNew={(dept) => setView(`${dept === "finance" ? "finance" : dept === "sqa" ? "sqa" : "programmes"}-monthly` as View)}
                 defaultStateId={monthlyCtx.defaultStateId}
                 defaultZoneId={monthlyCtx.defaultZoneId}
+                reportScope={monthlyCtx.reportScope}
               />
             ) : view === "state-enrolment" ? (
               <StateOfficeReportsList key="state-enrolment" reportType="enrolment" onBack={() => setView("home")}
-                defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId}
-                defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />
+                defaultZoneId={stateOfficeCtx.defaultZoneId}
+                defaultStateId={stateOfficeCtx.defaultStateId} />
             ) : view === "state-migration" ? (
               <StateOfficeReportsList key="state-migration" reportType="migration" onBack={() => setView("home")}
-                defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId}
-                defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />
+                defaultZoneId={stateOfficeCtx.defaultZoneId}
+                defaultStateId={stateOfficeCtx.defaultStateId} />
             ) : view === "state-cemonc" ? (
               <StateOfficeReportsList key="state-cemonc" reportType="cemonc" onBack={() => setView("home")}
-                defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId}
-                defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />
+                defaultZoneId={stateOfficeCtx.defaultZoneId}
+                defaultStateId={stateOfficeCtx.defaultStateId} />
             ) : view === "state-complaints" ? (
               <StateOfficeComplaintsPage key="state-complaints" onBack={() => setView("home")}
-                defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId}
-                defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />
+                defaultZoneId={stateOfficeCtx.defaultZoneId}
+                defaultStateId={stateOfficeCtx.defaultStateId} />
             ) : view === "state-compliance-monitoring" ? (
               <StateOfficeComplianceVisitsPage key="state-compliance-monitoring" onBack={() => setView("home")}
-                defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId}
-                defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />
+                defaultZoneId={stateOfficeCtx.defaultZoneId}
+                defaultStateId={stateOfficeCtx.defaultStateId} />
             ) : view === "state-reconciliation" ? (
               <StateOfficeReconciliationPage key="state-reconciliation" onBack={() => setView("home")}
-                defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId}
-                defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />
+                defaultZoneId={stateOfficeCtx.defaultZoneId}
+                defaultStateId={stateOfficeCtx.defaultStateId} />
             ) : view === "state-accreditation" ? (
               <StateOfficeReportsList key="state-accreditation" reportType="accreditation" onBack={() => setView("home")}
-                defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId}
-                defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />
+                defaultZoneId={stateOfficeCtx.defaultZoneId}
+                defaultStateId={stateOfficeCtx.defaultStateId} />
             ) : view === "state-stakeholder" ? (
               <StateOfficeReportsList key="state-stakeholder" reportType="stakeholder" onBack={() => setView("home")}
-                defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId}
-                defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />
+                defaultZoneId={stateOfficeCtx.defaultZoneId}
+                defaultStateId={stateOfficeCtx.defaultStateId} />
             ) : view === "state-hmo-selection" ? (
               <StateOfficeReportsList key="state-hmo-selection" reportType="hmo-selection" onBack={() => setView("home")}
-                defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId}
-                defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />
+                defaultZoneId={stateOfficeCtx.defaultZoneId}
+                defaultStateId={stateOfficeCtx.defaultStateId} />
             ) : view === "state-challenges" ? (
               <StateOfficeReportsList key="state-challenges" reportType="challenges" onBack={() => setView("home")}
-                defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId}
-                defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />
+                defaultZoneId={stateOfficeCtx.defaultZoneId}
+                defaultStateId={stateOfficeCtx.defaultStateId} />
             ) : view === "state-igr" ? (
               <StateOfficeReportsList reportType="igr" onBack={() => setView("home")}
-                defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId}
-                defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />
+                defaultZoneId={stateOfficeCtx.defaultZoneId}
+                defaultStateId={stateOfficeCtx.defaultStateId} />
             ) : view === "state-sshia-financial" ? (
               <StateOfficeReportsList reportType="sshia-financial" onBack={() => setView("home")}
-                defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId}
-                defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />
+                defaultZoneId={stateOfficeCtx.defaultZoneId}
+                defaultStateId={stateOfficeCtx.defaultStateId} />
             ) : view === "state-expenditure-profile" ? (
               <StateOfficeReportsList reportType="expenditure-profile" onBack={() => setView("home")}
-                defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId}
-                defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />
+                defaultZoneId={stateOfficeCtx.defaultZoneId}
+                defaultStateId={stateOfficeCtx.defaultStateId} />
             ) : view === "settings" ? (
               <AdminSettingsPage />
             ) : view === "notifications" ? (

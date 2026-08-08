@@ -20,6 +20,7 @@ import {
   type MonthlyListColumn,
 } from "./monthlyListColumns";
 import { ALL_STATES, useMonthlyStateFilter } from "./useMonthlyStateFilter";
+import type { GeoScopeProps } from "@/src/access/reportScopeAccess";
 
 // ─── Status config ────────────────────────────────────────────────────────────
 
@@ -37,13 +38,11 @@ function safeDate(v: string | null | undefined) {
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
-interface Props {
+interface Props extends GeoScopeProps {
   dept: MonthlyDept;
   title: string;
   section: string;
   onBack: () => void;
-  defaultStateId?: string | null;
-  defaultZoneId?:  string | null;
   canCreate?: boolean;
   FormComponent: React.ComponentType<{
     onBack: () => void;
@@ -56,7 +55,9 @@ interface Props {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export default function DeptMonthlyPage({ dept, title, section, onBack, defaultStateId, defaultZoneId, canCreate = true, FormComponent }: Props) {
+export default function DeptMonthlyPage({
+  dept, title, section, onBack, defaultStateId, defaultZoneId, reportScope, canCreate = true, FormComponent,
+}: Props) {
   const [mode,       setMode]       = React.useState<"list" | "form">("list");
   const [records,    setRecords]    = React.useState<any[]>([]);
   const [loading,    setLoading]    = React.useState(true);
@@ -68,7 +69,7 @@ export default function DeptMonthlyPage({ dept, title, section, onBack, defaultS
     setFilterState,
     apiStateId,
     stateFilterActive,
-  } = useMonthlyStateFilter(defaultStateId, defaultZoneId);
+  } = useMonthlyStateFilter(defaultStateId, defaultZoneId, reportScope);
 
   // Filters
   const [filterYear,  setFilterYear]  = React.useState("all");
