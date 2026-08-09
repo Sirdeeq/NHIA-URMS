@@ -7,10 +7,21 @@ interface Props {
   type: "hmo" | "hcp";
   stateId?: string;
   value?: string;
-  onChange: (provider: { id: string; name: string; code: string } | null) => void;
+  onChange: (provider: {
+    id: string;
+    name: string;
+    code: string;
+    address?: string | null;
+    facility_type?: string | null;
+  } | null) => void;
   disabled?: boolean;
   placeholder?: string;
 }
+
+type CachedOption = SearchSelectOption & {
+  address?: string | null;
+  facility_type?: string | null;
+};
 
 export default function AccreditedProviderSelect({
   type, stateId, value, onChange, disabled, placeholder,
@@ -18,7 +29,7 @@ export default function AccreditedProviderSelect({
   const [options, setOptions] = React.useState<SearchSelectOption[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [loadError, setLoadError] = React.useState<string | null>(null);
-  const cacheRef = React.useRef<Map<string, SearchSelectOption>>(new Map());
+  const cacheRef = React.useRef<Map<string, CachedOption>>(new Map());
   const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const prevStateId = React.useRef<string | undefined>(stateId);
   const onChangeRef = React.useRef(onChange);
@@ -41,7 +52,13 @@ export default function AccreditedProviderSelect({
         limit: type === "hmo" ? "100" : "100",
       });
       const opts = res.data.map((p: any) => {
-        const o = { value: String(p.id), label: p.name, sub: p.provider_code };
+        const o: CachedOption = {
+          value: String(p.id),
+          label: p.name,
+          sub: p.provider_code,
+          address: p.address ?? null,
+          facility_type: p.facility_type ?? null,
+        };
         cacheRef.current.set(o.value, o);
         return o;
       });
@@ -90,6 +107,8 @@ export default function AccreditedProviderSelect({
       id,
       name: opt?.label ?? "",
       code: opt?.sub ?? "",
+      address: (opt as CachedOption | undefined)?.address ?? null,
+      facility_type: (opt as CachedOption | undefined)?.facility_type ?? null,
     });
   };
 

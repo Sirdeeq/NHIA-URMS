@@ -81,3 +81,69 @@ export function quarterFromWeek(week: number): number {
 export function ratingLabel(v: string): string {
   return COMPLIANCE_RATINGS.find(r => r.value === v)?.label ?? v;
 }
+
+export type ComplianceFormStep = "header" | "findings" | "complaints" | "violations" | "enforcement";
+
+export const COMPLIANCE_LIFECYCLE: {
+  id: ComplianceFormStep;
+  label: string;
+  shortLabel: string;
+  description: string;
+}[] = [
+  { id: "header", label: "1. Report & Facility", shortLabel: "Report", description: "Report header & facility details" },
+  { id: "findings", label: "2. Findings", shortLabel: "Findings", description: "Record compliance findings" },
+  { id: "complaints", label: "3. Complaints", shortLabel: "Complaints", description: "Complaint summary for the facility" },
+  { id: "violations", label: "4. Violations", shortLabel: "Violations", description: "Violations observed during review" },
+  { id: "enforcement", label: "5. Enforcement", shortLabel: "Enforcement", description: "Enforcement actions & final review" },
+];
+
+export function complianceStepLabel(step: ComplianceFormStep): string {
+  return COMPLIANCE_LIFECYCLE.find(s => s.id === step)?.shortLabel ?? step;
+}
+
+export function getComplianceStepCompletion(data: {
+  refId?: string | null;
+  registered?: boolean;
+  findingsCount?: number;
+  complaintsReceived?: string | number;
+  complaintSummary?: string;
+  complaintCategoriesCount?: number;
+  violationsCount?: number;
+  enforcementsCount?: number;
+  reviewedBy?: string;
+  stateRemarks?: string;
+}): Record<ComplianceFormStep, boolean> {
+  return {
+    header: !!(data.registered || data.refId),
+    findings: (data.findingsCount ?? 0) > 0,
+    complaints: !!(Number(data.complaintsReceived) || data.complaintSummary?.trim()
+      || (data.complaintCategoriesCount ?? 0) > 0),
+    violations: (data.violationsCount ?? 0) > 0,
+    enforcement: (data.enforcementsCount ?? 0) > 0 || !!data.reviewedBy?.trim() || !!data.stateRemarks?.trim(),
+  };
+}
+
+export function firstOpenComplianceStep(completion: Record<ComplianceFormStep, boolean>): ComplianceFormStep {
+  const open = COMPLIANCE_LIFECYCLE.find(s => !completion[s.id]);
+  return open?.id ?? "enforcement";
+}
+
+export function nextComplianceStep(step: ComplianceFormStep): ComplianceFormStep | null {
+  const idx = COMPLIANCE_LIFECYCLE.findIndex(s => s.id === step);
+  if (idx < 0 || idx >= COMPLIANCE_LIFECYCLE.length - 1) return null;
+  return COMPLIANCE_LIFECYCLE[idx + 1].id;
+}
+
+/** MySQL/Sequelize JSON columns may return a string — normalize to string[] */
+export function parseComplaintCategories(raw: unknown): string[] {
+  if (Array.isArray(raw)) return raw.filter(Boolean).map(String);
+  if (typeof raw === "string" && raw.trim()) {
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed.filter(Boolean).map(String) : [];
+    } catch {
+      return raw.split(",").map(s => s.trim()).filter(Boolean);
+    }
+  }
+  return [];
+}

@@ -1,6 +1,6 @@
 import * as React from "react";
 import {
-  ArrowLeft, Plus, Loader2, RefreshCw, Eye, Save, Send,
+  ArrowLeft, Plus, Loader2, RefreshCw, Eye,
   FileText, CheckCircle2, Clock, Trash2, XCircle, Pencil,
 } from "lucide-react";
 import { motion } from "motion/react";
@@ -24,6 +24,11 @@ import {
   currentISOWeek, quarterFromWeek, ratingLabel,
 } from "./complianceConstants";
 import { labelOf, formatCount } from "../stateOffice/constants";
+import ComplianceReportForm, { FORM_STEPS, type FormStep } from "./ComplianceReportForm";
+import {
+  firstOpenComplianceStep, getComplianceStepCompletion, complianceStepLabel,
+  nextComplianceStep, parseComplaintCategories,
+} from "./complianceConstants";
 
 const uid = () => Math.random().toString(36).slice(2);
 
@@ -62,7 +67,14 @@ type Finding = { _key: string; section: string; indicator: string; status: strin
 type Violation = { _key: string; nature_of_violation: string; nhia_act_section: string; occurrences: string; action_taken: string };
 type Enforcement = { _key: string; enforcement_action: string; details: string };
 
-const inputCls = "h-10 rounded-xl border-[#d4e8dc] bg-[#f4f7f5] text-sm";
+function mapProviderFacilityType(raw?: string | null): string {
+  if (!raw) return "";
+  const t = raw.toLowerCase();
+  if (t.includes("tertiary") || t.includes("primary")) return t.includes("tertiary") ? "Secondary" : "Primary";
+  if (t.includes("secondary")) return "Secondary";
+  if (t.includes("phc")) return "PHC";
+  return FACILITY_TYPE_OPTIONS.includes(raw) ? raw : "Other";
+}
 
 export default function ComplianceManagementPage({ onBack, defaultZoneId, defaultStateId }: Props) {
   const authUser = useAppSelector(s => s.auth.user);
@@ -72,6 +84,7 @@ export default function ComplianceManagementPage({ onBack, defaultZoneId, defaul
   const [saving, setSaving] = React.useState(false);
   const [selectedId, setSelectedId] = React.useState<number | null>(null);
   const [refId, setRefId] = React.useState<string | null>(null);
+  const [reportStatus, setReportStatus] = React.useState("draft");
   const [viewReport, setViewReport] = React.useState<any>(null);
 
   const {
@@ -122,6 +135,8 @@ export default function ComplianceManagementPage({ onBack, defaultZoneId, defaul
   const [findingDraft, setFindingDraft] = React.useState({ section: "", indicator: "", status: "fully_compliant", remarks: "" });
   const [violationDraft, setViolationDraft] = React.useState({ nature_of_violation: "", nhia_act_section: "", occurrences: "", action_taken: "" });
   const [enforcementDraft, setEnforcementDraft] = React.useState({ enforcement_action: "", details: "" });
+  const [formStep, setFormStep] = React.useState<FormStep>("header");
+  const [facilityProviderId, setFacilityProviderId] = React.useState("");
 
   React.useEffect(() => {
     stockApi.getZones().then(r =>
@@ -190,6 +205,8 @@ export default function ComplianceManagementPage({ onBack, defaultZoneId, defaul
 
   const resetForm = () => {
     setSelectedId(null); setRefId(null); setViewReport(null);
+    setReportStatus("draft");
+    setFormStep("header");
     setZoneId(defaultZoneId ?? ""); setStateId(defaultStateId ?? "");
     setZoneLabel(""); setStateLabel("");
     setReportYear(String(new Date().getFullYear()));
@@ -198,7 +215,7 @@ export default function ComplianceManagementPage({ onBack, defaultZoneId, defaul
     setSubmitDate(new Date().toISOString().slice(0, 10));
     setReviewedBy(""); setStatusConfirmed("pending"); setFollowUp(false);
     setCertification(""); setStateRemarks("");
-    setFacilityName(""); setFacilityCode(""); setFacilityType("");
+    setFacilityProviderId(""); setFacilityName(""); setFacilityCode(""); setFacilityType("");
     setOwnership(""); setFacilityAddress("");
     setComplaintsReceived(""); setComplaintCategories([]);
     setResolvedAtFacility(""); setEscalatedTo("none"); setComplaintSummary("");
@@ -207,6 +224,7 @@ export default function ComplianceManagementPage({ onBack, defaultZoneId, defaul
 
   const applyReport = (v: any) => {
     setSelectedId(v.id); setRefId(v.reference_id);
+    setReportStatus(v.status ?? "draft");
     setZoneId(String(v.zone_id)); setStateId(String(v.state_id));
     setZoneLabel(v.zone?.description ?? "");
     setStateLabel(v.state?.description ?? "");
@@ -222,15 +240,29 @@ export default function ComplianceManagementPage({ onBack, defaultZoneId, defaul
     setFollowUp(!!v.follow_up_required); setCertification(v.certification ?? "");
     setStateRemarks(v.state_office_remarks ?? "");
     setFacilityName(v.facility_name ?? ""); setFacilityCode(v.facility_code ?? "");
+    setFacilityProviderId("");
     setFacilityType(v.facility_type ?? ""); setOwnership(v.ownership ?? "");
     setFacilityAddress(v.facility_address ?? "");
     setComplaintsReceived(String(v.complaints_received ?? ""));
-    setComplaintCategories(Array.isArray(v.complaint_categories) ? v.complaint_categories : []);
+    setComplaintCategories(parseComplaintCategories(v.complaint_categories));
     setResolvedAtFacility(String(v.resolved_at_facility ?? ""));
     setEscalatedTo(v.escalated_to ?? "none"); setComplaintSummary(v.complaint_summary ?? "");
     setFindings((v.findings ?? []).map((f: any) => ({ _key: uid(), ...f })));
     setViolations((v.violations ?? []).map((x: any) => ({ _key: uid(), ...x, occurrences: String(x.occurrences ?? "") })));
     setEnforcements((v.enforcement_actions ?? []).map((e: any) => ({ _key: uid(), ...e })));
+    const completion = getComplianceStepCompletion({
+      refId: v.reference_id,
+      registered: true,
+      findingsCount: (v.findings ?? []).length,
+      complaintsReceived: v.complaints_received,
+      complaintSummary: v.complaint_summary,
+      complaintCategoriesCount: parseComplaintCategories(v.complaint_categories).length,
+      violationsCount: (v.violations ?? []).length,
+      enforcementsCount: (v.enforcement_actions ?? []).length,
+      reviewedBy: v.reviewed_by,
+      stateRemarks: v.state_office_remarks,
+    });
+    setFormStep(firstOpenComplianceStep(completion));
   };
 
   const buildPayload = (status: "draft" | "submitted") => ({
@@ -254,26 +286,128 @@ export default function ComplianceManagementPage({ onBack, defaultZoneId, defaul
     enforcement_actions: enforcements.map(({ _key, ...e }) => e),
   });
 
-  const validate = () => {
-    if (!zoneId || !stateId) return "Select zone and state";
-    if (!facilityName.trim()) return "Facility name is required";
+  const clearFacility = () => {
+    setFacilityProviderId("");
+    setFacilityName("");
+    setFacilityCode("");
+    setFacilityType("");
+    setFacilityAddress("");
+  };
+
+  const handleZoneChange = (v: string) => {
+    setZoneId(v);
+    if (!defaultStateId) setStateId("");
+    clearFacility();
+  };
+
+  const handleStateChange = (v: string) => {
+    setStateId(v);
+    clearFacility();
+  };
+
+  const handleFacilitySelect = (p: {
+    id: string; name: string; code: string;
+    address?: string | null; facility_type?: string | null;
+  } | null) => {
+    if (!p) {
+      clearFacility();
+      return;
+    }
+    setFacilityProviderId(p.id);
+    setFacilityName(p.name);
+    setFacilityCode(p.code);
+    if (p.address) setFacilityAddress(p.address);
+    const mappedType = mapProviderFacilityType(p.facility_type);
+    if (mappedType) setFacilityType(mappedType);
+  };
+
+  const validateStep = (step: FormStep): string | null => {
+    if (step === "header") {
+      if (!zoneId) return "Select zone";
+      if (!stateId) return "Select state";
+      if (!reportYear) return "Select reporting year";
+      if (!officerName.trim()) return "Compliance officer name is required";
+      if (!officerStaffId.trim()) return "Staff ID is required";
+      if (!facilityProviderId && !facilityName.trim()) return "Select a facility";
+      if (!facilityCode.trim()) return "Facility code is required — select a facility from the list";
+      if (!facilityType) return "Select facility type";
+      if (!ownership) return "Select ownership";
+    }
+    if (step === "findings" && findings.length === 0) {
+      return "Add at least one compliance finding";
+    }
     return null;
   };
 
-  const persist = async (status: "draft" | "submitted") => {
+  const validate = () => {
+    for (const step of FORM_STEPS) {
+      const err = validateStep(step.id);
+      if (err) return err;
+    }
+    return null;
+  };
+
+  const lockZone = !!defaultZoneId;
+  const lockState = !!defaultStateId;
+
+  const saveDraft = async (opts?: { advanceTo?: FormStep; toastMsg?: string }) => {
+    setSaving(true);
+    try {
+      const payload = buildPayload("draft");
+      const res = selectedId
+        ? await complianceApi.update(selectedId, payload)
+        : await complianceApi.create(payload);
+      const report = res.data;
+      if (!report?.id) throw new Error("Save failed — no report returned");
+      setSelectedId(report.id);
+      setRefId(report.reference_id ?? null);
+      setReportStatus(report.status ?? "draft");
+      setComplaintCategories(parseComplaintCategories(report.complaint_categories));
+      toast.success(opts?.toastMsg ?? "Draft saved", {
+        description: report.reference_id ?? undefined,
+      });
+      if (opts?.advanceTo) setFormStep(opts.advanceTo);
+      return true;
+    } catch (e: any) {
+      toast.error(e.message);
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveAndContinue = async () => {
+    const err = validateStep("header");
+    if (err) { toast.error(err); return; }
+    await saveDraft({ advanceTo: "findings", toastMsg: "Report registered — proceed to findings" });
+  };
+
+  const saveStage = async () => {
+    if (formStep === "findings") {
+      const err = validateStep("findings");
+      if (err) { toast.error(err); return; }
+    }
+    const next = nextComplianceStep(formStep);
+    await saveDraft({
+      advanceTo: next ?? undefined,
+      toastMsg: next
+        ? `${complianceStepLabel(formStep)} saved — continue to ${complianceStepLabel(next)}`
+        : `${complianceStepLabel(formStep)} saved`,
+    });
+  };
+
+  const submitReport = async () => {
     const err = validate();
     if (err) { toast.error(err); return; }
     setSaving(true);
     try {
-      const payload = buildPayload(status);
+      const payload = buildPayload("submitted");
       const res = selectedId
         ? await complianceApi.update(selectedId, payload)
         : await complianceApi.create(payload);
-      setSelectedId(res.data.id); setRefId(res.data.reference_id);
-      toast.success(status === "draft" ? "Draft saved" : "Report submitted", {
-        description: res.data.reference_id,
-      });
-      if (status === "submitted") { setMode("list"); resetForm(); }
+      toast.success("Report submitted", { description: res.data.reference_id });
+      setMode("list");
+      resetForm();
     } catch (e: any) { toast.error(e.message); }
     finally { setSaving(false); }
   };
@@ -281,7 +415,10 @@ export default function ComplianceManagementPage({ onBack, defaultZoneId, defaul
   const openView = async (id: number) => {
     try {
       const res = await complianceApi.get(id);
-      setViewReport(res.data);
+      setViewReport({
+        ...res.data,
+        complaint_categories: parseComplaintCategories(res.data.complaint_categories),
+      });
       setMode("view");
     } catch (e: any) { toast.error(e.message); }
   };
@@ -317,7 +454,7 @@ export default function ComplianceManagementPage({ onBack, defaultZoneId, defaul
     const findingsList = v.findings ?? [];
     const violationsList = v.violations ?? [];
     const enforcementsList = v.enforcement_actions ?? [];
-    const categories = Array.isArray(v.complaint_categories) ? v.complaint_categories : [];
+    const categories = parseComplaintCategories(v.complaint_categories);
 
     return (
       <div className="flex flex-col h-full bg-slate-50/30">
@@ -411,7 +548,16 @@ export default function ComplianceManagementPage({ onBack, defaultZoneId, defaul
               <InfoField label="Resolved at Facility" value={String(v.resolved_at_facility ?? 0)} />
               <InfoField label="Escalated to" value={escalationLabel(v.escalated_to ?? "none")} />
               <div className="md:col-span-3">
-                <InfoField label="Complaint Categories" value={categories.length ? categories.join(", ") : "—"} />
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-1">Complaint Categories</p>
+                {categories.length ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {categories.map(cat => (
+                      <Badge key={cat} variant="outline" className="text-[10px] font-medium">{cat}</Badge>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm font-semibold text-slate-800">—</p>
+                )}
               </div>
               <div className="md:col-span-3">
                 <InfoField label="Summary" value={v.complaint_summary ?? "—"} />
@@ -459,291 +605,86 @@ export default function ComplianceManagementPage({ onBack, defaultZoneId, defaul
   }
 
   if (mode === "form") {
+    const st = STATUS_CFG[reportStatus as keyof typeof STATUS_CFG] ?? STATUS_CFG.draft;
     return (
-      <div className="flex flex-col h-full bg-slate-50/30">
-        <div className="bg-white border-b border-border/50 px-4 md:px-6 py-3 flex items-center gap-4 sticky top-0 z-30">
-          <Button variant="ghost" size="icon" onClick={() => { setMode("list"); resetForm(); }} className="rounded-full">
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-          <div>
-            <h2 className="text-xl font-bold tracking-tight">Facility Compliance Report</h2>
-            <p className="text-xs text-muted-foreground">
-              {refId ? refId : "New compliance submission"}
-            </p>
-          </div>
-        </div>
-        <ScrollArea className="flex-1">
-        <div className="w-full px-4 md:px-6 py-4 space-y-4 pb-24 max-w-5xl mx-auto">
-          <Card className="rounded-2xl border-[#d4e8dc]">
-            <CardHeader><CardTitle className="text-base">Report Header</CardTitle>
-              <CardDescription>Q{quarterFromWeek(Number(reportWeek))} · {reportYear}</CardDescription>
-            </CardHeader>
-            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label className="text-xs">Zone</Label>
-                <Select value={zoneId} onValueChange={setZoneId} disabled={!!defaultZoneId}>
-                  <SelectTrigger className={inputCls} displayValue={zoneDisplay}>
-                    <SelectValue placeholder="Select zone" />
-                  </SelectTrigger>
-                  <SelectContent>{zones.map(z => <SelectItem key={z.id} value={String(z.id)}>{z.label}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">State</Label>
-                <Select value={stateId} onValueChange={setStateId} disabled={!!defaultStateId || !zoneId}>
-                  <SelectTrigger className={inputCls} displayValue={stateDisplay}>
-                    <SelectValue placeholder="Select state" />
-                  </SelectTrigger>
-                  <SelectContent>{stateOpts.map(s => <SelectItem key={s.id} value={String(s.id)}>{s.label}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Reporting Year</Label>
-                <Select value={reportYear} onValueChange={setReportYear}>
-                  <SelectTrigger className={inputCls}><SelectValue /></SelectTrigger>
-                  <SelectContent>{buildReportingYearOptions().map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Compliance Officer</Label>
-                <Input className={inputCls} value={officerName} onChange={e => setOfficerName(e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Staff ID</Label>
-                <Input className={inputCls} value={officerStaffId} onChange={e => setOfficerStaffId(e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Date Submitted</Label>
-                <Input className={inputCls} type="date" value={submitDate} onChange={e => setSubmitDate(e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Compliance Status Confirmed</Label>
-                <Select value={statusConfirmed} onValueChange={setStatusConfirmed}>
-                  <SelectTrigger className={inputCls}><SelectValue /></SelectTrigger>
-                  <SelectContent>{CONFIRMATION_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-              <div className="flex items-center gap-2 pt-6">
-                <input type="checkbox" checked={followUp} onChange={e => setFollowUp(e.target.checked)}
-                  id="follow-up" className="w-4 h-4 accent-[#145c3f]" />
-                <Label htmlFor="follow-up" className="text-sm">Follow-up Required</Label>
-              </div>
-              <div className="md:col-span-2 space-y-1.5">
-                <Label className="text-xs">Certification</Label>
-                <Input className={inputCls} value={certification} onChange={e => setCertification(e.target.value)} />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="rounded-2xl border-[#d4e8dc]">
-            <CardHeader><CardTitle className="text-base">1. Facility Details</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1.5 md:col-span-2">
-                <Label className="text-xs">Facility Name *</Label>
-                <Input className={inputCls} value={facilityName} onChange={e => setFacilityName(e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Facility Code</Label>
-                <Input className={inputCls} value={facilityCode} onChange={e => setFacilityCode(e.target.value)} placeholder="e.g. ABCH" />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Facility Type</Label>
-                <Select value={facilityType} onValueChange={setFacilityType}>
-                  <SelectTrigger className={inputCls}><SelectValue placeholder="Select type" /></SelectTrigger>
-                  <SelectContent>{FACILITY_TYPE_OPTIONS.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Ownership</Label>
-                <Select value={ownership} onValueChange={setOwnership}>
-                  <SelectTrigger className={inputCls}><SelectValue placeholder="Select ownership" /></SelectTrigger>
-                  <SelectContent>{OWNERSHIP_OPTIONS.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5 md:col-span-2">
-                <Label className="text-xs">Facility Address</Label>
-                <Input className={inputCls} value={facilityAddress} onChange={e => setFacilityAddress(e.target.value)} />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="rounded-2xl border-[#d4e8dc]">
-            <CardHeader><CardTitle className="text-base">2. Compliance Findings</CardTitle>
-              <CardDescription>Each finding is a separate observation</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 rounded-xl bg-[#f4f7f5] border border-[#d4e8dc]">
-                <Select value={findingDraft.section} onValueChange={v => setFindingDraft(d => ({ ...d, section: v, indicator: "" }))}>
-                  <SelectTrigger className={inputCls}><SelectValue placeholder="Section" /></SelectTrigger>
-                  <SelectContent>{Object.keys(COMPLIANCE_SECTIONS).map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-                </Select>
-                <Select value={findingDraft.indicator} onValueChange={v => setFindingDraft(d => ({ ...d, indicator: v }))}>
-                  <SelectTrigger className={inputCls}><SelectValue placeholder="Indicator" /></SelectTrigger>
-                  <SelectContent>{sectionIndicators.map(i => <SelectItem key={i} value={i}>{i}</SelectItem>)}</SelectContent>
-                </Select>
-                <Select value={findingDraft.status} onValueChange={v => setFindingDraft(d => ({ ...d, status: v }))}>
-                  <SelectTrigger className={inputCls}><SelectValue placeholder="Status" /></SelectTrigger>
-                  <SelectContent>{COMPLIANCE_RATINGS.map(r => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}</SelectContent>
-                </Select>
-                <Input className={inputCls} placeholder="Remarks" value={findingDraft.remarks}
-                  onChange={e => setFindingDraft(d => ({ ...d, remarks: e.target.value }))} />
-                <Button type="button" variant="outline" className="md:col-span-2" onClick={() => {
-                  if (!findingDraft.section || !findingDraft.indicator) return;
-                  setFindings(p => [...p, { _key: uid(), ...findingDraft }]);
-                  setFindingDraft({ section: "", indicator: "", status: "fully_compliant", remarks: "" });
-                }}><Plus className="w-4 h-4 mr-1" /> Add Finding</Button>
-              </div>
-              {findings.length === 0 ? (
-                <p className="text-sm text-muted-foreground italic">No findings recorded.</p>
-              ) : (
-                <Table>
-                  <TableHeader><TableRow>
-                    <TableHead>Section</TableHead><TableHead>Indicator</TableHead>
-                    <TableHead>Status</TableHead><TableHead>Remarks</TableHead><TableHead />
-                  </TableRow></TableHeader>
-                  <TableBody>
-                    {findings.map(f => (
-                      <TableRow key={f._key}>
-                        <TableCell className="text-xs">{f.section}</TableCell>
-                        <TableCell className="text-xs max-w-[200px]">{f.indicator}</TableCell>
-                        <TableCell><Badge variant="outline" className="text-[10px]">{ratingLabel(f.status)}</Badge></TableCell>
-                        <TableCell className="text-xs">{f.remarks || "—"}</TableCell>
-                        <TableCell>
-                          <Button variant="ghost" size="sm" onClick={() => setFindings(p => p.filter(x => x._key !== f._key))}>
-                            <Trash2 className="w-3.5 h-3.5 text-rose-500" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="rounded-2xl border-[#d4e8dc]">
-            <CardHeader><CardTitle className="text-base">3. Complaint Summary</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label className="text-xs">Complaints Received</Label>
-                <Input className={inputCls} type="number" min={0} value={complaintsReceived}
-                  onChange={e => setComplaintsReceived(e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Resolved at Facility</Label>
-                <Input className={inputCls} type="number" min={0} value={resolvedAtFacility}
-                  onChange={e => setResolvedAtFacility(e.target.value)} />
-              </div>
-              <div className="space-y-1.5 md:col-span-2">
-                <Label className="text-xs">Complaint Categories</Label>
-                <div className="flex flex-wrap gap-2">
-                  {COMPLAINT_CATEGORIES.map(cat => (
-                    <label key={cat} className="flex items-center gap-1.5 text-xs border rounded-lg px-2 py-1 bg-white">
-                      <input type="checkbox" checked={complaintCategories.includes(cat)}
-                        onChange={() => toggleCategory(cat)}
-                        className="w-3.5 h-3.5 accent-[#145c3f]" />
-                      {cat}
-                    </label>
-                  ))}
-                </div>
-              </div>
-              <div className="space-y-1.5 md:col-span-2">
-                <Label className="text-xs">Escalated to</Label>
-                <Select value={escalatedTo} onValueChange={setEscalatedTo}>
-                  <SelectTrigger className={inputCls}><SelectValue /></SelectTrigger>
-                  <SelectContent>{ESCALATION_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5 md:col-span-2">
-                <Label className="text-xs">Summary of major complaints and actions taken</Label>
-                <Input className={inputCls} value={complaintSummary} onChange={e => setComplaintSummary(e.target.value)} />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="rounded-2xl border-[#d4e8dc]">
-            <CardHeader><CardTitle className="text-base">4. Violations Observed</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 rounded-xl bg-[#f4f7f5] border border-[#d4e8dc]">
-                <Input className={inputCls} placeholder="Nature of violation" value={violationDraft.nature_of_violation}
-                  onChange={e => setViolationDraft(d => ({ ...d, nature_of_violation: e.target.value }))} />
-                <Input className={inputCls} placeholder="NHIA Act / Guideline section" value={violationDraft.nhia_act_section}
-                  onChange={e => setViolationDraft(d => ({ ...d, nhia_act_section: e.target.value }))} />
-                <Input className={inputCls} type="number" placeholder="Occurrences" value={violationDraft.occurrences}
-                  onChange={e => setViolationDraft(d => ({ ...d, occurrences: e.target.value }))} />
-                <Input className={inputCls} placeholder="Action taken" value={violationDraft.action_taken}
-                  onChange={e => setViolationDraft(d => ({ ...d, action_taken: e.target.value }))} />
-                <Button type="button" variant="outline" className="md:col-span-2" onClick={() => {
-                  if (!violationDraft.nature_of_violation.trim()) return;
-                  setViolations(p => [...p, { _key: uid(), ...violationDraft }]);
-                  setViolationDraft({ nature_of_violation: "", nhia_act_section: "", occurrences: "", action_taken: "" });
-                }}><Plus className="w-4 h-4 mr-1" /> Add Violation</Button>
-              </div>
-              {violations.map(v => (
-                <div key={v._key} className="flex gap-2 items-start text-sm border rounded-xl p-3">
-                  <div className="flex-1">
-                    <p className="font-medium">{v.nature_of_violation}</p>
-                    <p className="text-xs text-muted-foreground">{v.nhia_act_section || "—"} · {v.occurrences || 0} occurrence(s)</p>
-                    <p className="text-xs mt-1">{v.action_taken || "—"}</p>
-                  </div>
-                  <Button variant="ghost" size="sm" onClick={() => setViolations(p => p.filter(x => x._key !== v._key))}>
-                    <Trash2 className="w-3.5 h-3.5 text-rose-500" />
-                  </Button>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-
-          <Card className="rounded-2xl border-[#d4e8dc]">
-            <CardHeader><CardTitle className="text-base">5. Enforcement Actions</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 rounded-xl bg-[#f4f7f5] border border-[#d4e8dc]">
-                <Select value={enforcementDraft.enforcement_action}
-                  onValueChange={v => setEnforcementDraft(d => ({ ...d, enforcement_action: v }))}>
-                  <SelectTrigger className={inputCls}><SelectValue placeholder="Enforcement action" /></SelectTrigger>
-                  <SelectContent>{ENFORCEMENT_ACTIONS.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}</SelectContent>
-                </Select>
-                <Input className={inputCls} placeholder="Details" value={enforcementDraft.details}
-                  onChange={e => setEnforcementDraft(d => ({ ...d, details: e.target.value }))} />
-                <Button type="button" variant="outline" className="md:col-span-2" onClick={() => {
-                  if (!enforcementDraft.enforcement_action) return;
-                  setEnforcements(p => [...p, { _key: uid(), ...enforcementDraft }]);
-                  setEnforcementDraft({ enforcement_action: "", details: "" });
-                }}><Plus className="w-4 h-4 mr-1" /> Add Action</Button>
-              </div>
-              {enforcements.map(e => (
-                <div key={e._key} className="flex gap-2 items-start text-sm border rounded-xl p-3">
-                  <div className="flex-1">
-                    <p className="font-medium">{e.enforcement_action}</p>
-                    <p className="text-xs text-muted-foreground">{e.details || "—"}</p>
-                  </div>
-                  <Button variant="ghost" size="sm" onClick={() => setEnforcements(p => p.filter(x => x._key !== e._key))}>
-                    <Trash2 className="w-3.5 h-3.5 text-rose-500" />
-                  </Button>
-                </div>
-              ))}
-              <div className="space-y-1.5 pt-2">
-                <Label className="text-xs">State Office Remarks</Label>
-                <Input className={inputCls} value={stateRemarks} onChange={e => setStateRemarks(e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Report Reviewed By</Label>
-                <Input className={inputCls} value={reviewedBy} onChange={e => setReviewedBy(e.target.value)} />
-              </div>
-            </CardContent>
-          </Card>
-
-          <div className="flex gap-3 justify-end">
-            <Button variant="outline" onClick={() => persist("draft")} disabled={saving}>
-              <Save className="w-4 h-4 mr-1" /> Save Draft
-            </Button>
-            <Button className="bg-[#145c3f] hover:bg-[#0f3d2e]" onClick={() => persist("submitted")} disabled={saving}>
-              <Send className="w-4 h-4 mr-1" /> Submit Report
-            </Button>
-          </div>
-        </div>
-        </ScrollArea>
-      </div>
+      <ComplianceReportForm
+        refId={refId}
+        reportRegistered={!!selectedId}
+        reportStatus={reportStatus}
+        reportWeek={reportWeek}
+        formStep={formStep}
+        setFormStep={setFormStep}
+        saving={saving}
+        lockZone={lockZone}
+        lockState={lockState}
+        zones={zones}
+        stateOpts={stateOpts}
+        zoneId={zoneId}
+        stateId={stateId}
+        zoneDisplay={zoneDisplay}
+        stateDisplay={stateDisplay}
+        onZoneChange={handleZoneChange}
+        onStateChange={handleStateChange}
+        reportYear={reportYear}
+        setReportYear={setReportYear}
+        officerName={officerName}
+        setOfficerName={setOfficerName}
+        officerStaffId={officerStaffId}
+        setOfficerStaffId={setOfficerStaffId}
+        submitDate={submitDate}
+        setSubmitDate={setSubmitDate}
+        statusConfirmed={statusConfirmed}
+        setStatusConfirmed={setStatusConfirmed}
+        followUp={followUp}
+        setFollowUp={setFollowUp}
+        certification={certification}
+        setCertification={setCertification}
+        facilityProviderId={facilityProviderId}
+        onFacilitySelect={handleFacilitySelect}
+        facilityName={facilityName}
+        facilityCode={facilityCode}
+        facilityType={facilityType}
+        setFacilityType={setFacilityType}
+        ownership={ownership}
+        setOwnership={setOwnership}
+        facilityAddress={facilityAddress}
+        setFacilityAddress={setFacilityAddress}
+        findings={findings}
+        setFindings={setFindings}
+        findingDraft={findingDraft}
+        setFindingDraft={setFindingDraft}
+        sectionIndicators={sectionIndicators}
+        complaintsReceived={complaintsReceived}
+        setComplaintsReceived={setComplaintsReceived}
+        resolvedAtFacility={resolvedAtFacility}
+        setResolvedAtFacility={setResolvedAtFacility}
+        complaintCategories={complaintCategories}
+        toggleCategory={toggleCategory}
+        escalatedTo={escalatedTo}
+        setEscalatedTo={setEscalatedTo}
+        complaintSummary={complaintSummary}
+        setComplaintSummary={setComplaintSummary}
+        violations={violations}
+        setViolations={setViolations}
+        violationDraft={violationDraft}
+        setViolationDraft={setViolationDraft}
+        enforcements={enforcements}
+        setEnforcements={setEnforcements}
+        enforcementDraft={enforcementDraft}
+        setEnforcementDraft={setEnforcementDraft}
+        stateRemarks={stateRemarks}
+        setStateRemarks={setStateRemarks}
+        reviewedBy={reviewedBy}
+        setReviewedBy={setReviewedBy}
+        onCancel={() => { setMode("list"); resetForm(); }}
+        onSaveAndContinue={saveAndContinue}
+        onSaveStage={saveStage}
+        onSubmit={submitReport}
+        statusBadge={
+          <Badge className={`text-[10px] border gap-1 ${st.cls}`}>{st.icon}{st.label}</Badge>
+        }
+        uid={uid}
+      />
     );
   }
 
