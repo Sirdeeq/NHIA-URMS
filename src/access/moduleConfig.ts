@@ -5,12 +5,14 @@ export type UserRole =
 export interface ChildModule {
   title: string;
   view?: string;
+  path?: string;
 }
 
 export interface SubGroup {
   type: "group";
   label: string;
-  children: ChildModule[];
+  /** Flat leaves and/or nested sub-groups (tree nav) */
+  children: (ChildModule | SubGroup)[];
 }
 
 export interface ParentModule {
@@ -20,21 +22,26 @@ export interface ParentModule {
   children: (ChildModule | SubGroup)[];
 }
 
+export function isSubGroup(c: ChildModule | SubGroup): c is SubGroup {
+  return "type" in c && c.type === "group";
+}
+
 /** Parent module key for SOC/Zonal reporting (sidebar label: SOC/Zones) */
 export const SOC_ZONES_MODULE = "SOC/Zones";
 
-/** Older user records may still store this access_to value */
+/** Older user records may still store these access_to values */
 export const SOC_ZONES_LEGACY_ALIASES = ["State Offices"] as const;
 
 export function resolveModuleTitle(accessTo: string): string {
   if ((SOC_ZONES_LEGACY_ALIASES as readonly string[]).includes(accessTo)) {
     return SOC_ZONES_MODULE;
   }
+  if (accessTo === "Store Management") return "Asset Management (SVO)";
   return accessTo;
 }
 
 export function moduleConfigForAccess(accessTo: string): ParentModule | undefined {
-  return MODULE_CONFIG.find(m => m.title === resolveModuleTitle(accessTo));
+  return MODULE_CONFIG.find((m) => m.title === resolveModuleTitle(accessTo));
 }
 
 /**
@@ -47,7 +54,7 @@ export const MODULE_CONFIG: ParentModule[] = [
     title: "Dashboard",
     roles: "all",
     children: [
-      { title: "Dashboard", view: "home" },
+      { title: "Dashboard", view: "home", path: "/" },
     ],
   },
 
@@ -56,7 +63,7 @@ export const MODULE_CONFIG: ParentModule[] = [
     title: "Annual Reports",
     roles: "!dg-ceo",
     children: [
-      { title: "Annual Report", view: "annual-reports-list" },
+      { title: "Annual Report", view: "annual-reports-list", path: "/annual-reports/mine" },
     ],
   },
   {
@@ -64,10 +71,10 @@ export const MODULE_CONFIG: ParentModule[] = [
     roles: "all",
     children: [
       { type: "group", label: "Finance", children: [
-        { title: "Monthly Report", view: "finance-monthly" },
+        { title: "Finance Report", view: "finance-monthly", path: "/monthly/finance" },
       ]},
       { type: "group", label: "Admin", children: [
-        { title: "Monthly Report", view: "admin-monthly" },
+        { title: "Admin Report", view: "admin-monthly", path: "/monthly/admin" },
       ]},
     ],
   },
@@ -78,13 +85,13 @@ export const MODULE_CONFIG: ParentModule[] = [
     roles: "all",
     children: [
       { type: "group", label: "HMO/HCP Quality Assurance", children: [
-        { title: "Monthly Report", view: "sqa-monthly" },
+        { title: "SQA Report", view: "sqa-monthly", path: "/monthly/sqa" },
       ]},
       { type: "group", label: "Enrollee Complaints / SHIA Liaison", children: [
-        { title: "Monthly Report", view: "complaints-monthly" },
+        { title: "Complaints Report", view: "complaints-monthly", path: "/monthly/complaints" },
       ]},
       { type: "group", label: "Compliance Management", children: [
-        { title: "Compliance Management", view: "sqa-compliance" },
+        { title: "Compliance Management", view: "sqa-compliance", path: "/compliance" },
       ]},
     ],
   },
@@ -94,8 +101,8 @@ export const MODULE_CONFIG: ParentModule[] = [
     title: "Zonal ICT Support",
     roles: "all",
     children: [
-      { title: "ICT Support Desk"  },
-      { title: "Systems & Network" },
+      { title: "ICT Support Desk", path: "/ict/desk" },
+      { title: "Systems & Network", path: "/ict/systems" },
     ],
   },
 
@@ -105,10 +112,10 @@ export const MODULE_CONFIG: ParentModule[] = [
     roles: "all",
     children: [
       { type: "group", label: "Enrolment", children: [
-        { title: "Monthly Report", view: "programmes-monthly" },
+        { title: "Programmes Report", view: "programmes-monthly", path: "/monthly/programmes" },
       ]},
       { type: "group", label: "Enrollment Enquiries & Outreach", children: [
-        { title: "Monthly Report", view: "outreach-monthly" },
+        { title: "Outreach Report", view: "outreach-monthly", path: "/monthly/outreach" },
       ]},
     ],
   },
@@ -118,14 +125,30 @@ export const MODULE_CONFIG: ParentModule[] = [
     title: "SDO",
     roles: "all",
     children: [
-      { title: "Stock Verification", view: "stock-verifications-list" },
-      { title: "Asset Register",     view: "stock-assets"             },
       { type: "group", label: "SERVICOM", children: [
-        { title: "Dashboard",                    view: "servicom-dashboard"           },
-        { title: "Complaints Management",      view: "servicom-complaints"          },
-        { title: "Customer Satisfaction Survey", view: "servicom-satisfaction"        },
-        { title: "Charter Performance",          view: "servicom-comment-card"        },
+        { title: "Charter Performance",          view: "servicom-comment-card", path: "/sdo/servicom/comment-card" },
+        { title: "Complaints Management",        view: "servicom-complaints",   path: "/sdo/servicom/complaints" },
+        { title: "Customer Satisfaction Survey", view: "servicom-satisfaction", path: "/sdo/servicom/satisfaction" },
       ]},
+      { type: "group", label: "STOCK VERIFICATION", children: [
+        { title: "Physical Asset Verification", view: "store-verification-verify", path: "/store-management/verification/verify" },
+        { title: "Verification of Supply",      view: "store-supply-verification", path: "/store-management/verification/supply" },
+      ]},
+      { type: "group", label: "SPECIAL PROJECT", children: [] },
+    ],
+  },
+
+  // ── Asset Management (SVO) — grant separately when assigning role access ────
+  {
+    title: "Asset Management (SVO)",
+    roles: "all",
+    children: [
+      { title: "Register Asset",        view: "store-assets-register",   path: "/store-management/assets/register" },
+      { title: "Asset Master Register", view: "store-assets-list",       path: "/store-management/assets/list" },
+      { title: "Transfers & Movements", view: "store-asset-transfers",   path: "/store-management/transfers/requests" },
+      { title: "Board Disposal",        view: "store-asset-disposal",    path: "/store-management/disposal/records" },
+      { title: "Maintenance & Servicing", view: "store-asset-maintenance", path: "/store-management/maintenance/repairs" },
+      { title: "Inventory Catalog",     view: "store-inventory-catalog", path: "/store-management/inventory/items" },
     ],
   },
 
@@ -135,41 +158,36 @@ export const MODULE_CONFIG: ParentModule[] = [
     roles: "all",
     children: [
       { type: "group", label: "Enrolment", children: [
-        { title: "Enrolment", view: "state-enrolment" },
+        { title: "Enrolment", view: "state-enrolment", path: "/soc/enrolment" },
       ]},
       { type: "group", label: "Migration", children: [
-        { title: "Migration / Update Requests", view: "state-migration" },
+        { title: "Migration / Update Requests", view: "state-migration", path: "/soc/migration" },
       ]},
       { type: "group", label: "CEmONC & FFP", children: [
-        { title: "CEmONC & FFP Beneficiaries", view: "state-cemonc" },
+        { title: "CEmONC & FFP Beneficiaries", view: "state-cemonc", path: "/soc/cemonc" },
       ]},
       { type: "group", label: "Monitoring", children: [
-        { title: "Monitoring Visits", view: "servicom-visits" },
-      ]},
-      { type: "group", label: "Complaints & Compliance", children: [
-        { title: "Enrollee Complaints", view: "state-complaints" },
-        { title: "Compliance Monitoring", view: "state-compliance-monitoring" },
-        { title: "Reconciliation Meetings", view: "state-reconciliation" },
+        { title: "Monitoring Visits", view: "servicom-visits", path: "/soc/monitoring-visits" },
       ]},
       { type: "group", label: "Accreditation & Reaccreditation", children: [
-        { title: "Accreditation / Reaccreditation", view: "state-accreditation" },
+        { title: "Accreditation / Reaccreditation", view: "state-accreditation", path: "/soc/accreditation" },
       ]},
       { type: "group", label: "Stakeholder Engagement", children: [
-        { title: "Stakeholder Engagement", view: "state-stakeholder" },
+        { title: "Stakeholder Engagement", view: "state-stakeholder", path: "/soc/stakeholder" },
       ]},
       { type: "group", label: "HMO Selection", children: [
-        { title: "HMO Selection Process", view: "state-hmo-selection" },
+        { title: "HMO Selection Process", view: "state-hmo-selection", path: "/soc/hmo-selection" },
       ]},
       { type: "group", label: "Challenges & Recommendations", children: [
-        { title: "Challenges & Recommendations", view: "state-challenges" },
+        { title: "Challenges & Recommendations", view: "state-challenges", path: "/soc/challenges" },
       ]},
       { type: "group", label: "Finance", children: [
-        { title: "IGR", view: "state-igr" },
-        { title: "SSHIA Financial Report", view: "state-sshia-financial" },
-        { title: "Expenditure Profile", view: "state-expenditure-profile" },
+        { title: "IGR", view: "state-igr", path: "/soc/igr" },
+        { title: "SSHIA Financial Report", view: "state-sshia-financial", path: "/soc/sshia-financial" },
+        { title: "Expenditure Profile", view: "state-expenditure-profile", path: "/soc/expenditure-profile" },
       ]},
-      { title: "Weekly Actionable",   view: "state-weekly-actionable"   },
-      { title: "Contracted Services", view: "state-contracted-services" },
+      { title: "Weekly Actionable",   view: "state-weekly-actionable",   path: "/soc/weekly-actionable" },
+      { title: "Contracted Services", view: "state-contracted-services", path: "/soc/contracted-services" },
     ],
   },
 
@@ -177,14 +195,14 @@ export const MODULE_CONFIG: ParentModule[] = [
   {
     title: "Notifications",
     roles: "all",
-    children: [{ title: "Notifications", view: "notifications" }],
+    children: [{ title: "Notifications", view: "notifications", path: "/notifications" }],
   },
 
   // ── Settings (granted via Privileges) ─────────────────────────────────────
   {
     title: "Settings",
     roles: "all",
-    children: [{ title: "Settings", view: "settings" }],
+    children: [{ title: "Settings", view: "settings", path: "/settings" }],
   },
 ];
 
@@ -193,37 +211,41 @@ export const STATE_VIEW_TO_FUNCTIONALITY: Record<string, string> = (() => {
   const out: Record<string, string> = {};
   const mod = MODULE_CONFIG.find(m => m.title === "SOC/Zones");
   if (!mod) return out;
-  for (const c of mod.children) {
-    if ("type" in c && c.type === "group") {
-      c.children.forEach(leaf => {
-        if (leaf.view) out[leaf.view] = leaf.title;
-      });
-    } else if ((c as ChildModule).view) {
-      out[(c as ChildModule).view!] = (c as ChildModule).title;
+  const walk = (nodes: (ChildModule | SubGroup)[]) => {
+    for (const c of nodes) {
+      if (isSubGroup(c)) {
+        walk(c.children);
+      } else if (c.view) {
+        out[c.view] = c.title;
+      }
     }
-  }
+  };
+  walk(mod.children);
   return out;
 })();
 
 /** Flatten all leaf titles from a module (for privilege checkboxes) */
 export function flatLeaves(mod: ParentModule): string[] {
   const out: string[] = [];
-  for (const c of mod.children) {
-    if ("type" in c && c.type === "group") {
-      c.children.forEach(leaf => out.push(leaf.title));
-    } else {
-      out.push((c as ChildModule).title);
+  const walk = (nodes: (ChildModule | SubGroup)[]) => {
+    for (const c of nodes) {
+      if (isSubGroup(c)) {
+        walk(c.children);
+      } else {
+        out.push(c.title);
+      }
     }
-  }
+  };
+  walk(mod.children);
   return out;
 }
 
 /** True if the module has at least one child with a routable view */
 export function hasRoutableView(mod: ParentModule): boolean {
-  return mod.children.some(c => {
-    if ("type" in c && c.type === "group") {
-      return c.children.some(leaf => !!leaf.view);
-    }
-    return !!(c as ChildModule).view;
-  });
+  const walk = (nodes: (ChildModule | SubGroup)[]): boolean =>
+    nodes.some((c) => {
+      if (isSubGroup(c)) return walk(c.children);
+      return !!c.view;
+    });
+  return walk(mod.children);
 }

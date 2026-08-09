@@ -1,0 +1,780 @@
+import React, { useState, useEffect } from "react";
+import PageLayout from "@/components/PageLayout";
+import { useAssetManagement, LOOKUPS } from "@/src/store/useAssetManagement";
+import { useNavigate } from "react-router-dom";
+import { stockApi } from "@/lib/api";
+import {
+  CheckCircle2,
+  ChevronRight,
+  ChevronLeft,
+  FileSpreadsheet,
+  Save,
+  Tag,
+  MapPin,
+  CircleDollarSign,
+  History,
+  Sliders,
+  ShieldCheck,
+  AlertCircle
+} from "lucide-react";
+
+interface Option { id: number; label: string; }
+
+export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) => void }) {
+  const navigate = useNavigate();
+  const { registerAsset } = useAssetManagement();
+  const [currentStep, setCurrentStep] = useState(1);
+  const [successMsg, setSuccessMsg] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
+
+  // Dynamic Zone, State, Department, Unit Options from stockApi (same as StockAssetManager)
+  const [zones, setZones] = useState<Option[]>([]);
+  const [states, setStates] = useState<Option[]>([]);
+  const [departments, setDepartments] = useState<Option[]>([]);
+  const [units, setUnits] = useState<Option[]>([]);
+
+  // Clean empty form state
+  const [formData, setFormData] = useState<any>({
+    // Step 2 Location, Custody & Officers (Cascading Zone, State, Dept, Unit)
+    zone_id: "",
+    zone_name: "",
+    state_id: "",
+    state_name: "",
+    department_id: "",
+    department_name: "",
+    unit_id: "",
+    unit_name: "",
+    officeDeptUnit: "",
+    coordinator: "",
+    trackingOfficer: "",
+    supervisor: "",
+    date: new Date().toISOString().split("T")[0],
+
+    // Step 1: Identification, Classification & Category Attributes
+    name: "",
+    primaryCategory: "Office Equipment",
+    subCategory: "Printing & Document Management",
+    specificType: "Printers",
+    nhiaTagNumber: "",
+
+    // Step 2: Location & Custody
+    facilitySite: "HQ",
+    specificLocation: "",
+    yearOfAllocation: new Date().getFullYear().toString(),
+    assignedCustodian: "",
+    operationalStatus: "Active (in-use)",
+
+    // Step 3: Financial & Depreciation
+    acquisitionDate: new Date().toISOString().split("T")[0],
+    acquisitionCost: "",
+    usefulLifeYears: 5,
+    salvageValue: 0,
+    depreciationMethod: "Straight-Line",
+    accumulatedDepreciation: 0,
+    netBookValue: 0,
+
+    // Step 4: Lifecycle & Maintenance
+    physicalCondition: "Excellent",
+    lastVerificationDate: new Date().toISOString().split("T")[0],
+    verificationStatus: "Verified & Passed",
+    taggingMethod: "QR Code",
+
+    // Category Attributes
+    categoryAttributes: {}
+  });
+
+  // Load Zones on Mount (same as StockAssetManager)
+  useEffect(() => {
+    stockApi.getZones().then((r: any) => {
+      if (r?.data) {
+        setZones(r.data.map((z: any) => ({ id: z.id, label: z.description })));
+      }
+    }).catch(() => {});
+  }, []);
+
+  const handleZoneChange = async (zoneId: string) => {
+    const selectedZone = zones.find(z => String(z.id) === zoneId);
+    setFormData((prev: any) => ({
+      ...prev,
+      zone_id: zoneId,
+      zone_name: selectedZone ? selectedZone.label : "",
+      state_id: "",
+      state_name: "",
+      department_id: "",
+      department_name: "",
+      unit_id: "",
+      unit_name: "",
+      officeDeptUnit: ""
+    }));
+    setStates([]);
+    setDepartments([]);
+    setUnits([]);
+
+    if (zoneId) {
+      try {
+        const r = await stockApi.getStates(zoneId);
+        if (r?.data) {
+          setStates(r.data.map((s: any) => ({ id: s.id, label: s.description })));
+        }
+      } catch (e) {}
+    }
+  };
+
+  const handleStateChange = async (stateId: string) => {
+    const selectedState = states.find(s => String(s.id) === stateId);
+    setFormData((prev: any) => ({
+      ...prev,
+      state_id: stateId,
+      state_name: selectedState ? selectedState.label : "",
+      department_id: "",
+      department_name: "",
+      unit_id: "",
+      unit_name: "",
+      officeDeptUnit: selectedState ? selectedState.label : ""
+    }));
+    setDepartments([]);
+    setUnits([]);
+
+    if (stateId) {
+      try {
+        const r = await stockApi.getDepartments(stateId);
+        if (r?.data) {
+          setDepartments(r.data.map((d: any) => ({ id: d.id, label: d.name })));
+        }
+      } catch (e) {}
+    }
+  };
+
+  const handleDepartmentChange = async (deptId: string) => {
+    const selectedDept = departments.find(d => String(d.id) === deptId);
+    const deptName = selectedDept ? selectedDept.label : "";
+    setFormData((prev: any) => ({
+      ...prev,
+      department_id: deptId,
+      department_name: deptName,
+      unit_id: "",
+      unit_name: "",
+      officeDeptUnit: deptName
+    }));
+    setUnits([]);
+
+    if (deptId) {
+      try {
+        const r = await stockApi.getUnits(deptId);
+        if (r?.data) {
+          setUnits(r.data.map((u: any) => ({ id: u.id, label: u.name })));
+        }
+      } catch (e) {}
+    }
+  };
+
+  const handleUnitChange = (unitId: string) => {
+    const selectedUnit = units.find(u => String(u.id) === unitId);
+    const unitName = selectedUnit ? selectedUnit.label : "";
+    const combined = formData.department_name ? `${formData.department_name} / ${unitName}` : unitName;
+    setFormData((prev: any) => ({
+      ...prev,
+      unit_id: unitId,
+      unit_name: unitName,
+      officeDeptUnit: combined
+    }));
+  };
+
+  const availableSubCats = Object.keys(
+    LOOKUPS.primaryCategories[formData.primaryCategory] || {}
+  );
+
+  const availableTypes =
+    LOOKUPS.primaryCategories[formData.primaryCategory]?.[formData.subCategory] || [];
+
+  const handlePrimaryCategoryChange = (cat: string) => {
+    const subCats = Object.keys(LOOKUPS.primaryCategories[cat] || {});
+    const firstSub = subCats[0] || "";
+    const types = LOOKUPS.primaryCategories[cat]?.[firstSub] || [];
+    const firstType = types[0] || "";
+
+    setFormData({
+      ...formData,
+      primaryCategory: cat,
+      subCategory: firstSub,
+      specificType: firstType,
+      categoryAttributes: {}
+    });
+  };
+
+  const handleSubCategoryChange = (sub: string) => {
+    const types = LOOKUPS.primaryCategories[formData.primaryCategory]?.[sub] || [];
+    const firstType = types[0] || "";
+    setFormData({
+      ...formData,
+      subCategory: sub,
+      specificType: firstType
+    });
+  };
+
+  useEffect(() => {
+    const cost = parseFloat(formData.acquisitionCost || 0);
+    const accum = parseFloat(formData.accumulatedDepreciation || 0);
+    setFormData((prev: any) => ({ ...prev, netBookValue: Math.max(0, cost - accum) }));
+  }, [formData.acquisitionCost, formData.accumulatedDepreciation]);
+
+  const handleAttrChange = (field: string, val: any) => {
+    setFormData({
+      ...formData,
+      categoryAttributes: { ...formData.categoryAttributes, [field]: val }
+    });
+  };
+
+  // Step Validations
+  const validateStep = (step: number): boolean => {
+    setValidationError(null);
+    if (step === 1) {
+      if (!formData.name || !formData.name.trim()) {
+        setValidationError("Please enter the Asset Name / Item Description.");
+        return false;
+      }
+    }
+    if (step === 2) {
+      if (!formData.trackingOfficer || !formData.trackingOfficer.trim()) {
+        setValidationError("Please specify the Tracking Officer.");
+        return false;
+      }
+    }
+    if (step === 3) {
+      if (!formData.acquisitionCost || parseFloat(formData.acquisitionCost) <= 0) {
+        setValidationError("Please enter a valid Acquisition Cost greater than 0.");
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const handleNextStep = () => {
+    if (validateStep(currentStep)) {
+      setCurrentStep((prev) => Math.min(4, prev + 1));
+    }
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
+    e?.preventDefault();
+    if (!validateStep(1) || !validateStep(2) || !validateStep(3)) {
+      return;
+    }
+    await registerAsset(formData);
+    setSuccessMsg(true);
+    setTimeout(() => {
+      setSuccessMsg(false);
+      if (onNavigate) {
+        onNavigate("store-assets-list");
+      } else {
+        navigate("/store-management/assets/list");
+      }
+    }, 1200);
+  };
+
+  const steps = [
+    { id: 1, title: "1. Identification, Classification & Attributes", icon: Tag },
+    { id: 2, title: "2. Location, Custody & Officers", icon: MapPin },
+    { id: 3, title: "3. Financial & Depreciation Data", icon: CircleDollarSign },
+    { id: 4, title: "4. Lifecycle & Maintenance", icon: History }
+  ];
+
+  return (
+    <PageLayout
+      title={
+        <span className="flex items-center gap-2">
+          <ShieldCheck className="w-5 h-5 text-[#25a872]" /> Asset Registration Form
+        </span>
+      }
+      description="Register new physical assets with dynamic Zone, State, Department, and Unit cascading selects"
+      back={true}
+      backTo="/store-management/assets/list"
+    >
+      <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden flex flex-col min-h-[600px]">
+        {/* Header Banner */}
+        <div className="bg-[#145c3f] text-white p-4 border-b border-[#0f3d2e] flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-white/10 border border-white/20 rounded-lg text-emerald-200">
+              <FileSpreadsheet className="h-6 w-6" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold tracking-tight text-white">Asset Data Entry Form</h2>
+              <p className="text-xs text-emerald-100/90">National Health Insurance Authority Master Asset Register</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="px-3 py-1 rounded text-xs font-mono font-bold bg-white/10 text-emerald-200 border border-white/20">
+              Category: {formData.primaryCategory}
+            </span>
+          </div>
+        </div>
+
+        {/* Step Tabs Navigation */}
+        <div className="bg-[#f4f7f5] border-b border-slate-200 flex overflow-x-auto">
+          {steps.map((step) => {
+            const Icon = step.icon;
+            const isActive = currentStep === step.id;
+            return (
+              <button
+                key={step.id}
+                type="button"
+                onClick={() => {
+                  if (step.id < currentStep || validateStep(currentStep)) {
+                    setCurrentStep(step.id);
+                  }
+                }}
+                className={`flex items-center gap-2 px-4 py-3 text-xs font-bold whitespace-nowrap transition-all border-r border-slate-200 cursor-pointer ${
+                  isActive
+                    ? "bg-white text-[#145c3f] border-b-2 border-b-[#145c3f] shadow-sm"
+                    : "text-slate-600 hover:bg-slate-200/60"
+                }`}
+              >
+                <Icon className={`h-4 w-4 ${isActive ? "text-[#25a872]" : "text-slate-400"}`} />
+                <span>{step.title}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Validation Error Alert Banner */}
+        {validationError && (
+          <div className="m-4 p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-md font-semibold text-xs flex items-center gap-2 shadow-sm">
+            <AlertCircle className="h-4 w-4 text-rose-600 shrink-0" />
+            {validationError}
+          </div>
+        )}
+
+        {/* Success Alert Banner */}
+        {successMsg && (
+          <div className="m-4 p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-md font-semibold text-xs flex items-center gap-2 shadow-sm">
+            <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+            Asset successfully registered and persisted in DB!
+          </div>
+        )}
+
+        {/* Form Body Area */}
+        <form onSubmit={handleSave} className="p-6 flex-1 flex flex-col justify-between text-xs space-y-6">
+          {/* STEP 1: IDENTIFICATION & CLASSIFICATION */}
+          {currentStep === 1 && (
+            <div className="space-y-4">
+              <h3 className="font-bold text-sm text-slate-900 border-b pb-2 flex items-center gap-2">
+                <Tag className="h-4 w-4 text-[#145c3f]" />
+                1. IDENTIFICATION & CLASSIFICATION
+              </h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="md:col-span-2">
+                  <label className="block font-bold text-slate-700 mb-1">
+                    Asset Name / Item Description <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) => {
+                      setFormData({ ...formData, name: e.target.value });
+                      if (validationError) setValidationError(null);
+                    }}
+                    className="w-full px-3 py-2 rounded border border-slate-300 font-semibold focus:ring-1 focus:ring-[#25a872]"
+                    placeholder="e.g. HP LaserJet Enterprise MFP Printer"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">NHIA Serial Number / Tag (Optional)</label>
+                  <input
+                    type="text"
+                    value={formData.nhiaTagNumber}
+                    onChange={(e) => setFormData({ ...formData, nhiaTagNumber: e.target.value })}
+                    className="w-full px-3 py-2 rounded border border-slate-300 font-mono"
+                    placeholder="Auto-generated on DB if blank"
+                  />
+                </div>
+              </div>
+
+              {/* Dynamic Cascading Category Selects */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-[#f4f7f5] p-4 rounded-lg border border-slate-200">
+                <div>
+                  <label className="block font-bold text-slate-800 mb-1">Primary Category</label>
+                  <select
+                    value={formData.primaryCategory}
+                    onChange={(e) => handlePrimaryCategoryChange(e.target.value)}
+                    className="w-full px-3 py-2 rounded border border-slate-300 font-bold bg-white text-slate-900 shadow-sm"
+                  >
+                    {Object.keys(LOOKUPS.primaryCategories).map((cat) => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-800 mb-1">Sub Category</label>
+                  <select
+                    value={formData.subCategory}
+                    onChange={(e) => handleSubCategoryChange(e.target.value)}
+                    className="w-full px-3 py-2 rounded border border-slate-300 font-semibold bg-white text-slate-800 shadow-sm"
+                  >
+                    {availableSubCats.map((sub) => (
+                      <option key={sub} value={sub}>{sub}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-800 mb-1">Specific Item Type</label>
+                  <select
+                    value={formData.specificType}
+                    onChange={(e) => setFormData({ ...formData, specificType: e.target.value })}
+                    className="w-full px-3 py-2 rounded border border-slate-300 bg-white text-slate-800 shadow-sm"
+                  >
+                    {availableTypes.map((t: string) => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* CATEGORY-SPECIFIC ATTRIBUTES */}
+              <div className="pt-3 border-t border-slate-200 space-y-3">
+                <h4 className="font-bold text-xs uppercase tracking-wider text-[#145c3f] flex items-center gap-1.5">
+                  <Sliders className="h-4 w-4 text-[#25a872]" />
+                  Category-Specific Attributes for {formData.primaryCategory}
+                </h4>
+
+                {(formData.primaryCategory === "Office Equipment" || formData.primaryCategory === "Plant & Machinery") && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-[#f4f7f5] p-3.5 rounded-lg border border-slate-200">
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1">Serial Number</label>
+                      <input
+                        type="text"
+                        value={formData.categoryAttributes.serialNumber || ""}
+                        onChange={(e) => handleAttrChange("serialNumber", e.target.value)}
+                        className="w-full px-3 py-1.5 rounded border border-slate-300 font-mono bg-white"
+                        placeholder="e.g. CNB890123"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1">Power Rating (W)</label>
+                      <input
+                        type="text"
+                        value={formData.categoryAttributes.powerSpecification || ""}
+                        onChange={(e) => handleAttrChange("powerSpecification", e.target.value)}
+                        className="w-full px-3 py-1.5 rounded border border-slate-300 bg-white"
+                        placeholder="e.g. 500W"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {formData.primaryCategory === "Computer Equipment" && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-[#f4f7f5] p-3.5 rounded-lg border border-slate-200">
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1">Processor</label>
+                      <input
+                        type="text"
+                        value={formData.categoryAttributes.processor || ""}
+                        onChange={(e) => handleAttrChange("processor", e.target.value)}
+                        className="w-full px-3 py-1.5 rounded border border-slate-300 bg-white"
+                        placeholder="e.g. Intel Core i7 13th Gen"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1">RAM (GB)</label>
+                      <input
+                        type="text"
+                        value={formData.categoryAttributes.ramGb || ""}
+                        onChange={(e) => handleAttrChange("ramGb", e.target.value)}
+                        className="w-full px-3 py-1.5 rounded border border-slate-300 font-mono bg-white"
+                        placeholder="e.g. 16"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* STEP 2: LOCATION, CUSTODY & OFFICERS (DYNAMIC ZONE, STATE, DEPT, UNIT) */}
+          {currentStep === 2 && (
+            <div className="space-y-4">
+              <h3 className="font-bold text-sm text-slate-900 border-b pb-2 flex items-center gap-2">
+                <MapPin className="h-4 w-4 text-[#145c3f]" />
+                2. LOCATION, CUSTODY & OFFICERS
+              </h3>
+
+              {/* Dynamic Zone -> State -> Department -> Unit Cascading Selects */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 bg-[#f4f7f5] p-4 rounded-lg border border-slate-200">
+                <div>
+                  <label className="block font-bold text-slate-800 mb-1">Zone (Select)</label>
+                  <select
+                    value={formData.zone_id}
+                    onChange={(e) => handleZoneChange(e.target.value)}
+                    className="w-full px-3 py-2 rounded border border-slate-300 font-bold bg-white text-slate-900 shadow-sm"
+                  >
+                    <option value="">-- Select Zone --</option>
+                    {zones.map((z) => (
+                      <option key={z.id} value={z.id}>{z.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-800 mb-1">State (Select)</label>
+                  <select
+                    value={formData.state_id}
+                    disabled={!formData.zone_id}
+                    onChange={(e) => handleStateChange(e.target.value)}
+                    className="w-full px-3 py-2 rounded border border-slate-300 font-bold bg-white text-slate-900 shadow-sm disabled:opacity-50"
+                  >
+                    <option value="">-- Select State --</option>
+                    {states.map((s) => (
+                      <option key={s.id} value={s.id}>{s.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-800 mb-1">Department (Select)</label>
+                  <select
+                    value={formData.department_id}
+                    disabled={!formData.state_id}
+                    onChange={(e) => handleDepartmentChange(e.target.value)}
+                    className="w-full px-3 py-2 rounded border border-slate-300 font-bold bg-white text-slate-900 shadow-sm disabled:opacity-50"
+                  >
+                    <option value="">-- Select Department --</option>
+                    {departments.map((d) => (
+                      <option key={d.id} value={d.id}>{d.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-800 mb-1">Unit (Select)</label>
+                  <select
+                    value={formData.unit_id}
+                    disabled={!formData.department_id}
+                    onChange={(e) => handleUnitChange(e.target.value)}
+                    className="w-full px-3 py-2 rounded border border-slate-300 font-bold bg-white text-slate-900 shadow-sm disabled:opacity-50"
+                  >
+                    <option value="">-- Select Unit --</option>
+                    {units.map((u) => (
+                      <option key={u.id} value={u.id}>{u.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-lg border border-slate-200">
+                <div>
+                  <label className="block font-bold text-slate-800 mb-1">Coordinator / Director</label>
+                  <input
+                    type="text"
+                    value={formData.coordinator}
+                    onChange={(e) => setFormData({ ...formData, coordinator: e.target.value })}
+                    className="w-full px-3 py-2 rounded border border-slate-300 bg-white"
+                    placeholder="e.g. Alhaji Bello"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-800 mb-1">
+                    Tracking Officer Name <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.trackingOfficer}
+                    onChange={(e) => {
+                      setFormData({ ...formData, trackingOfficer: e.target.value });
+                      if (validationError) setValidationError(null);
+                    }}
+                    className="w-full px-3 py-2 rounded border border-slate-300 bg-white"
+                    placeholder="e.g. Musa Ibrahim"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-800 mb-1">Supervisor Name</label>
+                  <input
+                    type="text"
+                    value={formData.supervisor}
+                    onChange={(e) => setFormData({ ...formData, supervisor: e.target.value })}
+                    className="w-full px-3 py-2 rounded border border-slate-300 bg-white"
+                    placeholder="e.g. Director SQA"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-800 mb-1">Assigned Custodian</label>
+                  <input
+                    type="text"
+                    value={formData.assignedCustodian}
+                    onChange={(e) => setFormData({ ...formData, assignedCustodian: e.target.value })}
+                    className="w-full px-3 py-2 rounded border border-slate-300 font-semibold bg-white"
+                    placeholder="e.g. Ahmadu Bello"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Facility Site</label>
+                  <select
+                    value={formData.facilitySite}
+                    onChange={(e) => setFormData({ ...formData, facilitySite: e.target.value })}
+                    className="w-full px-3 py-2 rounded border border-slate-300 font-bold bg-white"
+                  >
+                    {LOOKUPS.facilitySites.map((s: string) => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Specific Location (Floor / Room)</label>
+                  <input
+                    type="text"
+                    value={formData.specificLocation}
+                    onChange={(e) => setFormData({ ...formData, specificLocation: e.target.value })}
+                    className="w-full px-3 py-2 rounded border border-slate-300"
+                    placeholder="e.g. 2nd Floor, Room 204"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Operational Status</label>
+                  <select
+                    value={formData.operationalStatus}
+                    onChange={(e) => setFormData({ ...formData, operationalStatus: e.target.value })}
+                    className="w-full px-3 py-2 rounded border border-slate-300 font-bold text-[#145c3f] bg-white"
+                  >
+                    {LOOKUPS.operationalStatuses.map((st: string) => <option key={st} value={st}>{st}</option>)}
+                  </select>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 3: FINANCIAL & DEPRECIATION DATA */}
+          {currentStep === 3 && (
+            <div className="space-y-4">
+              <h3 className="font-bold text-sm text-slate-900 border-b pb-2 flex items-center gap-2">
+                <CircleDollarSign className="h-4 w-4 text-[#25a872]" />
+                3. FINANCIAL & DEPRECIATION DATA
+              </h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Acquisition Date</label>
+                  <input
+                    type="date"
+                    value={formData.acquisitionDate}
+                    onChange={(e) => setFormData({ ...formData, acquisitionDate: e.target.value })}
+                    className="w-full px-3 py-2 rounded border border-slate-300 font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">
+                    Acquisition Cost (NGN ₦) <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.acquisitionCost}
+                    onChange={(e) => {
+                      setFormData({ ...formData, acquisitionCost: e.target.value });
+                      if (validationError) setValidationError(null);
+                    }}
+                    className="w-full px-3 py-2 rounded border border-slate-300 font-mono font-bold text-slate-900"
+                    placeholder="0.00"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Useful Life (Years)</label>
+                  <input
+                    type="number"
+                    value={formData.usefulLifeYears}
+                    onChange={(e) => setFormData({ ...formData, usefulLifeYears: e.target.value })}
+                    className="w-full px-3 py-2 rounded border border-slate-300 font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="p-3 bg-[#e8f5ee] border border-[#d4e8dc] rounded-md flex items-center justify-between font-mono">
+                <span className="font-bold text-[#145c3f] text-xs">Calculated Net Book Value (NBV):</span>
+                <span className="font-bold text-[#145c3f] text-base">₦{formData.netBookValue.toLocaleString()}</span>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 4: LIFECYCLE & MAINTENANCE */}
+          {currentStep === 4 && (
+            <div className="space-y-4">
+              <h3 className="font-bold text-sm text-slate-900 border-b pb-2 flex items-center gap-2">
+                <History className="h-4 w-4 text-amber-600" />
+                4. LIFECYCLE & MAINTENANCE
+              </h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Physical Condition</label>
+                  <select
+                    value={formData.physicalCondition}
+                    onChange={(e) => setFormData({ ...formData, physicalCondition: e.target.value })}
+                    className="w-full px-3 py-2 rounded border border-slate-300 font-bold text-[#145c3f] bg-white"
+                  >
+                    {LOOKUPS.physicalConditions.map((c: string) => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Last Physical Verification Date</label>
+                  <input
+                    type="date"
+                    value={formData.lastVerificationDate}
+                    onChange={(e) => setFormData({ ...formData, lastVerificationDate: e.target.value })}
+                    className="w-full px-3 py-2 rounded border border-slate-300 font-mono"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Wizard Footer Controls */}
+          <div className="flex items-center justify-between border-t pt-4">
+            <button
+              type="button"
+              disabled={currentStep === 1}
+              onClick={() => setCurrentStep((prev) => Math.max(1, prev - 1))}
+              className="inline-flex items-center gap-1 px-4 py-2 rounded border border-slate-300 text-slate-700 font-semibold disabled:opacity-40 hover:bg-slate-50 cursor-pointer"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Previous Step
+            </button>
+
+            <div className="flex items-center gap-2">
+              {currentStep < 4 ? (
+                <button
+                  type="button"
+                  onClick={handleNextStep}
+                  className="inline-flex items-center gap-1 px-5 py-2 rounded bg-[#145c3f] text-white font-semibold hover:bg-[#0f3d2e] shadow-sm cursor-pointer"
+                >
+                  <span>Next Step</span>
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              ) : (
+                <button
+                  type="submit"
+                  className="inline-flex items-center gap-1.5 px-6 py-2 rounded bg-emerald-600 text-white font-bold hover:bg-emerald-700 shadow-md cursor-pointer"
+                >
+                  <Save className="h-4 w-4" />
+                  <span>Save Asset to Register</span>
+                </button>
+              )}
+            </div>
+          </div>
+        </form>
+      </div>
+    </PageLayout>
+  );
+}
+
+export default AssetRegisterView;

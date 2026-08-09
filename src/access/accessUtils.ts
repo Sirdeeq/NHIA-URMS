@@ -1,6 +1,6 @@
 import type { AccessEntry, AccessUser } from "./types";
 import type { ParentModule, ChildModule } from "./moduleConfig";
-import { resolveModuleTitle } from "./moduleConfig";
+import { flatLeaves, isSubGroup, resolveModuleTitle } from "./moduleConfig";
 
 /** Map retired module titles to current MODULE_CONFIG titles */
 export function normalizeModuleTitle(title: string): string {
@@ -14,11 +14,7 @@ export function findEntry(user: AccessUser, moduleTitle: string): AccessEntry | 
 
 /** Get all leaf titles from a module (flattening sub-groups) */
 function allLeafTitles(mod: ParentModule): string[] {
-  return mod.children.flatMap(c =>
-    "type" in c && c.type === "group"
-      ? c.children.map((l: ChildModule) => l.title)
-      : [(c as ChildModule).title]
-  );
+  return flatLeaves(mod);
 }
 
 export function canAccessModule(mod: ParentModule, user: AccessUser): boolean {
@@ -97,8 +93,8 @@ export function filterSidebar(
     const allowed = normalizeAllowedTitles(entry.functionalities);
 
     const visibleChildren = mod.children.filter(c => {
-      if ("type" in c && c.type === "group") {
-        return c.children.some((l: ChildModule) => allowed.has(l.title));
+      if (isSubGroup(c)) {
+        return flatLeaves({ ...mod, children: c.children }).some((t) => allowed.has(t));
       }
       return allowed.has((c as ChildModule).title);
     });

@@ -1,5 +1,6 @@
 import * as React from "react";
 import { Provider, useDispatch, useSelector } from "react-redux";
+import { BrowserRouter } from "react-router-dom";
 import { store } from "@/src/store/store";
 import type { RootState } from "@/src/store/store";
 import { setCredentials, logout } from "@/src/store/authSlice";
@@ -24,7 +25,6 @@ function AppInner() {
     authApi.me()
       .then(res => {
         const u = res.user;
-        // Parse functionalities if it came back as string
         let funcs = u.functionalities;
         if (typeof funcs === "string") {
           try { funcs = JSON.parse(funcs); } catch { funcs = []; }
@@ -33,12 +33,11 @@ function AppInner() {
         dispatch(setCredentials({ token: storedToken, user: { ...u, functionalities: funcs } }));
       })
       .catch(() => {
-        // Token invalid/expired — clear it
         tokenStore.clear();
         dispatch(logout());
       })
       .finally(() => setChecking(false));
-  }, []);
+  }, [dispatch]);
 
   const handleLogin = (role: string, accessArr: AccessEntry[], userData: any) => {
     dispatch(setCredentials({
@@ -52,7 +51,6 @@ function AppInner() {
     dispatch(logout());
   };
 
-  // Loading screen while verifying stored token
   if (checking) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#f4f7f5]">
@@ -83,11 +81,13 @@ function AppInner() {
   );
 }
 
-// ─── Root — wraps with Redux Provider ────────────────────────────────────────
+// ─── Root — wraps with Redux Provider & BrowserRouter ───────────────────────
 export default function App() {
   return (
     <Provider store={store}>
-      <AppInner />
+      <BrowserRouter>
+        <AppInner />
+      </BrowserRouter>
     </Provider>
   );
 }

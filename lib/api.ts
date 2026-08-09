@@ -255,6 +255,66 @@ export const stockApi = {
     request<{ success: boolean; data: any }>(`/stock/verifications/${id}/status`, {
       method: "PATCH", body: JSON.stringify({ status }),
     }),
+
+  /** Store inventory catalog — maps to existing /store-management routes */
+  getInventoryItems: () =>
+    request<{ success: boolean; data: any[] }>("/store-management/inventory/items"),
+
+  getInventoryItem: (id: number | string) =>
+    request<{ success: boolean; data: any }>(`/store-management/inventory/items/${id}`),
+
+  createInventoryItem: (payload: any) =>
+    request<{ success: boolean; data: any }>("/store-management/inventory/items", {
+      method: "POST", body: JSON.stringify(payload),
+    }),
+
+  /** Supply pre-verification — maps to existing /store-management routes */
+  getSupplyVerifications: () =>
+    request<{ success: boolean; data: any[] }>("/store-management/verification/supply"),
+
+  getSupplyVerification: (id: number | string) =>
+    request<{ success: boolean; data: any }>(`/store-management/verification/supply/${id}`),
+
+  createSupplyVerification: (payload: any) =>
+    request<{ success: boolean; data: any; inventoryPosted?: any[] }>("/store-management/verification/supply", {
+      method: "POST", body: JSON.stringify(payload),
+    }),
+
+  // Transfers
+  getTransfers: () =>
+    request<{ success: boolean; data: any[] }>("/store-management/transfers"),
+
+  createTransfer: (payload: any) =>
+    request<{ success: boolean; data: any }>("/store-management/transfers", {
+      method: "POST", body: JSON.stringify(payload),
+    }),
+
+  updateTransfer: (id: number | string, payload: any) =>
+    request<{ success: boolean; data: any }>(`/store-management/transfers/${id}`, {
+      method: "PUT", body: JSON.stringify(payload),
+    }),
+
+  // Maintenance
+  getMaintenance: () =>
+    request<{ success: boolean; data: any[] }>("/store-management/maintenance"),
+
+  createMaintenance: (payload: any) =>
+    request<{ success: boolean; data: any }>("/store-management/maintenance", {
+      method: "POST", body: JSON.stringify(payload),
+    }),
+
+  // Disposal
+  getDisposals: () =>
+    request<{ success: boolean; data: any[] }>("/store-management/disposal"),
+
+  createDisposal: (payload: any) =>
+    request<{ success: boolean; data: any }>("/store-management/disposal", {
+      method: "POST", body: JSON.stringify(payload),
+    }),
+
+  // Store assets (for transfer/maintenance/disposal pickers)
+  getStoreAssets: () =>
+    request<{ success: boolean; data: any[] }>("/store-management/assets"),
 };
 
 // ─── Monthly Reports ──────────────────────────────────────────────────────────

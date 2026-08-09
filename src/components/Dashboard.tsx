@@ -21,6 +21,7 @@ import {
   AreaChart, Area, LineChart, Line
 } from "recharts";
 
+import { Routes, Route, useLocation, useNavigate, Navigate } from "react-router-dom";
 import ReportEntry from "./ReportEntry";
 import ReportPreview from "./ReportPreview";
 import ZonalReview from "./ZonalReview";
@@ -50,7 +51,7 @@ import ComplaintsMonthlyForm from "./monthly/ComplaintsMonthlyForm";
 import ComplianceManagementPage from "./compliance/ComplianceManagementPage";
 import MonthlyReportsList from "./monthly/MonthlyReportsList";
 import DeptMonthlyPage from "./monthly/DeptMonthlyPage";
-import SidebarNav from "./SidebarNav";
+// SidebarNav logic is now inside AppSidebar.tsx
 import AdminSettingsPage from "./admin/AdminSettingsPage";
 import AdminDashboard from "./admin/AdminDashboard";
 import StateCoordinatorPanel from "./StateCoordinatorPanel";
@@ -59,13 +60,46 @@ import StateOfficeDashboard from "./StateOfficeDashboard";
 import DepartmentalDashboard from "./DepartmentalDashboard";
 import ReportReviewPage from "./ReportReviewPage";
 import NotificationsPage from "./NotificationsPage";
+import DashboardView from "../modules/store_management/pages/DashboardView";
+import CategoriesView from "../modules/store_management/pages/CategoriesView";
+import AssetListView from "../modules/store_management/pages/AssetListView";
+import AssetRegisterView from "../modules/store_management/pages/AssetRegisterView";
+import AssetDetailView from "../modules/store_management/pages/assets/AssetDetailView";
+import QrLabelsView from "../modules/store_management/pages/assets/QrLabelsView";
+import InventoryItemsView from "../modules/store_management/pages/InventoryItemsView";
+import InventoryItemDetailView from "../modules/store_management/pages/InventoryItemDetailView";
+import GoodsReceiptView from "../modules/store_management/pages/GoodsReceiptView";
+import StockIssuesView from "../modules/store_management/pages/StockIssuesView";
+import NewStockIssueView from "../modules/store_management/pages/stores/NewStockIssueView";
+import StoreListView from "../modules/store_management/pages/StoreListView";
+import StockReturnsView from "../modules/store_management/pages/StockReturnsView";
+import AssetTransfersView from "../modules/store_management/pages/AssetTransfersView";
+import NewTransferView from "../modules/store_management/pages/transfers/NewTransferView";
+import SupplyVerificationView from "../modules/store_management/pages/SupplyVerificationView";
+import NewSupplyVerificationView from "../modules/store_management/pages/verification/NewSupplyVerificationView";
+import SupplyVerificationDetailView from "../modules/store_management/pages/verification/SupplyVerificationDetailView";
+import VerificationView from "../modules/store_management/pages/verification/VerificationView";
+import VerificationCertificateView from "../modules/store_management/pages/verification/VerificationCertificateView";
+import ExceptionsView from "../modules/store_management/pages/verification/ExceptionsView";
+import MaintenanceView from "../modules/store_management/pages/MaintenanceView";
+import AssetDisposalView from "../modules/store_management/pages/AssetDisposalView";
+import AssetReportsView from "../modules/store_management/pages/AssetReportsView";
+import UserManagementView from "../modules/store_management/pages/admin/UserManagementView";
+import OfficesView from "../modules/store_management/pages/admin/OfficesView";
+import AuditView from "../modules/store_management/pages/admin/AuditView";
+import AdjustmentsView from "../modules/store_management/pages/AdjustmentsView";
+import AssetConversionView from "../modules/store_management/pages/AssetConversionView";
+import MovementLedgerView from "../modules/store_management/pages/MovementLedgerView";
 import { getMonthlyReportContext } from "@/src/access/monthlyReportAccess";
 import { canAccessFunctionality, expandAccessEntries } from "@/src/access/accessUtils";
 import { STATE_VIEW_TO_FUNCTIONALITY } from "@/src/access/moduleConfig";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+import AppSidebar from "./AppSidebar";
+import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
+
 type Role = "state-officer" | "zonal-coordinator" | "state-coordinator" | "department-officer" | "sdo" | "hq-department" | "audit" | "dg-ceo" | "admin";
-type View = "home" | "report-entry" | "report-preview" | "zonal-review" | "zonal-compose" | "annual-report" | "annual-reports-list" | "annual-report-detail" | "settings" | "stock-verifications-list" | "stock-assets" | "servicom-dashboard" | "servicom-visits" | "servicom-complaints" | "servicom-satisfaction" | "servicom-comment-card" | "finance-monthly" | "admin-monthly" | "programmes-monthly" | "outreach-monthly" | "sqa-monthly" | "sqa-compliance" | "complaints-monthly" | "monthly-reports-list" | "report-review" | "notifications" | "state-enrolment" | "state-migration" | "state-cemonc" | "state-complaints" | "state-compliance-monitoring" | "state-reconciliation" | "state-accreditation" | "state-stakeholder" | "state-hmo-selection" | "state-challenges" | "state-igr" | "state-sshia-financial" | "state-expenditure-profile" | "state-weekly-actionable" | "state-contracted-services";
+type View = "home" | "report-entry" | "report-preview" | "zonal-review" | "zonal-compose" | "annual-report" | "annual-reports-list" | "annual-report-detail" | "settings" | "stock-verifications-list" | "stock-assets" | "servicom-dashboard" | "servicom-visits" | "servicom-complaints" | "servicom-satisfaction" | "servicom-comment-card" | "finance-monthly" | "admin-monthly" | "programmes-monthly" | "outreach-monthly" | "sqa-monthly" | "sqa-compliance" | "complaints-monthly" | "monthly-reports-list" | "report-review" | "notifications" | "state-enrolment" | "state-migration" | "state-cemonc" | "state-complaints" | "state-compliance-monitoring" | "state-reconciliation" | "state-accreditation" | "state-stakeholder" | "state-hmo-selection" | "state-challenges" | "state-igr" | "state-sshia-financial" | "state-expenditure-profile" | "state-weekly-actionable" | "state-contracted-services" | "store-assets-list" | "store-assets-register" | "store-inventory-catalog" | "store-goods-receipt" | "store-stock-issues" | "store-directory" | "store-stock-returns" | "store-asset-transfers" | "store-supply-verification" | "store-asset-maintenance" | "store-asset-disposal" | "store-asset-reports";
 interface DashboardProps { role: Role; user?: import("@/src/store/authSlice").AuthUser; access?: import("@/src/access/types").AccessEntry[]; functionalities?: string; onLogout: () => void; }
 
 // ─── Mock data ────────────────────────────────────────────────────────────────
@@ -406,7 +440,7 @@ function AuditPanel() {
 // ─── Main Dashboard ───────────────────────────────────────────────────────────
 export default function Dashboard({ role, user, access = [], functionalities = "", onLogout }: DashboardProps) {
   const [view, setView] = React.useState<View>(role === "admin" ? "home" : "home");
-  const [sidebarOpen, setSidebarOpen] = React.useState(true);
+  // Sidebar state is now managed by shadcn SidebarProvider
   const [selectedReportRef, setSelectedReportRef] = React.useState<string | null>(null);
   const userInfo = getUserInfo(role) ?? { name: "User", initials: "U", email: "user@nhia.gov.ng", dept: "NHIA" };
   const monthlyCtx = getMonthlyReportContext(role, user);
@@ -427,78 +461,23 @@ export default function Dashboard({ role, user, access = [], functionalities = "
   }, [view, role, access]);
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-[#f4f7f5]">
-
-      {/* ── Sidebar ── */}
-      <aside className={`sidebar-gradient flex flex-col transition-all duration-300 shrink-0 ${sidebarOpen ? "w-60" : "w-16"}`}>
-        {/* Logo */}
-        <div className="h-20 flex items-center justify-center px-3 border-b border-white/10">
-          {sidebarOpen
-            ? <img src="/logo.png" alt="NHIA" className="h-12 w-auto object-contain" />
-            : <img src="/logo.png" alt="NHIA" className="h-8 w-8 object-contain" />
-          }
-        </div>
-
-        {/* Profile block */}
-        {sidebarOpen && (
-          <div className="mx-3 mt-4 mb-2 p-3 rounded-xl bg-white/10 border border-white/10">
-            <div className="flex items-center gap-2.5">
-              <Avatar className="w-9 h-9 border-2 border-white/30">
-                <AvatarImage src={`https://picsum.photos/seed/${user?.staff_id || userInfo.initials}/200`} />
-                <AvatarFallback className="bg-[#25a872] text-white text-xs font-bold">
-                  {user?.name?.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase() || userInfo.initials}
-                </AvatarFallback>
-              </Avatar>
-              <div className="min-w-0">
-                <p className="text-xs font-bold text-white truncate">{user?.name || userInfo.name}</p>
-                <p className="text-[10px] text-white/50 truncate">
-                  {role === "department-officer" && user?.department?.name 
-                    ? user.department.name 
-                    : role === "state-officer" && user?.state?.description
-                    ? user.state.description
-                    : role === "zonal-coordinator" && user?.zone?.description
-                    ? user.zone.description
-                    : userInfo.dept}
-                </p>
-              </div>
-            </div>
-            <div className="mt-2.5">
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#25a872]/30 text-[#6ddba8] border border-[#25a872]/30">
-                {getRoleLabel(role)}
-              </span>
-            </div>
-          </div>
-        )}
-
-        {/* Nav */}
-        <SidebarNav role={role} access={access} view={view} setView={(v) => setView(v as View)} sidebarOpen={sidebarOpen} />
-
-        {/* Logout */}
-        <div className="p-3 border-t border-white/10">
-          <button onClick={onLogout}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-white/50 hover:bg-rose-500/20 hover:text-rose-300 transition-all"
-          >
-            <LogOut className="w-4 h-4 shrink-0" />
-            {sidebarOpen && <span className="text-xs font-semibold">Logout</span>}
-          </button>
-        </div>
-      </aside>
+    <SidebarProvider>
+      <AppSidebar
+        role={role}
+        user={user}
+        access={access}
+        view={view}
+        setView={(v) => setView(v as View)}
+        onLogout={onLogout}
+      />
 
       {/* ── Main area ── */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <SidebarInset className="flex flex-col overflow-hidden bg-[#f4f7f5]">
 
         {/* Top navbar */}
         <header className="h-16 bg-white/80 backdrop-blur-md border-b border-[#d4e8dc] flex items-center justify-between px-6 z-20 shrink-0">
           <div className="flex items-center gap-3">
-            <button onClick={() => setSidebarOpen(o => !o)}
-              className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:bg-[#e8f5ee] hover:text-[#145c3f] transition-colors"
-            >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <rect y="2" width="16" height="1.5" rx="0.75" fill="currentColor"/>
-                <rect y="7.25" width="11" height="1.5" rx="0.75" fill="currentColor"/>
-                <rect y="12.5" width="16" height="1.5" rx="0.75" fill="currentColor"/>
-              </svg>
-            </button>
+            <SidebarTrigger className="text-slate-500 hover:bg-[#e8f5ee] hover:text-[#145c3f]" />
             <Separator orientation="vertical" className="h-5 bg-[#d4e8dc]" />
             <div>
               <p className="text-sm font-bold text-slate-800 leading-tight">
@@ -556,409 +535,149 @@ export default function Dashboard({ role, user, access = [], functionalities = "
         {/* Content */}
         <main className="flex-1 overflow-y-auto scrollbar-thin">
           {/* Watermark */}
-          <div className="pointer-events-none fixed inset-0 flex items-center justify-center z-0" style={{ left: sidebarOpen ? "240px" : "64px" }}>
+          <div className="pointer-events-none fixed inset-0 flex items-center justify-center z-0">
             <img src="/logo.png" alt="" aria-hidden className="w-[50vw] max-w-xl opacity-[0.03] select-none" />
           </div>
 
-          <AnimatePresence mode="wait">
-            {view === "home" ? (
-              <motion.div key="home" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                className="relative z-10 p-6 max-w-7xl mx-auto space-y-6"
-              >
-                
-
-                {/* KPI row — hidden for SDO, Zonal Coordinator, State Officer, State Coordinator, Department Officer and Admin (have their own KPIs) */}
+          <Routes>
+            {/* ── Home / Main Dashboard Overview ── */}
+            <Route path="/" element={
+              <div className="relative z-10 p-6 max-w-7xl mx-auto space-y-6">
                 {role !== "sdo" && role !== "zonal-coordinator" && role !== "state-officer" && role !== "state-coordinator" && role !== "department-officer" && role !== "admin" && (
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                  <KPICard title="Reports Submitted" value="124" trend="+12%" trendUp icon={<FileText className="w-5 h-5 text-blue-600" />} tint="kpi-blue" sub="This month" />
-                  <KPICard title="Pending Review"    value="18"  trend="-5%"  icon={<Clock className="w-5 h-5 text-amber-600" />}  tint="kpi-amber" sub="Awaiting action" />
-                  <KPICard title="Open Directives"   value="06"  trend="+2"   trendUp icon={<Compass className="w-5 h-5 text-[#145c3f]" />} tint="kpi-green" sub="Active tasks" />
-                  <KPICard title="Compliance Rate"   value="98.2%" trend="+0.4%" trendUp icon={<CheckSquare className="w-5 h-5 text-purple-600" />} tint="kpi-purple" sub="National average" />
-                </div>
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <KPICard title="Reports Submitted" value="124" trend="+12%" trendUp icon={<FileText className="w-5 h-5 text-blue-600" />} tint="kpi-blue" sub="This month" />
+                    <KPICard title="Pending Review"    value="18"  trend="-5%"  icon={<Clock className="w-5 h-5 text-amber-600" />}  tint="kpi-amber" sub="Awaiting action" />
+                    <KPICard title="Open Directives"   value="06"  trend="+2"   trendUp icon={<Compass className="w-5 h-5 text-[#145c3f]" />} tint="kpi-green" sub="Active tasks" />
+                    <KPICard title="Compliance Rate"   value="98.2%" trend="+0.4%" trendUp icon={<CheckSquare className="w-5 h-5 text-purple-600" />} tint="kpi-purple" sub="National average" />
+                  </div>
                 )}
 
-                {/* Main grid */}
                 {role === "sdo" ? (
-                  /* SDO: full-width performance dashboard */
-                  <motion.div key={role} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-                    <SDOPerformance />
-                  </motion.div>
+                  <SDOPerformance />
                 ) : role === "zonal-coordinator" ? (
-                  /* Zonal Coordinator: zone + state drill-down dashboard */
-                  <motion.div key={role} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-                    <ZonalDirectorDashboard
-                      user={user}
-                      zoneName={user?.zone?.description ?? "South West"}
-                      onReviewReports={() => setView("zonal-review")}
-                    />
-                  </motion.div>
+                  <ZonalDirectorDashboard user={user} zoneName={user?.zone?.description ?? "South West"} onReviewReports={() => setView("zonal-review")} />
                 ) : role === "state-officer" ? (
-                  /* State Officer: scoped to their assigned department only */
-                  <motion.div key={role} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-                    <StateOfficeDashboard
-                      user={user}
-                      role="state-officer"
-                      stateName={user?.state?.description ?? "Lagos"}
-                      zoneName={user?.zone?.description ?? "South West"}
-                      onNewReport={() => setView("report-entry")}
-                      onAnnualReport={() => setView("annual-report")}
-                      onViewSubmissions={() => setView("annual-reports-list")}
-                      onNewSubmission={(targetView) => setView(targetView as View)}
-                    />
-                  </motion.div>
+                  <StateOfficeDashboard user={user} role="state-officer" stateName={user?.state?.description ?? "Lagos"} zoneName={user?.zone?.description ?? "South West"} onNewReport={() => setView("report-entry")} onAnnualReport={() => setView("annual-report")} onViewSubmissions={() => setView("annual-reports-list")} onNewSubmission={(targetView) => setView(targetView as View)} />
                 ) : role === "state-coordinator" ? (
-                  /* State Coordinator: sees all departments in the state */
-                  <motion.div key={role} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-                    <StateOfficeDashboard
-                      user={user}
-                      role="state-coordinator"
-                      stateName={user?.state?.description ?? "Lagos"}
-                      zoneName={user?.zone?.description ?? "South West"}
-                      onNewReport={() => setView("report-entry")}
-                      onAnnualReport={() => setView("annual-report")}
-                      onViewSubmissions={() => setView("annual-reports-list")}
-                      onNewSubmission={(targetView) => setView(targetView as View)}
-                    />
-                  </motion.div>
+                  <StateOfficeDashboard user={user} role="state-coordinator" stateName={user?.state?.description ?? "Lagos"} zoneName={user?.zone?.description ?? "South West"} onNewReport={() => setView("report-entry")} onAnnualReport={() => setView("annual-report")} onViewSubmissions={() => setView("annual-reports-list")} onNewSubmission={(targetView) => setView(targetView as View)} />
                 ) : role === "department-officer" ? (
-                  /* Department Officer: department stats + unit drill-down */
-                  <motion.div key={role} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-                    <DepartmentalDashboard
-                      user={user}
-                      onNewSubmission={(targetView) => setView(targetView as View)}
-                    />
-                  </motion.div>
+                  <DepartmentalDashboard user={user} onNewSubmission={(targetView) => setView(targetView as View)} />
                 ) : role === "admin" ? (
-                  /* Admin: full system overview with live stats */
                   <AdminDashboard onNavigate={() => setView("settings")} />
                 ) : (
-                <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-                  <div className="xl:col-span-2 space-y-6">
-                    {/* Chart */}
-                    <Card className="rounded-2xl border-[#d4e8dc] shadow-sm">
-                      <CardHeader className="pb-2 flex flex-row items-center justify-between">
-                        <div>
-                          <CardTitle className="text-sm font-bold text-slate-800">Reports by Zone</CardTitle>
-                          <CardDescription className="text-xs">Submitted vs Approved — 2025</CardDescription>
-                        </div>
-                        <div className="flex items-center gap-3 text-[10px] text-slate-500">
-                          <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-[#d1f5e4] inline-block" />Submitted</span>
-                          <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-[#25a872] inline-block" />Approved</span>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="h-[220px]">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={CHART_DATA} barSize={14} barGap={4}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e8f5ee" />
-                            <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#5a7a6a" }} axisLine={false} tickLine={false} />
-                            <YAxis tick={{ fontSize: 11, fill: "#5a7a6a" }} axisLine={false} tickLine={false} />
-                            <RechartsTooltip contentStyle={{ borderRadius: 12, border: "1px solid #d4e8dc", fontSize: 12, boxShadow: "0 4px 16px rgba(0,0,0,0.08)" }} />
-                            <Bar dataKey="reports"  fill="#d1f5e4" radius={[6,6,0,0]} />
-                            <Bar dataKey="approved" fill="#25a872" radius={[6,6,0,0]} />
-                          </BarChart>
-                        </ResponsiveContainer>
-                      </CardContent>
-                    </Card>
-
-                    {/* Zonal performance */}
-                    <Card className="rounded-2xl border-[#d4e8dc] shadow-sm">
-                      <CardHeader className="pb-3">
-                        <CardTitle className="text-sm font-bold text-slate-800">Zonal Performance</CardTitle>
-                        <CardDescription className="text-xs">Compliance rates across geopolitical zones</CardDescription>
-                      </CardHeader>
-                      <CardContent className="space-y-3">
-                        {ZONE_DATA.map(z => (
-                          <div key={z.zone} className="flex items-center gap-3">
-                            <p className="text-xs font-semibold text-slate-700 w-32 shrink-0 truncate">{z.zone}</p>
-                            <div className="flex-1 h-2 bg-[#e8f5ee] rounded-full overflow-hidden">
-                              <div className="h-full rounded-full transition-all" style={{ width: `${z.compliance}%`, backgroundColor: z.color }} />
-                            </div>
-                            <span className="text-xs font-bold text-slate-700 w-10 text-right">{z.compliance}%</span>
-                            <Badge className="text-[9px] px-1.5 py-0 bg-[#e8f5ee] text-[#145c3f] border-[#d4e8dc] w-14 justify-center">
-                              {z.reports} rpts
-                            </Badge>
-                          </div>
-                        ))}
-                      </CardContent>
-                    </Card>
-
-                    {/* Role panel */}
-                    <motion.div key={role} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-                      {role === "dg-ceo"        && <DGCEOPanel />}
-                      {role === "hq-department" && <HQPanel />}
-                      {role === "audit"         && <AuditPanel />}
-                    </motion.div>
-                  </div>
-
-                  {/* Right column */}
-                  <div className="space-y-5">
-                    {/* Recent activity */}
-                    <Card className="rounded-2xl border-[#d4e8dc] shadow-sm">
-                      <CardHeader className="pb-3">
-                        <CardTitle className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                          <Activity className="w-4 h-4 text-[#25a872]" /> Recent Activity
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-4">
-                          {RECENT_ACTIVITY.map((a, idx) => (
-                            <div key={a.id} className="flex gap-3 relative">
-                              {idx !== RECENT_ACTIVITY.length - 1 && (
-                                <div className="absolute left-[11px] top-7 w-[2px] h-7 bg-[#e8f5ee]" />
-                              )}
-                              <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${activityDot[a.type]}`}>
-                                <div className="w-1.5 h-1.5 rounded-full bg-white" />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-xs font-bold text-slate-800 leading-tight">{a.action}</p>
-                                <p className="text-[10px] text-slate-500">{a.user}</p>
-                                <div className="flex items-center gap-1.5 mt-1">
-                                  <span className="text-[10px] text-slate-400">{a.time}</span>
-                                  <Badge className={`text-[9px] px-1.5 py-0 h-4 ${
-                                    a.status === "Completed" ? "bg-emerald-100 text-emerald-700 border-emerald-200" :
-                                    a.status === "Pending"   ? "bg-amber-100  text-amber-700  border-amber-200"  :
-                                    a.status === "Flagged"   ? "bg-rose-100   text-rose-700   border-rose-200"   :
-                                    "bg-blue-100 text-blue-700 border-blue-200"
-                                  }`}>{a.status}</Badge>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                        <Button variant="ghost" className="w-full mt-4 text-xs text-slate-500 hover:text-[#145c3f] hover:bg-[#e8f5ee] rounded-xl h-8">
-                          View All Activity
-                        </Button>
-                      </CardContent>
-                    </Card>
-
-                    {/* System health */}
-                    <div className="rounded-2xl p-5 overflow-hidden relative" style={{ background: "linear-gradient(135deg,#145c3f 0%,#0f3d2e 100%)" }}>
-                      <div className="absolute top-0 right-0 w-28 h-28 bg-white/5 rounded-full -mr-10 -mt-10 blur-2xl" />
-                      <div className="absolute bottom-0 left-0 w-20 h-20 bg-[#25a872]/20 rounded-full -ml-8 -mb-8 blur-xl" />
-                      <div className="relative z-10">
-                        <div className="flex items-center gap-2 mb-4">
-                          <div className="w-8 h-8 rounded-xl bg-white/15 flex items-center justify-center">
-                            <Zap className="w-4 h-4 text-[#6ddba8]" />
-                          </div>
+                  <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                    <div className="xl:col-span-2 space-y-6">
+                      <Card className="rounded-2xl border-[#d4e8dc] shadow-sm">
+                        <CardHeader className="pb-2 flex flex-row items-center justify-between">
                           <div>
-                            <p className="text-sm font-bold text-white">System Health</p>
-                            <p className="text-[10px] text-white/50">All systems operational</p>
+                            <CardTitle className="text-sm font-bold text-slate-800">Reports by Zone</CardTitle>
+                            <CardDescription className="text-xs">Submitted vs Approved — 2025</CardDescription>
                           </div>
-                        </div>
-                        <div className="space-y-3">
-                          {[
-                            { label: "Data Sync",    val: 100 },
-                            { label: "API Gateway",  val: 98  },
-                            { label: "Report Queue", val: 87  },
-                          ].map(s => (
-                            <div key={s.label}>
-                              <div className="flex justify-between text-[10px] text-white/70 mb-1">
-                                <span>{s.label}</span><span className="font-bold text-white">{s.val}%</span>
-                              </div>
-                              <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
-                                <div className="h-full bg-[#25a872] rounded-full" style={{ width: `${s.val}%` }} />
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                        <p className="text-[10px] text-white/40 mt-4">Last sync: 2 minutes ago</p>
-                      </div>
+                        </CardHeader>
+                        <CardContent className="h-[220px]">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={CHART_DATA} barSize={14} barGap={4}>
+                              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e8f5ee" />
+                              <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#5a7a6a" }} axisLine={false} tickLine={false} />
+                              <YAxis tick={{ fontSize: 11, fill: "#5a7a6a" }} axisLine={false} tickLine={false} />
+                              <RechartsTooltip contentStyle={{ borderRadius: 12, border: "1px solid #d4e8dc", fontSize: 12 }} />
+                              <Bar dataKey="reports"  fill="#d1f5e4" radius={[6,6,0,0]} />
+                              <Bar dataKey="approved" fill="#25a872" radius={[6,6,0,0]} />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </CardContent>
+                      </Card>
                     </div>
-
-                    {/* Top performing */}
-                    <Card className="rounded-2xl border-[#d4e8dc] shadow-sm">
-                      <CardHeader className="pb-3">
-                        <CardTitle className="text-sm font-bold text-slate-800">Top Performing</CardTitle>
-                        <CardDescription className="text-xs">Highest compliance zones</CardDescription>
-                      </CardHeader>
-                      <CardContent className="space-y-2.5">
-                        {ZONE_DATA.filter(z => z.compliance >= 92).slice(0, 3).map((z, i) => (
-                          <div key={z.zone} className="flex items-center gap-3 p-2.5 rounded-xl bg-[#f0fdf7] border border-[#d4e8dc]">
-                            <span className="w-5 h-5 rounded-full bg-[#25a872] text-white text-[10px] font-black flex items-center justify-center shrink-0">{i+1}</span>
-                            <p className="text-xs font-semibold text-slate-800 flex-1 truncate">{z.zone}</p>
-                            <span className="text-xs font-black text-[#145c3f]">{z.compliance}%</span>
-                          </div>
-                        ))}
-                      </CardContent>
-                    </Card>
                   </div>
-                </div>
-                )} {/* end role !== "sdo" ternary */}
-              </motion.div>
-            ) : view === "report-entry" ? (
-              <ReportEntry onBack={() => setView("home")} onPreview={() => setView("report-preview")} />
-            ) : view === "report-preview" ? (
-              <ReportPreview onBack={() => setView("report-entry")} onEditSection={() => setView("report-entry")} onSubmit={() => setView("home")} />
-            ) : view === "zonal-review" ? (
-              <ZonalReview onCompose={() => setView("zonal-compose")} />
-            ) : view === "annual-report" ? (
-              <AnnualReportForm onBack={() => setView("home")} onSubmit={(_refId) => setView("annual-reports-list")} />
-            ) : view === "annual-reports-list" ? (
-              <AnnualReportsList
-                onBack={() => setView("home")}
-                defaultZoneId={monthlyCtx.defaultZoneId ?? (user?.zone_id ? String(user.zone_id) : null)}
-                defaultStateId={monthlyCtx.defaultStateId}
-                reportScope={(user?.role_config?.report_scope as "national" | "zonal" | "state" | "none") ?? "national"}
-              />
-            ) : view === "annual-report-detail" ? (
-              <AnnualReportDetail
-                referenceId={selectedReportRef!}
-                onBack={() => setView("annual-reports-list")}
-              />
-            ) : view === "stock-verifications-list" ? (
-              <StockVerificationsList onBack={() => setView("home")} />
-            ) : view === "stock-assets" ? (
-              <StockAssetManager onBack={() => setView("home")} />
-            ) : view === "servicom-dashboard" ? (
-              <ServicomDashboard
-                onBack={() => setView("home")}
-                defaultStateId={monthlyCtx.defaultStateId}
-                defaultZoneId={monthlyCtx.defaultZoneId}
-              />
-            ) : view === "servicom-visits" ? (
-              <ServicomVisitsPage
-                onBack={() => setView("home")}
-                defaultStateId={monthlyCtx.defaultStateId}
-                defaultZoneId={monthlyCtx.defaultZoneId}
-              />
-            ) : view === "servicom-complaints" ? (
-              <ServicomComplaintsPage
-                onBack={() => setView("home")}
-                defaultStateId={monthlyCtx.defaultStateId}
-                defaultZoneId={monthlyCtx.defaultZoneId}
-              />
-            ) : view === "servicom-satisfaction" ? (
-              <ServicomSatisfactionSurveyPage
-                onBack={() => setView("home")}
-                defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId}
-                defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId}
-                defaultStateName={user?.state?.description}
-                defaultZoneName={user?.zone?.description}
-                userName={user?.name}
-              />
-            ) : view === "servicom-comment-card" ? (
-              <ServicomCommentCardPage
-                onBack={() => setView("home")}
-                defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId}
-                defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId}
-                defaultStateName={user?.state?.description}
-                defaultZoneName={user?.zone?.description}
-              />
-            ) : view === "finance-monthly" ? (
-              <DeptMonthlyPage dept="finance" title="Finance Monthly Reports" section="finance"
-                onBack={() => setView("home")} defaultZoneId={monthlyCtx.defaultZoneId} defaultStateId={monthlyCtx.defaultStateId}
-                canCreate={monthlyCtx.canCreateMonthly}
-                FormComponent={FinanceMonthlyForm} />
-            ) : view === "admin-monthly" ? (
-              <DeptMonthlyPage dept="finance" title="Admin / HR Monthly Reports" section="admin"
-                onBack={() => setView("home")} defaultZoneId={monthlyCtx.defaultZoneId} defaultStateId={monthlyCtx.defaultStateId}
-                canCreate={monthlyCtx.canCreateMonthly}
-                FormComponent={AdminMonthlyForm} />
-            ) : view === "programmes-monthly" ? (
-              <DeptMonthlyPage dept="programmes" title="Enrolment Monthly Reports" section="enrolment"
-                onBack={() => setView("home")} defaultZoneId={monthlyCtx.defaultZoneId} defaultStateId={monthlyCtx.defaultStateId}
-                canCreate={monthlyCtx.canCreateMonthly}
-                FormComponent={ProgrammesMonthlyForm} />
-            ) : view === "outreach-monthly" ? (
-              <DeptMonthlyPage dept="programmes" title="Outreach Monthly Reports" section="outreach"
-                onBack={() => setView("home")} defaultZoneId={monthlyCtx.defaultZoneId} defaultStateId={monthlyCtx.defaultStateId}
-                canCreate={monthlyCtx.canCreateMonthly}
-                FormComponent={OutreachMonthlyForm} />
-            ) : view === "sqa-monthly" ? (
-              <DeptMonthlyPage dept="sqa" title="HMO/HCP Quality Assurance Monthly Reports" section="sqa"
-                onBack={() => setView("home")} defaultZoneId={monthlyCtx.defaultZoneId} defaultStateId={monthlyCtx.defaultStateId}
-                canCreate={monthlyCtx.canCreateMonthly}
-                FormComponent={SqaMonthlyForm} />
-            ) : view === "sqa-compliance" ? (
-              <ComplianceManagementPage
-                onBack={() => setView("home")}
-                defaultZoneId={monthlyCtx.defaultZoneId}
-                defaultStateId={monthlyCtx.defaultStateId}
-              />
-            ) : view === "complaints-monthly" ? (
-              <DeptMonthlyPage dept="sqa" title="Enrollee Complaints Monthly Reports" section="complaints"
-                onBack={() => setView("home")} defaultZoneId={monthlyCtx.defaultZoneId} defaultStateId={monthlyCtx.defaultStateId}
-                canCreate={monthlyCtx.canCreateMonthly}
-                FormComponent={ComplaintsMonthlyForm} />
-            ) : view === "monthly-reports-list" ? (
-              <MonthlyReportsList
-                onBack={() => setView("home")}
-                onNew={(dept) => setView(`${dept === "finance" ? "finance" : dept === "sqa" ? "sqa" : "programmes"}-monthly` as View)}
-                defaultStateId={monthlyCtx.defaultStateId}
-                defaultZoneId={monthlyCtx.defaultZoneId}
-              />
-            ) : view === "state-enrolment" ? (
-              <StateOfficeReportsList key="state-enrolment" reportType="enrolment" onBack={() => setView("home")}
-                defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId}
-                defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />
-            ) : view === "state-migration" ? (
-              <StateOfficeReportsList key="state-migration" reportType="migration" onBack={() => setView("home")}
-                defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId}
-                defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />
-            ) : view === "state-cemonc" ? (
-              <StateOfficeReportsList key="state-cemonc" reportType="cemonc" onBack={() => setView("home")}
-                defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId}
-                defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />
-            ) : view === "state-complaints" ? (
-              <StateOfficeComplaintsPage key="state-complaints" onBack={() => setView("home")}
-                defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId}
-                defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />
-            ) : view === "state-compliance-monitoring" ? (
-              <StateOfficeComplianceVisitsPage key="state-compliance-monitoring" onBack={() => setView("home")}
-                defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId}
-                defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />
-            ) : view === "state-reconciliation" ? (
-              <StateOfficeReconciliationPage key="state-reconciliation" onBack={() => setView("home")}
-                defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId}
-                defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />
-            ) : view === "state-accreditation" ? (
-              <StateOfficeReportsList key="state-accreditation" reportType="accreditation" onBack={() => setView("home")}
-                defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId}
-                defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />
-            ) : view === "state-stakeholder" ? (
-              <StateOfficeReportsList key="state-stakeholder" reportType="stakeholder" onBack={() => setView("home")}
-                defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId}
-                defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />
-            ) : view === "state-hmo-selection" ? (
-              <StateOfficeReportsList key="state-hmo-selection" reportType="hmo-selection" onBack={() => setView("home")}
-                defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId}
-                defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />
-            ) : view === "state-challenges" ? (
-              <StateOfficeReportsList key="state-challenges" reportType="challenges" onBack={() => setView("home")}
-                defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId}
-                defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />
-            ) : view === "state-igr" ? (
-              <StateOfficeReportsList reportType="igr" onBack={() => setView("home")}
-                defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId}
-                defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />
-            ) : view === "state-sshia-financial" ? (
-              <StateOfficeReportsList reportType="sshia-financial" onBack={() => setView("home")}
-                defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId}
-                defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />
-            ) : view === "state-expenditure-profile" ? (
-              <StateOfficeReportsList reportType="expenditure-profile" onBack={() => setView("home")}
-                defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId}
-                defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />
-            ) : view === "state-weekly-actionable" ? (
-              <StateOfficeReportsList key="state-weekly-actionable" reportType="weekly-actionable" onBack={() => setView("home")}
-                defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId}
-                defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />
-            ) : view === "state-contracted-services" ? (
-              <StateOfficeReportsList key="state-contracted-services" reportType="contracted-services" onBack={() => setView("home")}
-                defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId}
-                defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />
-            ) : view === "settings" ? (
-              <AdminSettingsPage />
-            ) : view === "notifications" ? (
-              <NotificationsPage onBack={() => setView("home")} />
-            ) : view === "report-review" ? (
-              <ReportReviewPage role={role} onBack={() => setView("home")} />
-            ) : view === "zonal-compose" ? (
-              <ZonalCompose onBack={() => setView("zonal-review")} onForward={() => setView("home")} />
-            ) : null}
-          </AnimatePresence>
+                )}
+              </div>
+            } />
+
+            <Route path="/dashboard" element={<Navigate to="/" replace />} />
+
+            {/* ── Annual Reports ── */}
+            <Route path="/annual-reports/mine" element={<AnnualReportsList onBack={() => setView("home")} defaultZoneId={monthlyCtx.defaultZoneId ?? (user?.zone_id ? String(user.zone_id) : null)} defaultStateId={monthlyCtx.defaultStateId} reportScope={(user?.role_config?.report_scope as "national" | "zonal" | "state" | "none") ?? "national"} />} />
+            <Route path="/annual-reports/submit" element={<ReportEntry onBack={() => setView("home")} onPreview={() => setView("report-preview")} />} />
+            <Route path="/annual-reports/review" element={<ZonalReview onCompose={() => setView("zonal-compose")} />} />
+            <Route path="/annual-reports/detail/:id" element={<AnnualReportDetail referenceId={selectedReportRef || "1"} onBack={() => setView("annual-reports-list")} />} />
+
+            {/* ── SDO Module ── */}
+            <Route path="/sdo/stock-verification" element={<StockVerificationsList onBack={() => setView("home")} />} />
+            <Route path="/sdo/assets" element={<StockAssetManager onBack={() => setView("home")} />} />
+            <Route path="/sdo/servicom" element={<ServicomDashboard onBack={() => setView("home")} defaultStateId={monthlyCtx.defaultStateId} defaultZoneId={monthlyCtx.defaultZoneId} />} />
+            <Route path="/sdo/servicom/visits" element={<ServicomVisitsPage onBack={() => setView("home")} defaultStateId={monthlyCtx.defaultStateId} defaultZoneId={monthlyCtx.defaultZoneId} />} />
+            <Route path="/sdo/servicom/complaints" element={<ServicomComplaintsPage onBack={() => setView("home")} defaultStateId={monthlyCtx.defaultStateId} defaultZoneId={monthlyCtx.defaultZoneId} />} />
+            <Route path="/sdo/servicom/satisfaction" element={<ServicomSatisfactionSurveyPage onBack={() => setView("home")} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateName={user?.state?.description} defaultZoneName={user?.zone?.description} userName={user?.name} />} />
+            <Route path="/sdo/servicom/comment-card" element={<ServicomCommentCardPage onBack={() => setView("home")} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateName={user?.state?.description} defaultZoneName={user?.zone?.description} />} />
+
+            {/* ── Monthly Reports ── */}
+            <Route path="/monthly/finance" element={<DeptMonthlyPage dept="finance" title="Finance Monthly Reports" section="finance" onBack={() => setView("home")} defaultZoneId={monthlyCtx.defaultZoneId} defaultStateId={monthlyCtx.defaultStateId} canCreate={monthlyCtx.canCreateMonthly} FormComponent={FinanceMonthlyForm} />} />
+            <Route path="/monthly/admin" element={<DeptMonthlyPage dept="finance" title="Admin / HR Monthly Reports" section="admin" onBack={() => setView("home")} defaultZoneId={monthlyCtx.defaultZoneId} defaultStateId={monthlyCtx.defaultStateId} canCreate={monthlyCtx.canCreateMonthly} FormComponent={AdminMonthlyForm} />} />
+            <Route path="/monthly/programmes" element={<DeptMonthlyPage dept="programmes" title="Enrolment Monthly Reports" section="enrolment" onBack={() => setView("home")} defaultZoneId={monthlyCtx.defaultZoneId} defaultStateId={monthlyCtx.defaultStateId} canCreate={monthlyCtx.canCreateMonthly} FormComponent={ProgrammesMonthlyForm} />} />
+            <Route path="/monthly/outreach" element={<DeptMonthlyPage dept="programmes" title="Outreach Monthly Reports" section="outreach" onBack={() => setView("home")} defaultZoneId={monthlyCtx.defaultZoneId} defaultStateId={monthlyCtx.defaultStateId} canCreate={monthlyCtx.canCreateMonthly} FormComponent={OutreachMonthlyForm} />} />
+            <Route path="/monthly/sqa" element={<DeptMonthlyPage dept="sqa" title="HMO/HCP Quality Assurance Monthly Reports" section="sqa" onBack={() => setView("home")} defaultZoneId={monthlyCtx.defaultZoneId} defaultStateId={monthlyCtx.defaultStateId} canCreate={monthlyCtx.canCreateMonthly} FormComponent={SqaMonthlyForm} />} />
+            <Route path="/compliance" element={<ComplianceManagementPage onBack={() => setView("home")} defaultZoneId={monthlyCtx.defaultZoneId} defaultStateId={monthlyCtx.defaultStateId} />} />
+            <Route path="/monthly/complaints" element={<DeptMonthlyPage dept="sqa" title="Enrollee Complaints Monthly Reports" section="complaints" onBack={() => setView("home")} defaultZoneId={monthlyCtx.defaultZoneId} defaultStateId={monthlyCtx.defaultStateId} canCreate={monthlyCtx.canCreateMonthly} FormComponent={ComplaintsMonthlyForm} />} />
+
+            {/* ── SOC / Zones ── */}
+            <Route path="/soc/enrolment" element={<StateOfficeReportsList key="state-enrolment" reportType="enrolment" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
+            <Route path="/soc/migration" element={<StateOfficeReportsList key="state-migration" reportType="migration" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
+            <Route path="/soc/cemonc" element={<StateOfficeReportsList key="state-cemonc" reportType="cemonc" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
+            <Route path="/soc/monitoring-visits" element={<StateOfficeComplianceVisitsPage key="state-compliance-monitoring" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
+            <Route path="/soc/complaints" element={<StateOfficeComplaintsPage key="state-complaints" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
+            <Route path="/soc/compliance-monitoring" element={<StateOfficeComplianceVisitsPage key="state-compliance-monitoring" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
+            <Route path="/soc/reconciliation" element={<StateOfficeReconciliationPage key="state-reconciliation" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
+            <Route path="/soc/accreditation" element={<StateOfficeReportsList key="state-accreditation" reportType="accreditation" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
+            <Route path="/soc/stakeholder" element={<StateOfficeReportsList key="state-stakeholder" reportType="stakeholder" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
+            <Route path="/soc/hmo-selection" element={<StateOfficeReportsList key="state-hmo-selection" reportType="hmo-selection" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
+            <Route path="/soc/challenges" element={<StateOfficeReportsList key="state-challenges" reportType="challenges" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
+            <Route path="/soc/igr" element={<StateOfficeReportsList reportType="igr" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
+            <Route path="/soc/sshia-financial" element={<StateOfficeReportsList reportType="sshia-financial" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
+            <Route path="/soc/expenditure-profile" element={<StateOfficeReportsList reportType="expenditure-profile" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
+            <Route path="/soc/weekly-actionable" element={<StateOfficeReportsList key="state-weekly-actionable" reportType="weekly-actionable" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
+            <Route path="/soc/contracted-services" element={<StateOfficeReportsList key="state-contracted-services" reportType="contracted-services" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
+
+            {/* ── Store & Asset Management Module ── */}
+            <Route path="/store-management" element={<DashboardView />} />
+            <Route path="/store-management/assets/register" element={<AssetRegisterView />} />
+            <Route path="/store-management/assets/list" element={<AssetListView />} />
+            <Route path="/store-management/assets/detail/:id" element={<AssetDetailView />} />
+            <Route path="/store-management/assets/detail/*" element={<AssetDetailView />} />
+            <Route path="/store-management/assets/categories" element={<CategoriesView />} />
+            <Route path="/store-management/assets/qr-labels" element={<QrLabelsView />} />
+            <Route path="/store-management/inventory/items" element={<InventoryItemsView />} />
+            <Route path="/store-management/inventory/items/:id" element={<InventoryItemDetailView />} />
+            <Route path="/store-management/inventory/receipts" element={<GoodsReceiptView />} />
+            <Route path="/store-management/stores/issues" element={<StockIssuesView />} />
+            <Route path="/store-management/stores/issues/new" element={<NewStockIssueView />} />
+            <Route path="/store-management/stores/list" element={<StoreListView />} />
+            <Route path="/store-management/stores/returns" element={<StockReturnsView />} />
+            <Route path="/store-management/transfers/requests" element={<AssetTransfersView />} />
+            <Route path="/store-management/transfers/new" element={<NewTransferView />} />
+            <Route path="/transfers/requests" element={<AssetTransfersView />} />
+            <Route path="/transfers/new" element={<NewTransferView />} />
+            <Route path="/store-management/verification/supply" element={<SupplyVerificationView />} />
+            <Route path="/store-management/verification/supply/new" element={<NewSupplyVerificationView />} />
+            <Route path="/store-management/verification/supply/:id" element={<SupplyVerificationDetailView />} />
+            <Route path="/store-management/verification/verify" element={<VerificationView />} />
+            <Route path="/store-management/verification/certificates" element={<VerificationCertificateView />} />
+            <Route path="/store-management/verification/exceptions" element={<ExceptionsView />} />
+            <Route path="/store-management/maintenance/repairs" element={<MaintenanceView />} />
+            <Route path="/store-management/disposal/records" element={<AssetDisposalView />} />
+            <Route path="/store-management/reports/analytics" element={<AssetReportsView />} />
+            <Route path="/store-management/admin/users" element={<UserManagementView />} />
+            <Route path="/store-management/admin/offices" element={<OfficesView />} />
+            <Route path="/store-management/admin/logs" element={<AuditView />} />
+            <Route path="/store-management/adjustments" element={<AdjustmentsView />} />
+            <Route path="/store-management/conversion" element={<AssetConversionView />} />
+            <Route path="/store-management/movement-ledger" element={<MovementLedgerView />} />
+
+            {/* ── System Administration ── */}
+            <Route path="/notifications" element={<NotificationsPage onBack={() => setView("home")} />} />
+            <Route path="/settings" element={<AdminSettingsPage />} />
+          </Routes>
         </main>
-      </div>
-    </div>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }

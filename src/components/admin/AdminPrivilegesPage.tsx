@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { usersApi, type AdminUser } from "@/lib/adminApi";
 import AdminModal from "./AdminModal";
-import { MODULE_CONFIG, flatLeaves, moduleConfigForAccess, resolveModuleTitle } from "@/src/access/moduleConfig";
+import { MODULE_CONFIG, flatLeaves, moduleConfigForAccess, resolveModuleTitle, isSubGroup, type ChildModule } from "@/src/access/moduleConfig";
 import { normalizeFunctionalityTitle } from "@/src/access/accessUtils";
 
 const ROLE_LABELS: Record<string, string> = {
@@ -67,11 +67,12 @@ function ModuleRow({ mod, granted, onToggleParent, onToggleChild }: {
             <p className="text-[10px] text-amber-600 italic pb-1">Enable parent module first</p>
           )}
           {mod.children.map((child, i) => {
-            if ("type" in child && child.type === "group") {
+            if (isSubGroup(child)) {
+              const leaves = child.children.filter((n): n is ChildModule => !isSubGroup(n));
               return (
                 <div key={i}>
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-1.5 pt-1.5 pb-0.5">{child.label}</p>
-                  {child.children.map((leaf, j) => (
+                  {leaves.map((leaf, j) => (
                     <label key={j}
                       className={`flex items-center gap-2.5 px-2 py-1.5 rounded-lg cursor-pointer transition-all ${
                         granted.has(leaf.title) ? "bg-[#e8f5ee]" : "hover:bg-slate-50"
@@ -85,7 +86,7 @@ function ModuleRow({ mod, granted, onToggleParent, onToggleChild }: {
                 </div>
               );
             }
-            const leaf = child as import("@/src/access/moduleConfig").ChildModule;
+            const leaf = child as ChildModule;
             return (
               <label key={i}
                 className={`flex items-center gap-2.5 px-2 py-1.5 rounded-lg cursor-pointer transition-all ${

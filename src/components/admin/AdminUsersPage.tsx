@@ -10,7 +10,7 @@ import { SearchSelect } from "@/components/ui/search-select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { usersApi, rolesApi, zonesApi, statesApi, departmentsApi, unitsApi, type AdminUser, type AppRole, type ZonalOffice, type StateOffice, type Department, type Unit } from "@/lib/adminApi";
 import AdminModal from "./AdminModal";
-import { MODULE_CONFIG } from "@/src/access/moduleConfig";
+import { MODULE_CONFIG, flatLeaves, isSubGroup, type ChildModule } from "@/src/access/moduleConfig";
 import { normalizeFunctionalityTitle, normalizeModuleTitle } from "@/src/access/accessUtils";
 
 const ROLE_COLORS: Record<string, string> = {
@@ -139,14 +139,7 @@ export default function AdminUsersPage({ showOverview = false }: { showOverview?
         .filter(mod => granted.has(mod.title))
         .map(mod => {
           // Flatten all leaf titles from this module
-          const allLeaves: string[] = [];
-          mod.children.forEach(c => {
-            if ("type" in c && c.type === "group") {
-              c.children.forEach(leaf => allLeaves.push(leaf.title));
-            } else {
-              allLeaves.push((c as { title: string }).title);
-            }
-          });
+          const allLeaves = flatLeaves(mod);
           return {
             access_to: mod.title,
             functionalities: allLeaves.filter(t => granted.has(t)),
@@ -416,10 +409,7 @@ export default function AdminUsersPage({ showOverview = false }: { showOverview?
                   const all = new Set<string>();
                   MODULE_CONFIG.forEach(m => {
                     all.add(m.title);
-                    m.children.forEach(c => {
-                      if ("type" in c && c.type === "group") c.children.forEach(leaf => all.add(leaf.title));
-                      else all.add((c as { title: string }).title);
-                    });
+                    flatLeaves(m).forEach(t => all.add(t));
                   });
                   setGranted(all);
                 }} className="text-xs text-[#145c3f] hover:underline font-medium">Select all</button>
@@ -429,11 +419,7 @@ export default function AdminUsersPage({ showOverview = false }: { showOverview?
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {MODULE_CONFIG.map(mod => {
-                const allChildTitles: string[] = [];
-                mod.children.forEach(c => {
-                  if ("type" in c && c.type === "group") c.children.forEach(leaf => allChildTitles.push(leaf.title));
-                  else allChildTitles.push((c as { title: string }).title);
-                });
+                const allChildTitles = flatLeaves(mod);
                 const parentChecked = granted.has(mod.title);
                 const checkedCount = allChildTitles.filter(t => granted.has(t)).length;
                 const someChecked = parentChecked && checkedCount < allChildTitles.length;
@@ -479,22 +465,19 @@ function ModuleAccessRow({ mod, parentChecked, someChecked, granted, onTogglePar
   onToggleChild: (parentTitle: string, childTitle: string, allChildTitles: string[]) => void;
 }) {
   const [open, setOpen] = React.useState(false);
-  // Flatten all leaf titles (handles both flat children and sub-groups)
-  const allChildTitles: string[] = [];
-  mod.children.forEach(c => {
-    if ("type" in c && c.type === "group") c.children.forEach(leaf => allChildTitles.push(leaf.title));
-    else allChildTitles.push((c as { title: string }).title);
-  });
+  const allChildTitles = flatLeaves(mod);
   const parentRef = React.useRef<HTMLInputElement>(null);
   React.useEffect(() => { if (parentRef.current) parentRef.current.indeterminate = someChecked; }, [someChecked]);
 
   // Flatten children for rendering (include group labels)
   const renderChildren: { title: string; groupLabel?: string }[] = [];
   mod.children.forEach(c => {
-    if ("type" in c && c.type === "group") {
-      c.children.forEach(leaf => renderChildren.push({ title: leaf.title, groupLabel: c.label }));
+    if (isSubGroup(c)) {
+      c.children.forEach(node => {
+        if (!isSubGroup(node)) renderChildren.push({ title: (node as ChildModule).title, groupLabel: c.label });
+      });
     } else {
-      renderChildren.push({ title: (c as { title: string }).title });
+      renderChildren.push({ title: (c as ChildModule).title });
     }
   });
 
