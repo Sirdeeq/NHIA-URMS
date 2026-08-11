@@ -135,7 +135,7 @@ export default function AdminPrivilegesPage() {
       keys.add(mod.title);
       if (Array.isArray(entry.functionalities)) {
         entry.functionalities.forEach((funcTitle: string) => {
-          keys.add(normalizeFunctionalityTitle(funcTitle));
+          keys.add(normalizeFunctionalityTitle(funcTitle, mod.title));
         });
       }
     });

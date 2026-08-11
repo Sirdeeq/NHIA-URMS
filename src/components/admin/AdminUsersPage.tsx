@@ -117,9 +117,12 @@ export default function AdminUsersPage({ showOverview = false }: { showOverview?
     const accessArr = Array.isArray(u.functionalities) ? u.functionalities : [];
     accessArr.forEach((entry: any) => {
       if (!entry?.access_to) return;
-      keys.add(normalizeModuleTitle(entry.access_to));
+      const modTitle = normalizeModuleTitle(entry.access_to);
+      keys.add(modTitle);
       if (Array.isArray(entry.functionalities)) {
-        entry.functionalities.forEach((funcTitle: string) => keys.add(normalizeFunctionalityTitle(funcTitle)));
+        entry.functionalities.forEach((funcTitle: string) => {
+          keys.add(normalizeFunctionalityTitle(funcTitle, modTitle));
+        });
       }
     });
     setGranted(keys);

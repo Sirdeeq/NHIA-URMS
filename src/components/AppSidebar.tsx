@@ -36,7 +36,6 @@ import {
   ShieldAlert,
   LogOut,
 } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Collapsible,
   CollapsibleContent,
@@ -66,6 +65,11 @@ import {
   flatLeaves,
   moduleConfigForAccess,
   isSubGroup,
+  modulesVisibleToAdmin,
+  adminAllowedTitlesForModule,
+  SOC_ZONES_MODULE,
+  ZONAL_MODULE,
+  SDO_MODULE,
 } from "@/src/access/moduleConfig";
 import { hasModuleAccess } from "@/src/access/roles";
 import { normalizeAllowedTitles, expandAccessEntries } from "@/src/access/accessUtils";
@@ -109,15 +113,22 @@ const ICON_MAP: Record<string, React.ElementType> = {
   "Zonal Review": CheckSquare,
   "Stock Verification": ClipboardList,
   "STOCK VERIFICATION": ClipboardList,
+  "SOC/ZONES": MapPin,
+  Zonal: MapPin,
+  "SOC/Zones Dashboard": Activity,
   "Stock Assets": PackageSearch,
   "Store Management": Warehouse,
   "Asset Management (SVO)": Warehouse,
   SERVICOM: Megaphone,
   "SPECIAL PROJECT": FileSpreadsheet,
+  "SPECIAL PROJECT": FileSpreadsheet,
+  "Special Project": FileSpreadsheet,
   "STATE OFFICE COORDINATION": Building,
+  "State Offices": Building,
   "SERVICOM Dashboard": Activity,
   "Monitoring Visits": MapPin,
   "Operational Monitoring Visit": MapPin,
+  "Operation Monitoring Visit": MapPin,
   "Spot Check Visit": MapPin,
   Complaints: Scale,
   "Complaints Management": Scale,
@@ -143,10 +154,15 @@ const VIEW_TO_PATH: Record<string, string> = {
   "stock-verifications-list": "/sdo/stock-verification",
   "stock-assets": "/sdo/assets",
   "servicom-dashboard": "/sdo/servicom",
-  "servicom-visits": "/sdo/servicom/visits",
+  "stock-verification-dashboard": "/sdo/stock-dashboard",
+  "soc-zones-dashboard": "/soc/dashboard",
+  "soc-operation-monitoring-visit": "/soc/operation-monitoring-visit",
+  "soc-spot-check-visit": "/soc/spot-check-visit",
+  "servicom-visits": "/zonal/monitoring-visits",
   "servicom-complaints": "/sdo/servicom/complaints",
   "servicom-satisfaction": "/sdo/servicom/satisfaction",
   "servicom-comment-card": "/sdo/servicom/comment-card",
+  "special-projects": "/sdo/projects",
   notifications: "/notifications",
   settings: "/settings",
 };
@@ -155,12 +171,18 @@ type TreeNode =
   | { kind: "leaf"; title: string; view?: string; path?: string }
   | { kind: "folder"; title: string; children: TreeNode[] };
 
+/** Folders that must stay as dropdowns even with a single child. */
+const PRESERVE_FOLDER_TITLES = new Set(["Zonal", "State Offices", "SOC/ZONES"]);
+
 /** If a folder has only one child, promote that child (no redundant dropdown). */
 function collapseSingleChildFolders(nodes: TreeNode[]): TreeNode[] {
   return nodes.map((node) => {
     if (node.kind === "leaf") return node;
 
     const children = collapseSingleChildFolders(node.children);
+    if (PRESERVE_FOLDER_TITLES.has(node.title)) {
+      return { ...node, children };
+    }
     if (children.length === 1) return children[0];
     return { ...node, children };
   });
@@ -169,30 +191,81 @@ function collapseSingleChildFolders(nodes: TreeNode[]): TreeNode[] {
 function filterModuleTree(
   children: (ChildModule | SubGroup)[],
   allowedTitles: Set<string>,
-  storeAllowed?: Set<string>
+  storeAllowed?: Set<string>,
+  socAllowed?: Set<string>,
+  zonalAllowed?: Set<string>,
 ): TreeNode[] {
   const nodes: TreeNode[] = [];
 
   for (const child of children) {
     if (isSubGroup(child)) {
-      let nested = filterModuleTree(child.children, allowedTitles, storeAllowed);
+      let nested: TreeNode[];
 
-      // Nest Asset Management (SVO) under STOCK VERIFICATION only when that privilege is granted
-      if (
-        child.label === "STOCK VERIFICATION" &&
-        storeAllowed &&
-        storeAllowed.size > 0
-      ) {
-        const assetMod = MODULE_CONFIG.find((m) => m.title === "Asset Management (SVO)");
-        const storeKids = collapseSingleChildFolders(
-          filterModuleTree(assetMod?.children ?? [], storeAllowed)
-        );
-        if (storeKids.length > 0) {
-          nested.push({
-            kind: "folder",
-            title: "Asset Management (SVO)",
-            children: storeKids,
-          });
+      if (child.label === "SOC/ZONES") {
+        const hasSoc = socAllowed && socAllowed.size > 0;
+        const hasZonal = zonalAllowed && zonalAllowed.size > 0;
+        nested = [];
+
+        if (hasSoc) {
+          const socMod = MODULE_CONFIG.find((m) => m.title === SOC_ZONES_MODULE);
+          nested.push(
+            ...filterModuleTree(
+              socMod?.children ?? [],
+              socAllowed!,
+              storeAllowed,
+              socAllowed,
+              zonalAllowed,
+            ),
+          );
+        }
+
+        if (hasZonal) {
+          const zonalMod = MODULE_CONFIG.find((m) => m.title === ZONAL_MODULE);
+          const zonalKids = collapseSingleChildFolders(
+            filterModuleTree(
+              zonalMod?.children ?? [],
+              zonalAllowed!,
+              storeAllowed,
+              socAllowed,
+              zonalAllowed,
+            ),
+          );
+          if (zonalKids.length > 0) {
+            nested.push({
+              kind: "folder",
+              title: "Zonal",
+              children: [
+                {
+                  kind: "folder",
+                  title: "State Offices",
+                  children: zonalKids,
+                },
+              ],
+            });
+          }
+        }
+
+        nested = collapseSingleChildFolders(nested);
+      } else {
+        nested = filterModuleTree(child.children, allowedTitles, storeAllowed, socAllowed, zonalAllowed);
+
+        // Nest Asset Management (SVO) under STOCK VERIFICATION only when that privilege is granted
+        if (
+          child.label === "STOCK VERIFICATION" &&
+          storeAllowed &&
+          storeAllowed.size > 0
+        ) {
+          const assetMod = MODULE_CONFIG.find((m) => m.title === "Asset Management (SVO)");
+          const storeKids = collapseSingleChildFolders(
+            filterModuleTree(assetMod?.children ?? [], storeAllowed, storeAllowed, socAllowed, zonalAllowed),
+          );
+          if (storeKids.length > 0) {
+            nested.push({
+              kind: "folder",
+              title: "Asset Management (SVO)",
+              children: storeKids,
+            });
+          }
         }
       }
 
@@ -229,13 +302,17 @@ function filterModuleTree(
 function buildVisibleTree(
   mod: (typeof MODULE_CONFIG)[0],
   allowedTitles: Set<string>,
-  storeAllowed?: Set<string>
+  storeAllowed?: Set<string>,
+  socAllowed?: Set<string>,
+  zonalAllowed?: Set<string>,
 ): TreeNode | null {
   const children = collapseSingleChildFolders(
     filterModuleTree(
       mod.children,
       allowedTitles,
-      mod.title === "SDO" ? storeAllowed : undefined
+      mod.title === SDO_MODULE ? storeAllowed : undefined,
+      mod.title === SDO_MODULE ? socAllowed : undefined,
+      mod.title === SDO_MODULE ? zonalAllowed : undefined,
     )
   );
   if (children.length === 0) return null;
@@ -248,6 +325,64 @@ function buildVisibleTree(
     title: mod.title,
     children,
   };
+}
+
+function isSdoFolder(node: TreeNode): boolean {
+  return node.kind === "folder" && node.title === SDO_MODULE;
+}
+
+/** Non-admin users see SDO sections at top level (no SDO parent folder). */
+function flattenSdoForNonAdmin(trees: TreeNode[], role: string): TreeNode[] {
+  if (role === "admin") return trees;
+
+  const out: TreeNode[] = [];
+  for (const node of trees) {
+    if (isSdoFolder(node)) {
+      out.push(...node.children);
+    } else {
+      out.push(node);
+    }
+  }
+  return out;
+}
+
+function getUserDepartmentLabel(
+  user?: import("@/src/store/authSlice").AuthUser,
+  role?: string,
+): string | null {
+  const dept = user?.department?.name?.trim();
+  if (dept) return dept;
+
+  if (role === "admin") return "NHIA Headquarters";
+
+  const state = user?.state?.description?.trim();
+  const zone = user?.zone?.description?.trim();
+  if (state) return `${state} State Office`;
+  if (zone) return `${zone} Zone`;
+
+  return user?.role_label || role?.replace(/-/g, " ") || null;
+}
+
+function UserSidebarDepartment({
+  user,
+  role,
+}: {
+  user?: import("@/src/store/authSlice").AuthUser;
+  role?: string;
+}) {
+  const department = getUserDepartmentLabel(user, role);
+  if (!department) return null;
+
+  return (
+    <div className="mx-1 mb-2 rounded-xl border-2 border-[#25a872]/45 bg-[#25a872]/12 px-3 py-2.5 group-data-[collapsible=icon]:hidden">
+      <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#145c3f]">
+        Department
+      </p>
+      <p className="mt-1 text-sm font-extrabold leading-snug text-[#145c3f]">
+        {department}
+      </p>
+    </div>
+  );
 }
 
 const navItemClass =
@@ -339,32 +474,45 @@ function NavMain({
   modules,
   currentView,
   setView,
+  role,
 }: {
   modules: { mod: (typeof MODULE_CONFIG)[0]; allowedTitles: Set<string> }[];
   currentView: View;
   setView: (v: View) => void;
+  role: string;
 }) {
   const trees = React.useMemo(() => {
-    const hasSdo = modules.some(({ mod }) => mod.title === "SDO");
+    const hasSdo = modules.some(({ mod }) => mod.title === SDO_MODULE);
     const storeMod = modules.find(({ mod }) => mod.title === "Asset Management (SVO)");
+    const socMod = modules.find(({ mod }) => mod.title === SOC_ZONES_MODULE);
+    const zonalMod = modules.find(({ mod }) => mod.title === ZONAL_MODULE);
     const storeAllowed = storeMod?.allowedTitles;
+    const socAllowed = socMod?.allowedTitles;
+    const zonalAllowed = zonalMod?.allowedTitles;
 
-    return modules
+    const built = modules
       .filter(({ mod }) => {
         if (mod.title === "Notifications" || mod.title === "Settings") return false;
         // When SDO is shown, Asset Management (SVO) is nested under STOCK VERIFICATION
         if (hasSdo && mod.title === "Asset Management (SVO)") return false;
+        // When SDO is shown, SOC/Zones and Zonal are nested under SOC/ZONES
+        if (hasSdo && mod.title === SOC_ZONES_MODULE) return false;
+        if (hasSdo && mod.title === ZONAL_MODULE) return false;
         return true;
       })
       .map(({ mod, allowedTitles }) =>
         buildVisibleTree(
           mod,
           allowedTitles,
-          mod.title === "SDO" ? storeAllowed : undefined
+          mod.title === SDO_MODULE ? storeAllowed : undefined,
+          mod.title === SDO_MODULE ? socAllowed : undefined,
+          mod.title === SDO_MODULE ? zonalAllowed : undefined,
         )
       )
       .filter(Boolean) as TreeNode[];
-  }, [modules]);
+
+    return flattenSdoForNonAdmin(built, role);
+  }, [modules, role]);
 
   return (
     <SidebarGroup >
@@ -406,10 +554,12 @@ export function AppSidebar({
 }: AppSidebarProps & React.ComponentProps<typeof Sidebar>) {
   const visibleModules = React.useMemo(() => {
     if (role === "admin") {
-      return MODULE_CONFIG.map((mod) => ({
-        mod,
-        allowedTitles: new Set<string>(collectLeafTitles(mod.children)),
-      }));
+      return modulesVisibleToAdmin()
+        .map((mod) => ({
+          mod,
+          allowedTitles: adminAllowedTitlesForModule(mod),
+        }))
+        .filter(({ allowedTitles }) => allowedTitles.size > 0);
     }
 
     const effectiveAccess = expandAccessEntries(access);
@@ -422,7 +572,7 @@ export function AppSidebar({
           : [];
         const allowedTitles =
           funcs.length > 0
-            ? normalizeAllowedTitles(funcs)
+            ? normalizeAllowedTitles(funcs, mod.title)
             : new Set(flatLeaves(mod));
         return { mod, allowedTitles };
       })
@@ -445,19 +595,23 @@ export function AppSidebar({
 
   return (
     <Sidebar collapsible="icon" {...props}>
-      <SidebarHeader className="border-b border-sidebar-border items-center justify-center h-16">
-        <img
-          src="/logo.png"
-          alt="NHIA"
-          className="h-10 w-auto object-contain"
-        />
+      <SidebarHeader className="border-b border-sidebar-border px-2 pt-3 pb-3">
+        <div className="flex h-12 items-center justify-center">
+          <img
+            src="/logo.png"
+            alt="NHIA"
+            className="h-10 w-auto object-contain"
+          />
+        </div>
       </SidebarHeader>
 
       <SidebarContent>
-        <NavMain modules={visibleModules} currentView={view} setView={setView} />
+        <NavMain modules={visibleModules} currentView={view} setView={setView} role={role} />
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-sidebar-border gap-1">
+      <SidebarFooter className="border-t border-sidebar-border gap-1 pt-2">
+        <UserSidebarDepartment user={user} role={role} />
+
         <SidebarMenu>
           <SidebarMenuItem onClick={closeMobile}>
             <SidebarMenuButton
@@ -508,30 +662,6 @@ export function AppSidebar({
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
-
-        {/* <div className="flex items-center gap-2 px-2 py-1.5 group-data-[collapsible=icon]:justify-center">
-          <Avatar className="size-8">
-            <AvatarImage
-              src={`https://picsum.photos/seed/${user?.staff_id || "NHIA"}/200`}
-            />
-            <AvatarFallback className="bg-sidebar-primary text-sidebar-primary-foreground text-[11px] font-bold">
-              {user?.name
-                ?.split(" ")
-                .map((n) => n[0])
-                .join("")
-                .slice(0, 2)
-                .toUpperCase() || "AO"}
-            </AvatarFallback>
-          </Avatar>
-          <div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
-            <p className="truncate text-xs font-semibold text-sidebar-foreground">
-              {user?.name || "User"}
-            </p>
-            <p className="truncate text-[10px] text-sidebar-foreground/50">
-              {role?.replace(/-/g, " ") || "Officer"}
-            </p>
-          </div>
-        </div> */}
       </SidebarFooter>
 
       <SidebarRail />

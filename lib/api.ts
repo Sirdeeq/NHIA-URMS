@@ -256,6 +256,22 @@ export const stockApi = {
       method: "PATCH", body: JSON.stringify({ status }),
     }),
 
+  getDashboard: (filters?: { state_id?: string; zone_id?: string }) => {
+    const params = new URLSearchParams(
+      Object.entries(filters || {}).filter(([, v]) => !!v) as [string, string][]
+    ).toString();
+    return request<{ success: boolean; data: any }>(`/stock/dashboard${params ? `?${params}` : ""}`);
+  },
+
+  getDashboardDrill: (filters?: Record<string, string | undefined>) => {
+    const params = new URLSearchParams(
+      Object.entries(filters || {}).filter(([, v]) => !!v) as [string, string][]
+    ).toString();
+    return request<{ success: boolean; data: import("@/components/dashboard/DashboardDrillPanel").DrillRow[] }>(
+      `/stock/dashboard/drill${params ? `?${params}` : ""}`,
+    );
+  },
+
   /** Store inventory catalog — maps to existing /store-management routes */
   getInventoryItems: () =>
     request<{ success: boolean; data: any[] }>("/store-management/inventory/items"),
@@ -365,6 +381,11 @@ export const servicomApi = {
 
   getDashboard: (filters?: { state_id?: string; zone_id?: string; from?: string; to?: string }) =>
     request<{ success: boolean; data: any }>(`/servicom/dashboard${servicomFilters(filters)}`),
+
+  getDashboardDrill: (filters?: Record<string, string | undefined>) =>
+    request<{ success: boolean; data: import("@/components/dashboard/DashboardDrillPanel").DrillRow[] }>(
+      `/servicom/dashboard/drill${servicomFilters(filters)}`,
+    ),
 
   listFacilities: (filters?: { state_id?: string; zone_id?: string }) =>
     request<{ success: boolean; data: any[] }>(`/servicom/facilities${servicomFilters(filters)}`),
@@ -512,6 +533,16 @@ const stateOfficeFilters = (filters?: Record<string, string | undefined>) => {
     Object.entries(filters || {}).filter(([, v]) => !!v) as [string, string][]
   ).toString();
   return p ? `?${p}` : "";
+};
+
+export const stateOfficeDashboardApi = {
+  getDashboard: (filters?: { state_id?: string; zone_id?: string; year?: string; month?: string }) =>
+    request<{ success: boolean; data: any }>(`/state-office/dashboard${stateOfficeFilters(filters)}`),
+
+  getDashboardDrill: (filters?: Record<string, string | undefined>) =>
+    request<{ success: boolean; data: import("@/components/dashboard/DashboardDrillPanel").DrillRow[] }>(
+      `/state-office/dashboard/drill${stateOfficeFilters(filters)}`,
+    ),
 };
 
 export const stateOfficeEnrolleeComplaintsApi = {

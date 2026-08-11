@@ -42,6 +42,9 @@ import ServicomVisitsPage from "./servicom/ServicomVisitsPage";
 import ServicomComplaintsPage from "./servicom/ServicomComplaintsPage";
 import ServicomSatisfactionSurveyPage from "./servicom/ServicomSatisfactionSurveyPage";
 import ServicomCommentCardPage from "./servicom/ServicomCommentCardPage";
+import StockVerificationDashboard from "./stock/StockVerificationDashboard";
+import SocZonesDashboard from "./stateOffice/SocZonesDashboard";
+import SocPlaceholderPage from "./stateOffice/SocPlaceholderPage";
 import FinanceMonthlyForm from "./monthly/FinanceMonthlyForm";
 import AdminMonthlyForm from "./monthly/AdminMonthlyForm";
 import ProgrammesMonthlyForm from "./monthly/ProgrammesMonthlyForm";
@@ -92,14 +95,14 @@ import AssetConversionView from "../modules/store_management/pages/AssetConversi
 import MovementLedgerView from "../modules/store_management/pages/MovementLedgerView";
 import { getMonthlyReportContext } from "@/src/access/monthlyReportAccess";
 import { canAccessFunctionality, expandAccessEntries } from "@/src/access/accessUtils";
-import { STATE_VIEW_TO_FUNCTIONALITY } from "@/src/access/moduleConfig";
+import { VIEW_MODULE_ACCESS } from "@/src/access/moduleConfig";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 import AppSidebar from "./AppSidebar";
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 
 type Role = "state-officer" | "zonal-coordinator" | "state-coordinator" | "department-officer" | "sdo" | "hq-department" | "audit" | "dg-ceo" | "admin";
-type View = "home" | "report-entry" | "report-preview" | "zonal-review" | "zonal-compose" | "annual-report" | "annual-reports-list" | "annual-report-detail" | "settings" | "stock-verifications-list" | "stock-assets" | "servicom-dashboard" | "servicom-visits" | "servicom-complaints" | "servicom-satisfaction" | "servicom-comment-card" | "finance-monthly" | "admin-monthly" | "programmes-monthly" | "outreach-monthly" | "sqa-monthly" | "sqa-compliance" | "complaints-monthly" | "monthly-reports-list" | "report-review" | "notifications" | "state-enrolment" | "state-migration" | "state-cemonc" | "state-complaints" | "state-compliance-monitoring" | "state-reconciliation" | "state-accreditation" | "state-stakeholder" | "state-hmo-selection" | "state-challenges" | "state-igr" | "state-sshia-financial" | "state-expenditure-profile" | "state-weekly-actionable" | "state-contracted-services" | "store-assets-list" | "store-assets-register" | "store-inventory-catalog" | "store-goods-receipt" | "store-stock-issues" | "store-directory" | "store-stock-returns" | "store-asset-transfers" | "store-supply-verification" | "store-asset-maintenance" | "store-asset-disposal" | "store-asset-reports";
+type View = "home" | "report-entry" | "report-preview" | "zonal-review" | "zonal-compose" | "annual-report" | "annual-reports-list" | "annual-report-detail" | "settings" | "stock-verifications-list" | "stock-assets" | "servicom-dashboard" | "servicom-visits" | "servicom-complaints" | "servicom-satisfaction" | "servicom-comment-card" | "finance-monthly" | "admin-monthly" | "programmes-monthly" | "outreach-monthly" | "sqa-monthly" | "sqa-compliance" | "complaints-monthly" | "monthly-reports-list" | "report-review" | "notifications" | "soc-zones-dashboard" | "soc-operation-monitoring-visit" | "soc-spot-check-visit" | "state-enrolment" | "state-migration" | "state-cemonc" | "state-complaints" | "state-compliance-monitoring" | "state-reconciliation" | "state-accreditation" | "state-stakeholder" | "state-hmo-selection" | "state-challenges" | "state-igr" | "state-sshia-financial" | "state-expenditure-profile" | "state-weekly-actionable" | "state-contracted-services" | "store-assets-list" | "store-assets-register" | "store-inventory-catalog" | "store-goods-receipt" | "store-stock-issues" | "store-directory" | "store-stock-returns" | "store-asset-transfers" | "store-supply-verification" | "store-asset-maintenance" | "store-asset-disposal" | "store-asset-reports";
 interface DashboardProps { role: Role; user?: import("@/src/store/authSlice").AuthUser; access?: import("@/src/access/types").AccessEntry[]; functionalities?: string; onLogout: () => void; }
 
 // ─── Mock data ────────────────────────────────────────────────────────────────
@@ -447,16 +450,16 @@ export default function Dashboard({ role, user, access = [], functionalities = "
 
   React.useEffect(() => {
     if (role === "admin") return;
-    if (view === "servicom-visits") {
-      const expanded = expandAccessEntries(access);
-      const allowed = canAccessFunctionality("SOC/Zones", "Monitoring Visits", { role, access: expanded });
-      if (!allowed) setView("home");
-      return;
-    }
-    if (!String(view).startsWith("state-")) return;
-    const functionality = STATE_VIEW_TO_FUNCTIONALITY[view];
-    if (!functionality) return;
-    const allowed = canAccessFunctionality("SOC/Zones", functionality, { role, access });
+
+    const viewAccess = VIEW_MODULE_ACCESS[view];
+    if (!viewAccess) return;
+
+    const expanded = expandAccessEntries(access);
+    const allowed = canAccessFunctionality(
+      viewAccess.module,
+      viewAccess.functionality,
+      { role, access: expanded },
+    );
     if (!allowed) setView("home");
   }, [view, role, access]);
 
@@ -603,12 +606,14 @@ export default function Dashboard({ role, user, access = [], functionalities = "
 
             {/* ── SDO Module ── */}
             <Route path="/sdo/stock-verification" element={<StockVerificationsList onBack={() => setView("home")} />} />
+            <Route path="/sdo/stock-dashboard" element={<StockVerificationDashboard onBack={() => setView("home")} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} />} />
             <Route path="/sdo/assets" element={<StockAssetManager onBack={() => setView("home")} />} />
             <Route path="/sdo/servicom" element={<ServicomDashboard onBack={() => setView("home")} defaultStateId={monthlyCtx.defaultStateId} defaultZoneId={monthlyCtx.defaultZoneId} />} />
             <Route path="/sdo/servicom/visits" element={<ServicomVisitsPage onBack={() => setView("home")} defaultStateId={monthlyCtx.defaultStateId} defaultZoneId={monthlyCtx.defaultZoneId} />} />
             <Route path="/sdo/servicom/complaints" element={<ServicomComplaintsPage onBack={() => setView("home")} defaultStateId={monthlyCtx.defaultStateId} defaultZoneId={monthlyCtx.defaultZoneId} />} />
             <Route path="/sdo/servicom/satisfaction" element={<ServicomSatisfactionSurveyPage onBack={() => setView("home")} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateName={user?.state?.description} defaultZoneName={user?.zone?.description} userName={user?.name} />} />
             <Route path="/sdo/servicom/comment-card" element={<ServicomCommentCardPage onBack={() => setView("home")} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateName={user?.state?.description} defaultZoneName={user?.zone?.description} />} />
+            <Route path="/sdo/projects" element={<SocPlaceholderPage title="Special Project" onBack={() => setView("home")} />} />
 
             {/* ── Monthly Reports ── */}
             <Route path="/monthly/finance" element={<DeptMonthlyPage dept="finance" title="Finance Monthly Reports" section="finance" onBack={() => setView("home")} defaultZoneId={monthlyCtx.defaultZoneId} defaultStateId={monthlyCtx.defaultStateId} canCreate={monthlyCtx.canCreateMonthly} FormComponent={FinanceMonthlyForm} />} />
@@ -620,22 +625,51 @@ export default function Dashboard({ role, user, access = [], functionalities = "
             <Route path="/monthly/complaints" element={<DeptMonthlyPage dept="sqa" title="Enrollee Complaints Monthly Reports" section="complaints" onBack={() => setView("home")} defaultZoneId={monthlyCtx.defaultZoneId} defaultStateId={monthlyCtx.defaultStateId} canCreate={monthlyCtx.canCreateMonthly} FormComponent={ComplaintsMonthlyForm} />} />
 
             {/* ── SOC / Zones ── */}
-            <Route path="/soc/enrolment" element={<StateOfficeReportsList key="state-enrolment" reportType="enrolment" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
-            <Route path="/soc/migration" element={<StateOfficeReportsList key="state-migration" reportType="migration" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
-            <Route path="/soc/cemonc" element={<StateOfficeReportsList key="state-cemonc" reportType="cemonc" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
-            <Route path="/soc/monitoring-visits" element={<StateOfficeComplianceVisitsPage key="state-compliance-monitoring" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
-            <Route path="/soc/complaints" element={<StateOfficeComplaintsPage key="state-complaints" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
-            <Route path="/soc/compliance-monitoring" element={<StateOfficeComplianceVisitsPage key="state-compliance-monitoring" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
-            <Route path="/soc/reconciliation" element={<StateOfficeReconciliationPage key="state-reconciliation" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
-            <Route path="/soc/accreditation" element={<StateOfficeReportsList key="state-accreditation" reportType="accreditation" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
-            <Route path="/soc/stakeholder" element={<StateOfficeReportsList key="state-stakeholder" reportType="stakeholder" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
-            <Route path="/soc/hmo-selection" element={<StateOfficeReportsList key="state-hmo-selection" reportType="hmo-selection" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
-            <Route path="/soc/challenges" element={<StateOfficeReportsList key="state-challenges" reportType="challenges" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
-            <Route path="/soc/igr" element={<StateOfficeReportsList reportType="igr" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
-            <Route path="/soc/sshia-financial" element={<StateOfficeReportsList reportType="sshia-financial" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
-            <Route path="/soc/expenditure-profile" element={<StateOfficeReportsList reportType="expenditure-profile" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
+            <Route path="/soc/dashboard" element={<SocZonesDashboard onBack={() => setView("home")} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} />} />
             <Route path="/soc/weekly-actionable" element={<StateOfficeReportsList key="state-weekly-actionable" reportType="weekly-actionable" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
             <Route path="/soc/contracted-services" element={<StateOfficeReportsList key="state-contracted-services" reportType="contracted-services" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
+            <Route path="/soc/operation-monitoring-visit" element={<SocPlaceholderPage title="Operation Monitoring Visit" onBack={() => setView("home")} />} />
+            <Route path="/soc/spot-check-visit" element={<SocPlaceholderPage title="Spot Check Visit" onBack={() => setView("home")} />} />
+            <Route path="/soc/complaints" element={<StateOfficeComplaintsPage key="state-complaints" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
+            <Route path="/soc/reconciliation" element={<StateOfficeReconciliationPage key="state-reconciliation" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
+            <Route path="/soc/compliance-monitoring" element={<Navigate to="/zonal/monitoring-visits" replace />} />
+
+            {/* Legacy /soc and /others paths → Zonal */}
+            <Route path="/soc/enrolment" element={<Navigate to="/zonal/enrolment" replace />} />
+            <Route path="/soc/migration" element={<Navigate to="/zonal/migration" replace />} />
+            <Route path="/soc/cemonc" element={<Navigate to="/zonal/cemonc" replace />} />
+            <Route path="/soc/monitoring-visits" element={<Navigate to="/zonal/monitoring-visits" replace />} />
+            <Route path="/soc/accreditation" element={<Navigate to="/zonal/accreditation" replace />} />
+            <Route path="/soc/stakeholder" element={<Navigate to="/zonal/stakeholder" replace />} />
+            <Route path="/soc/hmo-selection" element={<Navigate to="/zonal/hmo-selection" replace />} />
+            <Route path="/soc/challenges" element={<Navigate to="/zonal/challenges" replace />} />
+            <Route path="/soc/igr" element={<Navigate to="/zonal/igr" replace />} />
+            <Route path="/soc/sshia-financial" element={<Navigate to="/zonal/sshia-financial" replace />} />
+            <Route path="/soc/expenditure-profile" element={<Navigate to="/zonal/expenditure-profile" replace />} />
+            <Route path="/others/enrolment" element={<Navigate to="/zonal/enrolment" replace />} />
+            <Route path="/others/migration" element={<Navigate to="/zonal/migration" replace />} />
+            <Route path="/others/cemonc" element={<Navigate to="/zonal/cemonc" replace />} />
+            <Route path="/others/monitoring-visits" element={<Navigate to="/zonal/monitoring-visits" replace />} />
+            <Route path="/others/accreditation" element={<Navigate to="/zonal/accreditation" replace />} />
+            <Route path="/others/stakeholder" element={<Navigate to="/zonal/stakeholder" replace />} />
+            <Route path="/others/hmo-selection" element={<Navigate to="/zonal/hmo-selection" replace />} />
+            <Route path="/others/challenges" element={<Navigate to="/zonal/challenges" replace />} />
+            <Route path="/others/igr" element={<Navigate to="/zonal/igr" replace />} />
+            <Route path="/others/sshia-financial" element={<Navigate to="/zonal/sshia-financial" replace />} />
+            <Route path="/others/expenditure-profile" element={<Navigate to="/zonal/expenditure-profile" replace />} />
+
+            {/* ── Zonal (state office reports under SOC) ── */}
+            <Route path="/zonal/enrolment" element={<StateOfficeReportsList key="state-enrolment" reportType="enrolment" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
+            <Route path="/zonal/migration" element={<StateOfficeReportsList key="state-migration" reportType="migration" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
+            <Route path="/zonal/cemonc" element={<StateOfficeReportsList key="state-cemonc" reportType="cemonc" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
+            <Route path="/zonal/monitoring-visits" element={<StateOfficeComplianceVisitsPage key="state-compliance-monitoring" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
+            <Route path="/zonal/accreditation" element={<StateOfficeReportsList key="state-accreditation" reportType="accreditation" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
+            <Route path="/zonal/stakeholder" element={<StateOfficeReportsList key="state-stakeholder" reportType="stakeholder" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
+            <Route path="/zonal/hmo-selection" element={<StateOfficeReportsList key="state-hmo-selection" reportType="hmo-selection" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
+            <Route path="/zonal/challenges" element={<StateOfficeReportsList key="state-challenges" reportType="challenges" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
+            <Route path="/zonal/igr" element={<StateOfficeReportsList reportType="igr" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
+            <Route path="/zonal/sshia-financial" element={<StateOfficeReportsList reportType="sshia-financial" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
+            <Route path="/zonal/expenditure-profile" element={<StateOfficeReportsList reportType="expenditure-profile" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
 
             {/* ── Store & Asset Management Module ── */}
             <Route path="/store-management" element={<DashboardView />} />

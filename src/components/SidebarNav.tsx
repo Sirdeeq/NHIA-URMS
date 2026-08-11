@@ -10,7 +10,7 @@ import {
   FileCheck, AlertTriangle, FileSpreadsheet, Building, ShieldAlert,
 } from "lucide-react";
 import type { AccessEntry } from "@/src/access/types";
-import { MODULE_CONFIG, SOC_ZONES_MODULE, type ChildModule, type SubGroup, hasRoutableView, flatLeaves, moduleConfigForAccess, isSubGroup } from "@/src/access/moduleConfig";
+import { MODULE_CONFIG, SOC_ZONES_MODULE, type ChildModule, type SubGroup, hasRoutableView, flatLeaves, moduleConfigForAccess, isSubGroup, modulesVisibleToAdmin, adminAllowedTitlesForModule } from "@/src/access/moduleConfig";
 import { hasModuleAccess } from "@/src/access/roles";
 import { normalizeAllowedTitles, normalizeModuleTitle, expandAccessEntries } from "@/src/access/accessUtils";
 
@@ -73,7 +73,9 @@ const PATH_TO_VIEW: Record<string, string> = {
   "/sdo/assets":                  "stock-assets",
   "/sdo/servicom":                "servicom-dashboard",
   "/sdo/servicom/visits":         "servicom-visits",
-  "/soc/monitoring-visits":       "servicom-visits",
+  "/zonal/monitoring-visits":    "servicom-visits",
+  "/soc/operation-monitoring-visit": "soc-operation-monitoring-visit",
+  "/soc/spot-check-visit":        "soc-spot-check-visit",
   "/sdo/servicom/complaints":     "servicom-complaints",
   "/sdo/servicom/satisfaction":   "servicom-satisfaction",
   "/sdo/servicom/comment-card":   "servicom-comment-card",
@@ -318,10 +320,12 @@ export default function SidebarNav({ role, access, view, setView, sidebarOpen }:
   // Build visible modules from user's access array
   const visibleModules = React.useMemo(() => {
     if (role === "admin") {
-      return MODULE_CONFIG.map(mod => ({
-        mod,
-        allowedTitles: new Set<string>(flatLeaves(mod)),
-      }));
+      return modulesVisibleToAdmin()
+        .map(mod => ({
+          mod,
+          allowedTitles: adminAllowedTitlesForModule(mod),
+        }))
+        .filter(({ allowedTitles }) => allowedTitles.size > 0);
     }
 
     const effectiveAccess = expandAccessEntries(access);
@@ -332,7 +336,7 @@ export default function SidebarNav({ role, access, view, setView, sidebarOpen }:
 
         const funcs = Array.isArray(entry.functionalities) ? entry.functionalities : [];
         const allowedTitles = funcs.length > 0
-          ? normalizeAllowedTitles(funcs)
+          ? normalizeAllowedTitles(funcs, mod.title)
           : new Set(flatLeaves(mod));
 
         return { mod, allowedTitles };

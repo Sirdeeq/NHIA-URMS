@@ -49,7 +49,7 @@ export default function AccreditedProviderSelect({
         type,
         ...(needsState && stateId ? { state_id: stateId } : {}),
         q: q?.trim() || undefined,
-        limit: type === "hmo" ? "100" : "100",
+        limit: type === "hmo" ? "100" : "200",
       });
       const opts = res.data.map((p: any) => {
         const o: CachedOption = {
@@ -65,7 +65,7 @@ export default function AccreditedProviderSelect({
       setOptions(opts);
       if (!opts.length && !q?.trim()) {
         setLoadError(needsState
-          ? "No accredited providers found for this state."
+          ? "No accredited facilities (HCF) found for this state. Run npm run db:seed-all in the backend."
           : "No accredited HMOs found.");
       }
     } catch (err: any) {
@@ -131,7 +131,7 @@ export default function AccreditedProviderSelect({
         searchPlaceholder={
           type === "hmo"
             ? "Search accredited HMOs (nationwide)..."
-            : "Search HCPs in selected state..."
+            : "Search facilities (HCF) in selected state..."
         }
         clearable
         onSearchChange={type === "hcp" ? handleSearch : undefined}
