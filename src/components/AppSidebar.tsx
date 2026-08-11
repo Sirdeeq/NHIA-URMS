@@ -374,11 +374,11 @@ function UserSidebarDepartment({
   if (!department) return null;
 
   return (
-    <div className="mx-1 mb-2 rounded-xl border-2 border-[#25a872]/45 bg-[#25a872]/12 px-3 py-2.5 group-data-[collapsible=icon]:hidden">
-      <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#145c3f]">
+    <div className="mx-1 mb-2 rounded-xl border-2 border-white/25 bg-[#145c3f] px-3 py-2.5 group-data-[collapsible=icon]:hidden">
+      <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-white/90">
         Department
       </p>
-      <p className="mt-1 text-sm font-extrabold leading-snug text-[#145c3f]">
+      <p className="mt-1 text-sm font-extrabold leading-snug text-white">
         {department}
       </p>
     </div>
