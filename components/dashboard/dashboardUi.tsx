@@ -54,8 +54,8 @@ export function ClickableKpi({
         <p className="text-xl font-black text-slate-800">{value}</p>
         <p className="text-[10px] font-semibold text-slate-500 mt-1 leading-tight">{label}</p>
         {drillable && onClick && (
-          <p className="text-[9px] text-[#25a872] font-semibold mt-1.5 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-            Drill down <ChevronRight className="w-3 h-3" />
+          <p className="text-[9px] text-[#25a872] font-semibold mt-1.5 flex items-center gap-0.5">
+            Click to drill down <ChevronRight className="w-3 h-3" />
           </p>
         )}
       </Tag>

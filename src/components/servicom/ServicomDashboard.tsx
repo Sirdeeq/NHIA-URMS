@@ -1,7 +1,7 @@
 import * as React from "react";
 import {
-  ArrowLeft, RefreshCw, Loader2, TrendingUp, CheckCircle2, AlertTriangle,
-  Star, ClipboardCheck, MessageSquare,
+  ArrowLeft, RefreshCw, Loader2, TrendingUp, CheckCircle2,
+  ClipboardCheck, MessageSquare,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -32,6 +32,14 @@ const SEGMENT_LABELS: Record<string, string> = {
   complaints: "Complaints",
   visits: "Monitoring Visits",
 };
+
+function ChartEmpty({ message = "No records in the system for this view yet." }: { message?: string }) {
+  return (
+    <div className="flex h-full min-h-[160px] items-center justify-center px-4 text-center">
+      <p className="text-xs text-slate-500">{message}</p>
+    </div>
+  );
+}
 
 export default function ServicomDashboard({ onBack, defaultStateId, defaultZoneId }: Props) {
   const [data, setData] = React.useState<any | null>(null);
@@ -69,6 +77,11 @@ export default function ServicomDashboard({ onBack, defaultStateId, defaultZoneI
       label: m.month?.slice(5) ?? m.month,
     }));
   }, [data]);
+
+  const statusChartData = React.useMemo(
+    () => (data?.complaint_by_status ?? []).filter((d: any) => d.count > 0),
+    [data],
+  );
 
   const drillSegment = (segment: string, title: string, extra?: Record<string, string>) => {
     drill.openRecordDrill(segment, title, drillCtx, extra);
@@ -108,7 +121,7 @@ export default function ServicomDashboard({ onBack, defaultStateId, defaultZoneI
           </Button>
           <div>
             <h2 className="text-xl font-bold tracking-tight">SERVICOM Unit Dashboard</h2>
-            <p className="text-xs text-muted-foreground">{unitScope.headline} — click KPIs & charts to drill down</p>
+            <p className="text-xs text-muted-foreground">{unitScope.headline} — live data from SERVICOM records</p>
           </div>
         </div>
         <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
@@ -124,18 +137,12 @@ export default function ServicomDashboard({ onBack, defaultStateId, defaultZoneI
             </div>
           ) : !data ? null : (
             <>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8 gap-4">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <ClickableKpi
                   label="Satisfaction Surveys"
                   value={data.satisfaction_surveys ?? 0}
                   icon={<ClipboardCheck className="w-5 h-5 text-emerald-600" />}
                   onClick={() => drillSegment("surveys", "Satisfaction Surveys")}
-                />
-                <ClickableKpi
-                  label="Charter Cards"
-                  value={data.comment_cards ?? 0}
-                  icon={<Star className="w-5 h-5 text-indigo-600" />}
-                  onClick={() => drillSegment("comment_cards", "Charter Comment Cards")}
                 />
                 <ClickableKpi
                   label="Complaints Received"
@@ -147,13 +154,7 @@ export default function ServicomDashboard({ onBack, defaultStateId, defaultZoneI
                   label="Avg Satisfaction"
                   value={data.avg_satisfaction != null ? `${data.avg_satisfaction}%` : "—"}
                   icon={<TrendingUp className="w-5 h-5 text-[#25a872]" />}
-                  drillable={false}
-                />
-                <ClickableKpi
-                  label="Avg Charter Score"
-                  value={data.avg_comment_card_score != null ? data.avg_comment_card_score : "—"}
-                  icon={<Star className="w-5 h-5 text-purple-600" />}
-                  drillable={false}
+                  onClick={() => drillSegment("surveys", "Satisfaction Surveys")}
                 />
                 <ClickableKpi
                   label="Resolution Rate"
@@ -161,21 +162,18 @@ export default function ServicomDashboard({ onBack, defaultStateId, defaultZoneI
                   icon={<CheckCircle2 className="w-5 h-5 text-emerald-600" />}
                   onClick={() => drillComplaints("Resolved / Closed Complaints", { status: "resolved" })}
                 />
-                <ClickableKpi
-                  label="SLA Compliance"
-                  value={data.sla_compliance_rate != null ? `${data.sla_compliance_rate}%` : "—"}
-                  icon={<AlertTriangle className="w-5 h-5 text-amber-600" />}
-                  drillable={false}
-                />
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <Card className="rounded-2xl border-[#d4e8dc]">
                   <CardHeader className="pb-2 flex flex-row items-center justify-between">
                     <CardTitle className="text-sm font-bold">Monthly Activity</CardTitle>
-                    <DrillHint label="All complaints" onClick={() => drillSegment("complaints", "All Complaints")} />
+                    <DrillHint label="All surveys" onClick={() => drillSegment("surveys", "Satisfaction Surveys")} />
                   </CardHeader>
                   <CardContent className="h-[240px]">
+                    {monthlyChart.length === 0 ? (
+                      <ChartEmpty message="No surveys, charter cards, or complaints recorded yet." />
+                    ) : (
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart
                         data={monthlyChart}
@@ -202,39 +200,53 @@ export default function ServicomDashboard({ onBack, defaultStateId, defaultZoneI
                         <Line type="monotone" dataKey="complaints" name="Complaints" stroke="#3b82f6" strokeWidth={2} dot={{ r: 3 }} />
                       </LineChart>
                     </ResponsiveContainer>
+                    )}
                   </CardContent>
                 </Card>
 
                 <Card className="rounded-2xl border-[#d4e8dc]">
-                  <CardHeader className="pb-2"><CardTitle className="text-sm font-bold">Complaints by Status</CardTitle></CardHeader>
+                  <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                    <CardTitle className="text-sm font-bold">Complaints by Status</CardTitle>
+                    <DrillHint label="All complaints" onClick={() => drillSegment("complaints", "All Complaints")} />
+                  </CardHeader>
                   <CardContent className="h-[240px]">
+                    {statusChartData.length === 0 ? (
+                      <ChartEmpty message="No complaints recorded in the system." />
+                    ) : (
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Pie
-                          data={(data.complaint_by_status ?? []).filter((d: any) => d.count > 0)}
+                          data={statusChartData}
                           dataKey="count" nameKey="status" cx="50%" cy="50%" outerRadius={75}
-                          label={({ status, count }) => `${String(status).slice(0, 12)}: ${count}`}
+                          label={({ status, count }) => `${String(status).slice(0, 14)}: ${count}`}
                           style={{ cursor: "pointer" }}
                           onClick={(_: any, idx: number) => {
-                            const row = (data.complaint_by_status ?? [])[idx];
+                            const row = statusChartData[idx];
                             if (row?.status) drillComplaints(`Complaints — ${row.status}`, { status: row.status });
                           }}
                         >
-                          {(data.complaint_by_status ?? []).map((_: any, i: number) => (
+                          {statusChartData.map((_: any, i: number) => (
                             <Cell key={i} fill={COLORS[i % COLORS.length]} />
                           ))}
                         </Pie>
                         <Tooltip />
                       </PieChart>
                     </ResponsiveContainer>
+                    )}
                   </CardContent>
                 </Card>
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 <Card className="rounded-2xl border-[#d4e8dc]">
-                  <CardHeader className="pb-2"><CardTitle className="text-sm font-bold">By Category</CardTitle></CardHeader>
+                  <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                    <CardTitle className="text-sm font-bold">By Category</CardTitle>
+                    <DrillHint label="All complaints" onClick={() => drillSegment("complaints", "All Complaints")} />
+                  </CardHeader>
                   <CardContent className="h-[220px]">
+                    {(data.complaint_by_category ?? []).length === 0 ? (
+                      <ChartEmpty />
+                    ) : (
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={data.complaint_by_category ?? []} layout="vertical" margin={{ left: 4 }}>
                         <CartesianGrid strokeDasharray="3 3" />
@@ -249,12 +261,19 @@ export default function ServicomDashboard({ onBack, defaultStateId, defaultZoneI
                         />
                       </BarChart>
                     </ResponsiveContainer>
+                    )}
                   </CardContent>
                 </Card>
 
                 <Card className="rounded-2xl border-[#d4e8dc]">
-                  <CardHeader className="pb-2"><CardTitle className="text-sm font-bold">By Domain</CardTitle></CardHeader>
+                  <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                    <CardTitle className="text-sm font-bold">By Domain</CardTitle>
+                    <DrillHint label="All complaints" onClick={() => drillSegment("complaints", "All Complaints")} />
+                  </CardHeader>
                   <CardContent className="h-[220px]">
+                    {(data.complaint_by_domain ?? []).length === 0 ? (
+                      <ChartEmpty />
+                    ) : (
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={data.complaint_by_domain ?? []}>
                         <CartesianGrid strokeDasharray="3 3" />
@@ -269,12 +288,19 @@ export default function ServicomDashboard({ onBack, defaultStateId, defaultZoneI
                         />
                       </BarChart>
                     </ResponsiveContainer>
+                    )}
                   </CardContent>
                 </Card>
 
                 <Card className="rounded-2xl border-[#d4e8dc]">
-                  <CardHeader className="pb-2"><CardTitle className="text-sm font-bold">By Priority</CardTitle></CardHeader>
+                  <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                    <CardTitle className="text-sm font-bold">By Priority</CardTitle>
+                    <DrillHint label="All complaints" onClick={() => drillSegment("complaints", "All Complaints")} />
+                  </CardHeader>
                   <CardContent className="h-[220px]">
+                    {(data.complaint_by_priority ?? []).length === 0 ? (
+                      <ChartEmpty />
+                    ) : (
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={data.complaint_by_priority ?? []}>
                         <CartesianGrid strokeDasharray="3 3" />
@@ -289,6 +315,68 @@ export default function ServicomDashboard({ onBack, defaultStateId, defaultZoneI
                         />
                       </BarChart>
                     </ResponsiveContainer>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <Card className="rounded-2xl border-emerald-200 bg-emerald-50/30">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-bold text-emerald-800">Top Performing States</CardTitle>
+                    <p className="text-[11px] text-emerald-700/80">States with survey or charter data — ranked by composite score</p>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    {(data.top_states || []).map((s: any, i: number) => (
+                      <button
+                        key={s.state_id}
+                        type="button"
+                        className="flex items-center justify-between gap-2 text-sm w-full text-left hover:bg-emerald-100/50 rounded-lg px-2 py-1.5"
+                        onClick={() => onStateRow(s.state_id, s.state_name ?? `State #${s.state_id}`)}
+                      >
+                        <span className="flex items-center gap-2 min-w-0">
+                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-[10px] font-bold text-white">
+                            {i + 1}
+                          </span>
+                          <span className="font-semibold truncate">{s.state_name ?? `State #${s.state_id}`}</span>
+                        </span>
+                        <Badge variant="outline" className="shrink-0 text-emerald-700 border-emerald-300">{s.avg_score}%</Badge>
+                      </button>
+                    ))}
+                    {!(data.top_states?.length) && (
+                      <p className="text-xs text-slate-500">Need data from at least one state to rank performers.</p>
+                    )}
+                  </CardContent>
+                </Card>
+                <Card className="rounded-2xl border-rose-200 bg-rose-50/30">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-bold text-rose-800">Low Performing States</CardTitle>
+                    <p className="text-[11px] text-rose-700/80">Bottom half of ranked states — never duplicates the top list</p>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    {(data.low_states || []).map((s: any, i: number) => (
+                      <button
+                        key={s.state_id}
+                        type="button"
+                        className="flex items-center justify-between gap-2 text-sm w-full text-left hover:bg-rose-100/50 rounded-lg px-2 py-1.5"
+                        onClick={() => onStateRow(s.state_id, s.state_name ?? `State #${s.state_id}`)}
+                      >
+                        <span className="flex items-center gap-2 min-w-0">
+                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-rose-600 text-[10px] font-bold text-white">
+                            {i + 1}
+                          </span>
+                          <span className="font-semibold truncate">{s.state_name ?? `State #${s.state_id}`}</span>
+                        </span>
+                        <Badge variant="outline" className="shrink-0 text-rose-700 border-rose-300">{s.avg_score}%</Badge>
+                      </button>
+                    ))}
+                    {!(data.low_states?.length) && (
+                      <p className="text-xs text-slate-500">
+                        {(data.top_states?.length ?? 0) <= 1
+                          ? "Add data for more states to show low performers."
+                          : "No separate low performers in the current ranking."}
+                      </p>
+                    )}
                   </CardContent>
                 </Card>
               </div>
@@ -296,7 +384,7 @@ export default function ServicomDashboard({ onBack, defaultStateId, defaultZoneI
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <Card className="rounded-2xl border-[#d4e8dc] overflow-hidden">
                   <CardHeader className="pb-2 border-b border-[#d4e8dc] flex flex-row items-center justify-between">
-                    <CardTitle className="text-sm font-bold">State Satisfaction Rankings</CardTitle>
+                    <CardTitle className="text-sm font-bold">State Performance Rankings</CardTitle>
                     <DrillHint label="All surveys" onClick={() => drillSegment("surveys", "Satisfaction Surveys")} />
                   </CardHeader>
                   <CardContent className="p-0">
@@ -306,7 +394,8 @@ export default function ServicomDashboard({ onBack, defaultStateId, defaultZoneI
                           <TableHead className="text-xs">#</TableHead>
                           <TableHead className="text-xs">State</TableHead>
                           <TableHead className="text-xs text-right">Surveys</TableHead>
-                          <TableHead className="text-xs text-right">Avg Score</TableHead>
+                          <TableHead className="text-xs text-right">Charter</TableHead>
+                          <TableHead className="text-xs text-right">Score</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -318,7 +407,8 @@ export default function ServicomDashboard({ onBack, defaultStateId, defaultZoneI
                           >
                             <TableCell className="text-xs font-bold">{i + 1}</TableCell>
                             <TableCell className="text-sm font-semibold">{s.state_name ?? `State #${s.state_id}`}</TableCell>
-                            <TableCell className="text-xs text-right">{s.surveys}</TableCell>
+                            <TableCell className="text-xs text-right">{s.surveys ?? 0}</TableCell>
+                            <TableCell className="text-xs text-right">{s.comment_cards ?? 0}</TableCell>
                             <TableCell className="text-xs text-right font-bold text-[#25a872]">{s.avg_score}%</TableCell>
                           </TableRow>
                         ))}
@@ -326,43 +416,6 @@ export default function ServicomDashboard({ onBack, defaultStateId, defaultZoneI
                     </Table>
                   </CardContent>
                 </Card>
-
-                <div className="grid grid-cols-1 gap-4">
-                  <Card className="rounded-2xl border-emerald-200 bg-emerald-50/30">
-                    <CardHeader className="pb-2"><CardTitle className="text-sm font-bold text-emerald-800">Top Performing States</CardTitle></CardHeader>
-                    <CardContent className="space-y-2">
-                      {(data.top_states || []).map((s: any) => (
-                        <button
-                          key={s.state_id}
-                          type="button"
-                          className="flex justify-between text-sm w-full text-left hover:bg-emerald-100/50 rounded-lg px-2 py-1"
-                          onClick={() => onStateRow(s.state_id, s.state_name ?? `State #${s.state_id}`)}
-                        >
-                          <span className="font-semibold">{s.state_name ?? `State #${s.state_id}`}</span>
-                          <Badge variant="outline" className="text-emerald-700 border-emerald-300">{s.avg_score}%</Badge>
-                        </button>
-                      ))}
-                      {!(data.top_states?.length) && <p className="text-xs text-slate-500">No survey data yet</p>}
-                    </CardContent>
-                  </Card>
-                  <Card className="rounded-2xl border-rose-200 bg-rose-50/30">
-                    <CardHeader className="pb-2"><CardTitle className="text-sm font-bold text-rose-800">Low Performing States</CardTitle></CardHeader>
-                    <CardContent className="space-y-2">
-                      {(data.low_states || []).map((s: any) => (
-                        <button
-                          key={s.state_id}
-                          type="button"
-                          className="flex justify-between text-sm w-full text-left hover:bg-rose-100/50 rounded-lg px-2 py-1"
-                          onClick={() => onStateRow(s.state_id, s.state_name ?? `State #${s.state_id}`)}
-                        >
-                          <span className="font-semibold">{s.state_name ?? `State #${s.state_id}`}</span>
-                          <Badge variant="outline" className="text-rose-700 border-rose-300">{s.avg_score}%</Badge>
-                        </button>
-                      ))}
-                      {!(data.low_states?.length) && <p className="text-xs text-slate-500">No survey data yet</p>}
-                    </CardContent>
-                  </Card>
-                </div>
               </div>
             </>
           )}
