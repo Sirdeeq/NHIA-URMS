@@ -1,7 +1,7 @@
 import * as React from "react";
 import {
-  ArrowLeft, RefreshCw, Loader2, Package, ClipboardList, AlertTriangle,
-  CheckCircle2, Boxes,
+  ArrowLeft, RefreshCw, Loader2, Package, ClipboardList,
+  Boxes, Wrench,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,10 +19,20 @@ import { ClickableKpi, DrillHint, COLORS, getUnitHeadScope } from "@/components/
 
 const UNIT_NAME = "Stock Verification Unit";
 
+const GEO_SCOPED = new Set(["verifications", "supply_verifications", "variance_items", "assets"]);
+
 interface Props {
   onBack: () => void;
   defaultStateId?: string | null;
   defaultZoneId?: string | null;
+}
+
+function ChartEmpty({ message = "No records in the system for this view yet." }: { message?: string }) {
+  return (
+    <div className="flex h-full min-h-[160px] items-center justify-center px-4 text-center">
+      <p className="text-xs text-slate-500">{message}</p>
+    </div>
+  );
 }
 
 export default function StockVerificationDashboard({ onBack, defaultStateId, defaultZoneId }: Props) {
@@ -60,16 +70,44 @@ export default function StockVerificationDashboard({ onBack, defaultStateId, def
     (data?.monthly_activity ?? []).map((m: any) => ({ ...m, label: m.month?.slice(5) ?? m.month })),
   [data]);
 
-  const drillVerifications = (title: string, extra?: Record<string, string>) => {
-    drill.openRecordDrill("verifications", title, drillCtx, extra);
+  const moduleChart = React.useMemo(() => data?.module_breakdown ?? [], [data]);
+  const supplyVerdictChart = React.useMemo(
+    () => (data?.supply_by_verdict ?? []).filter((d: any) => d.count > 0),
+    [data],
+  );
+
+  const drillGeoSegment = (segment: string, title: string, extra?: Record<string, string>) => {
+    drill.openRecordDrill(segment, title, drillCtx, extra);
   };
 
-  const drillAssets = (title: string, extra?: Record<string, string>) => {
-    drill.openRecordDrill("assets", title, drillCtx, extra);
+  const drillDirect = (segment: string, title: string, extra?: Record<string, string>) => {
+    drill.openDrill(
+      { segment, ...extra },
+      { title, subtitle: drillCtx.subtitle, breadcrumbs: drillCtx.breadcrumbs },
+      { resetStack: true },
+    );
   };
 
-  const drillVariance = (title: string, extra?: Record<string, string>) => {
-    drill.openRecordDrill("variance_items", title, drillCtx, extra);
+  const drillSegment = (segment: string, title: string, extra?: Record<string, string>) => {
+    if (GEO_SCOPED.has(segment)) {
+      drillGeoSegment(segment, title, extra);
+    } else {
+      drillDirect(segment, title, extra);
+    }
+  };
+
+  const drillModule = (moduleName: string) => {
+    const map: Record<string, { segment: string; title: string }> = {
+      "Physical Asset Verification": { segment: "verifications", title: "Physical Asset Verifications" },
+      "Verification of Supply": { segment: "supply_verifications", title: "Verification of Supply" },
+      "SVO Assets": { segment: "svo_assets", title: "SVO Assets Registered" },
+      "Inventory Catalog": { segment: "inventory_items", title: "Inventory Catalog" },
+      "Transfers & Movements": { segment: "transfers", title: "Transfers & Movements" },
+      "Board Disposal": { segment: "disposals", title: "Board Disposal" },
+      "Maintenance & Servicing": { segment: "maintenance", title: "Maintenance & Servicing" },
+    };
+    const target = map[moduleName];
+    if (target) drillSegment(target.segment, target.title);
   };
 
   const onStateRow = (stateId: number, stateName: string) => {
@@ -77,7 +115,7 @@ export default function StockVerificationDashboard({ onBack, defaultStateId, def
       { segment: "state_breakdown", state_id: String(stateId) },
       {
         title: stateName,
-        subtitle: "Breakdown by record type",
+        subtitle: "Breakdown by verification type",
         breadcrumbs: [UNIT_NAME, "By State"],
       },
       { resetStack: true },
@@ -93,7 +131,7 @@ export default function StockVerificationDashboard({ onBack, defaultStateId, def
           </Button>
           <div>
             <h2 className="text-xl font-bold tracking-tight">Stock Verification Unit Dashboard</h2>
-            <p className="text-xs text-muted-foreground">{unitScope.headline} — click KPIs & charts to drill down</p>
+            <p className="text-xs text-muted-foreground">{unitScope.headline} — live data from verification & asset records</p>
           </div>
         </div>
         <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
@@ -109,152 +147,177 @@ export default function StockVerificationDashboard({ onBack, defaultStateId, def
             </div>
           ) : !data ? null : (
             <>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8 gap-4">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <ClickableKpi
-                  label="Verifications"
-                  value={data.total_verifications ?? 0}
+                  label="Physical Asset Verifications"
+                  value={data.physical_asset_verifications ?? data.total_verifications ?? 0}
                   icon={<ClipboardList className="w-5 h-5 text-emerald-600" />}
-                  onClick={() => drillVerifications("All Verifications")}
+                  onClick={() => drillSegment("verifications", "Physical Asset Verifications")}
                 />
                 <ClickableKpi
-                  label="Assets Registered"
-                  value={data.total_assets ?? 0}
-                  icon={<Boxes className="w-5 h-5 text-blue-600" />}
-                  onClick={() => drillAssets("All Registered Assets")}
+                  label="Verification of Supply"
+                  value={data.supply_verifications ?? 0}
+                  icon={<Package className="w-5 h-5 text-blue-600" />}
+                  onClick={() => drillSegment("supply_verifications", "Verification of Supply")}
                 />
                 <ClickableKpi
-                  label="Active Assets"
-                  value={data.assets_active ?? 0}
-                  icon={<CheckCircle2 className="w-5 h-5 text-[#25a872]" />}
-                  onClick={() => drillAssets("Active Assets", { active: "1" })}
+                  label="SVO Assets Registered"
+                  value={data.svo_assets ?? 0}
+                  icon={<Boxes className="w-5 h-5 text-[#25a872]" />}
+                  onClick={() => drillSegment("svo_assets", "SVO Assets Registered")}
                 />
                 <ClickableKpi
-                  label="Items Verified"
-                  value={data.items_verified ?? 0}
-                  icon={<Package className="w-5 h-5 text-indigo-600" />}
-                  onClick={() => drillVariance("Verified Line Items")}
-                />
-                <ClickableKpi
-                  label="With Variance"
-                  value={data.items_with_variance ?? 0}
-                  icon={<AlertTriangle className="w-5 h-5 text-amber-600" />}
-                  onClick={() => drillVariance("Items With Variance", { has_variance: "1" })}
-                />
-                <ClickableKpi
-                  label="Bad Condition"
-                  value={data.items_bad_condition ?? 0}
-                  icon={<AlertTriangle className="w-5 h-5 text-rose-600" />}
-                  onClick={() => drillVariance("Items in Bad Condition", { condition: "bad" })}
-                />
-                <ClickableKpi
-                  label="Inactive Assets"
-                  value={data.assets_inactive ?? 0}
-                  icon={<Package className="w-5 h-5 text-slate-500" />}
-                  onClick={() => drillAssets("Inactive Assets", { active: "0" })}
+                  label="Store Operations"
+                  value={data.store_operations ?? 0}
+                  icon={<Wrench className="w-5 h-5 text-indigo-600" />}
+                  onClick={() => drillSegment("store_operations", "Store Operations")}
                 />
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <Card className="rounded-2xl border-[#d4e8dc]">
                   <CardHeader className="pb-2 flex flex-row items-center justify-between">
-                    <CardTitle className="text-sm font-bold">Monthly Verifications</CardTitle>
-                    <DrillHint label="All verifications" onClick={() => drillVerifications("All Verifications")} />
+                    <CardTitle className="text-sm font-bold">Monthly Activity</CardTitle>
+                    <DrillHint label="Physical verifications" onClick={() => drillSegment("verifications", "Physical Asset Verifications")} />
                   </CardHeader>
                   <CardContent className="h-[240px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart
-                        data={monthlyChart}
-                        onClick={(e: any) => {
-                          const month = e?.activePayload?.[0]?.payload?.month;
-                          if (month) drillVerifications(`Verifications — ${month}`, { month });
-                        }}
-                        style={{ cursor: "pointer" }}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                        <XAxis dataKey="label" tick={{ fontSize: 10 }} />
-                        <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
-                        <Tooltip />
-                        <Legend wrapperStyle={{ fontSize: 10 }} />
-                        <Line type="monotone" dataKey="verifications" name="Verifications" stroke="#25a872" strokeWidth={2} dot={{ r: 3 }} />
-                        <Line type="monotone" dataKey="approved" name="Approved" stroke="#6366f1" strokeWidth={2} dot={{ r: 3 }} />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </CardContent>
-                </Card>
-
-                <Card className="rounded-2xl border-[#d4e8dc]">
-                  <CardHeader className="pb-2"><CardTitle className="text-sm font-bold">Verifications by Type</CardTitle></CardHeader>
-                  <CardContent className="h-[240px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={data.verification_by_type ?? []}
-                          dataKey="count" nameKey="stocktaking_type" cx="50%" cy="50%" outerRadius={80}
-                          label={({ stocktaking_type, count }) => `${stocktaking_type}: ${count}`}
+                    {monthlyChart.length === 0 ? (
+                      <ChartEmpty message="No physical or supply verifications recorded yet." />
+                    ) : (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart
+                          data={monthlyChart}
+                          onClick={(e: any) => {
+                            const month = e?.activePayload?.[0]?.payload?.month;
+                            if (month) drillGeoSegment("verifications", `Physical Verifications — ${month}`, { month });
+                          }}
                           style={{ cursor: "pointer" }}
-                          onClick={(_: any, idx: number) => {
-                            const row = (data.verification_by_type ?? [])[idx];
-                            if (row?.stocktaking_type) {
-                              drillVerifications(`Type: ${row.stocktaking_type}`, { type: row.stocktaking_type });
-                            }
-                          }}
                         >
-                          {(data.verification_by_type ?? []).map((_: any, i: number) => (
-                            <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                          ))}
-                        </Pie>
-                        <Tooltip />
-                      </PieChart>
-                    </ResponsiveContainer>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                          <XAxis dataKey="label" tick={{ fontSize: 10 }} />
+                          <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
+                          <Tooltip />
+                          <Legend wrapperStyle={{ fontSize: 10 }} />
+                          <Line type="monotone" dataKey="physical_verifications" name="Physical" stroke="#25a872" strokeWidth={2} dot={{ r: 3 }} />
+                          <Line type="monotone" dataKey="supply_verifications" name="Supply" stroke="#6366f1" strokeWidth={2} dot={{ r: 3 }} />
+                          <Line type="monotone" dataKey="approved" name="Approved" stroke="#f59e0b" strokeWidth={2} dot={{ r: 3 }} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    )}
                   </CardContent>
                 </Card>
 
                 <Card className="rounded-2xl border-[#d4e8dc]">
-                  <CardHeader className="pb-2"><CardTitle className="text-sm font-bold">Verifications by Status</CardTitle></CardHeader>
+                  <CardHeader className="pb-2"><CardTitle className="text-sm font-bold">Records by Module</CardTitle></CardHeader>
                   <CardContent className="h-[240px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={data.verification_by_status ?? []}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                        <XAxis dataKey="status" tick={{ fontSize: 10 }} />
-                        <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
-                        <Tooltip />
-                        <Bar
-                          dataKey="count" fill="#25a872" radius={[4, 4, 0, 0]} style={{ cursor: "pointer" }}
-                          onClick={(bar: any) => {
-                            if (bar?.status) drillVerifications(`Status: ${bar.status}`, { status: bar.status });
-                          }}
-                        />
-                      </BarChart>
-                    </ResponsiveContainer>
+                    {moduleChart.length === 0 ? (
+                      <ChartEmpty message="No stock verification or SVO records yet." />
+                    ) : (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={moduleChart}
+                            dataKey="count" nameKey="module" cx="50%" cy="50%" outerRadius={80}
+                            label={({ module, count }) => `${module}: ${count}`}
+                            style={{ cursor: "pointer" }}
+                            onClick={(_: any, idx: number) => {
+                              const row = moduleChart[idx];
+                              if (row?.module) drillModule(row.module);
+                            }}
+                          >
+                            {moduleChart.map((_: any, i: number) => (
+                              <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    )}
                   </CardContent>
                 </Card>
 
                 <Card className="rounded-2xl border-[#d4e8dc]">
+                  <CardHeader className="pb-2"><CardTitle className="text-sm font-bold">Physical Verifications by Status</CardTitle></CardHeader>
+                  <CardContent className="h-[240px]">
+                    {(data.verification_by_status ?? []).length === 0 ? (
+                      <ChartEmpty />
+                    ) : (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={data.verification_by_status ?? []}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                          <XAxis dataKey="status" tick={{ fontSize: 10 }} />
+                          <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
+                          <Tooltip />
+                          <Bar
+                            dataKey="count" fill="#25a872" radius={[4, 4, 0, 0]} style={{ cursor: "pointer" }}
+                            onClick={(bar: any) => {
+                              if (bar?.status) drillGeoSegment("verifications", `Status: ${bar.status}`, { status: bar.status });
+                            }}
+                          />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card className="rounded-2xl border-[#d4e8dc]">
+                  <CardHeader className="pb-2"><CardTitle className="text-sm font-bold">Supply Verifications by Verdict</CardTitle></CardHeader>
+                  <CardContent className="h-[240px]">
+                    {supplyVerdictChart.length === 0 ? (
+                      <ChartEmpty message="No supply verification certificates yet." />
+                    ) : (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={supplyVerdictChart}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                          <XAxis dataKey="verdict" tick={{ fontSize: 9 }} />
+                          <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
+                          <Tooltip />
+                          <Bar
+                            dataKey="count" fill="#6366f1" radius={[4, 4, 0, 0]} style={{ cursor: "pointer" }}
+                            onClick={(bar: any) => {
+                              if (bar?.verdict) drillSegment("supply_verifications", `Verdict: ${bar.verdict}`, { verdict: bar.verdict });
+                            }}
+                          />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card className="rounded-2xl border-[#d4e8dc] lg:col-span-2">
                   <CardHeader className="pb-2 flex flex-row items-center justify-between">
                     <CardTitle className="text-sm font-bold">Top States by Verifications</CardTitle>
-                    <DrillHint label="All verifications" onClick={() => drillVerifications("All Verifications")} />
+                    <DrillHint label="All physical" onClick={() => drillSegment("verifications", "Physical Asset Verifications")} />
                   </CardHeader>
                   <CardContent className="p-0">
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="bg-[#f0fdf7]">
-                          <TableHead className="text-xs">State</TableHead>
-                          <TableHead className="text-xs text-right">Count</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {(data.state_activity ?? []).map((row: any) => (
-                          <TableRow
-                            key={row.state_id}
-                            className="cursor-pointer hover:bg-[#f0fdf7]"
-                            onClick={() => onStateRow(row.state_id, row.state_name)}
-                          >
-                            <TableCell className="text-sm">{row.state_name}</TableCell>
-                            <TableCell className="text-sm text-right font-bold">{row.verification_count}</TableCell>
+                    {(data.state_activity ?? []).length === 0 ? (
+                      <ChartEmpty message="No state-level verification activity yet." />
+                    ) : (
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="bg-[#f0fdf7]">
+                            <TableHead className="text-xs">State</TableHead>
+                            <TableHead className="text-xs text-right">Physical</TableHead>
+                            <TableHead className="text-xs text-right">Supply</TableHead>
+                            <TableHead className="text-xs text-right">Total</TableHead>
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                        </TableHeader>
+                        <TableBody>
+                          {(data.state_activity ?? []).map((row: any) => (
+                            <TableRow
+                              key={row.state_id}
+                              className="cursor-pointer hover:bg-[#f0fdf7]"
+                              onClick={() => onStateRow(row.state_id, row.state_name)}
+                            >
+                              <TableCell className="text-sm">{row.state_name}</TableCell>
+                              <TableCell className="text-sm text-right">{row.physical_count ?? 0}</TableCell>
+                              <TableCell className="text-sm text-right">{row.supply_count ?? 0}</TableCell>
+                              <TableCell className="text-sm text-right font-bold">{row.verification_count}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    )}
                   </CardContent>
                 </Card>
               </div>

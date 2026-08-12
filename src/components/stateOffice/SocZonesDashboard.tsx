@@ -20,6 +20,14 @@ import type { DrillRow } from "@/components/dashboard/DashboardDrillPanel";
 
 const UNIT_NAME = "SOC/Zones Unit";
 
+function ChartEmpty({ message = "No records in the system for this view yet." }: { message?: string }) {
+  return (
+    <div className="flex h-full min-h-[160px] items-center justify-center px-4 text-center">
+      <p className="text-xs text-slate-500">{message}</p>
+    </div>
+  );
+}
+
 interface Props {
   onBack: () => void;
   defaultStateId?: string | null;
@@ -80,6 +88,15 @@ export default function SocZonesDashboard({ onBack, defaultStateId, defaultZoneI
       status: String(r.total),
       meta: `report_type:${r.key}`,
     }));
+    if ((data?.monitoring_visits ?? 0) > 0) {
+      rows.push({
+        id: "monitoring_visits",
+        title: "Monitoring Visits",
+        subtitle: "Zonal monitoring records",
+        status: String(data.monitoring_visits),
+        meta: "report_type:monitoring_visits",
+      });
+    }
     drill.openLocalDrill(rows, {
       title: "Reports by Type",
       subtitle: unitScope.drillSubtitle,
@@ -108,7 +125,7 @@ export default function SocZonesDashboard({ onBack, defaultStateId, defaultZoneI
           </Button>
           <div>
             <h2 className="text-xl font-bold tracking-tight">SOC/Zones Unit Dashboard</h2>
-            <p className="text-xs text-muted-foreground">{unitScope.headline} — click KPIs & charts to drill down</p>
+            <p className="text-xs text-muted-foreground">{unitScope.headline} — live data from SOC/Zones, Zonal & Finance reports</p>
           </div>
         </div>
         <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
@@ -182,6 +199,9 @@ export default function SocZonesDashboard({ onBack, defaultStateId, defaultZoneI
                     <DrillHint label="All reports" onClick={() => drillReports("All Monthly Reports")} />
                   </CardHeader>
                   <CardContent className="h-[240px]">
+                    {monthlyChart.length === 0 ? (
+                      <ChartEmpty message="No monthly reports or monitoring visits recorded yet." />
+                    ) : (
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart
                         data={monthlyChart}
@@ -201,6 +221,7 @@ export default function SocZonesDashboard({ onBack, defaultStateId, defaultZoneI
                         <Line type="monotone" dataKey="approved" name="Approved" stroke="#6366f1" strokeWidth={2} dot={{ r: 3 }} />
                       </LineChart>
                     </ResponsiveContainer>
+                    )}
                   </CardContent>
                 </Card>
 
@@ -210,6 +231,9 @@ export default function SocZonesDashboard({ onBack, defaultStateId, defaultZoneI
                     <DrillHint label="Browse types" onClick={openReportTypePicker} />
                   </CardHeader>
                   <CardContent className="h-[240px]">
+                    {(data.reports_by_type ?? []).length === 0 ? (
+                      <ChartEmpty message="No SOC/Zones, Zonal or Finance reports yet." />
+                    ) : (
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={data.reports_by_type ?? []} layout="vertical" margin={{ left: 8, right: 8 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
@@ -218,18 +242,23 @@ export default function SocZonesDashboard({ onBack, defaultStateId, defaultZoneI
                         <Tooltip />
                         <Bar
                           dataKey="total" fill="#25a872" radius={[0, 4, 4, 0]} style={{ cursor: "pointer" }}
-                          onClick={(bar: any) => {
-                            if (bar?.key) drillReportType(bar.key, bar.label);
+                          onClick={(_: unknown, index: number) => {
+                            const row = (data.reports_by_type ?? [])[index];
+                            if (row?.key) drillReportType(row.key, row.label);
                           }}
                         />
                       </BarChart>
                     </ResponsiveContainer>
+                    )}
                   </CardContent>
                 </Card>
 
                 <Card className="rounded-2xl border-[#d4e8dc]">
                   <CardHeader className="pb-2"><CardTitle className="text-sm font-bold">Actionable Items by Status</CardTitle></CardHeader>
                   <CardContent className="h-[240px]">
+                    {(data.actionable_by_status ?? []).length === 0 ? (
+                      <ChartEmpty message="No weekly actionable line items yet." />
+                    ) : (
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Pie
@@ -246,6 +275,7 @@ export default function SocZonesDashboard({ onBack, defaultStateId, defaultZoneI
                         <Legend wrapperStyle={{ fontSize: 10 }} />
                       </PieChart>
                     </ResponsiveContainer>
+                    )}
                   </CardContent>
                 </Card>
 
@@ -255,6 +285,9 @@ export default function SocZonesDashboard({ onBack, defaultStateId, defaultZoneI
                     <DrillHint label="All reports" onClick={() => drillReports("All Monthly Reports")} />
                   </CardHeader>
                   <CardContent className="p-0 max-h-[240px] overflow-auto">
+                    {(data.state_activity ?? []).length === 0 ? (
+                      <ChartEmpty message="No state-level report activity yet." />
+                    ) : (
                     <Table>
                       <TableHeader>
                         <TableRow className="bg-[#f0fdf7]">
@@ -277,6 +310,7 @@ export default function SocZonesDashboard({ onBack, defaultStateId, defaultZoneI
                         ))}
                       </TableBody>
                     </Table>
+                    )}
                   </CardContent>
                 </Card>
               </div>
