@@ -1,68 +1,52 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { stockApi } from "@/lib/api";
 import PageLayout from "../../components/PageLayout";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  ArrowLeft,
-  FileText,
-  Loader2,
-  PackageCheck,
-  Printer,
-  Building2,
-  ShieldCheck,
-  ListOrdered,
-  User,
-  MapPin,
-  CheckCircle2,
-} from "lucide-react";
-import { toast } from "sonner";
+import { ArrowLeft, Loader2, Download, CheckCircle2 } from "lucide-react";
+import { isCapitalPrimaryCategory } from "../../lib/storeOptions";
+import html2canvas from "html2canvas-pro";
+import { jsPDF } from "jspdf";
 
-function verdictBadge(verdict?: string) {
-  if (verdict === "VERIFIED_PASSED") {
-    return <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200">Verified & Passed</Badge>;
-  }
-  if (verdict === "PARTIAL_PASS") {
-    return <Badge className="bg-amber-100 text-amber-800 border-amber-200">Partial Pass</Badge>;
-  }
-  return <Badge className="bg-rose-100 text-rose-800 border-rose-200">{verdict || "Failed"}</Badge>;
+function verdictLabel(verdict?: string) {
+  if (verdict === "VERIFIED_PASSED") return "Verified & Passed";
+  if (verdict === "PARTIAL_PASS") return "Partial Pass";
+  return verdict || "Failed";
 }
 
-function approvalBadge(status?: string) {
-  if (status === "APPROVED") {
-    return <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200">Approved</Badge>;
-  }
-  if (status === "REJECTED") {
-    return <Badge className="bg-rose-100 text-rose-800 border-rose-200">Rejected</Badge>;
-  }
-  return <Badge className="bg-amber-100 text-amber-800 border-amber-200">Pending</Badge>;
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({
+  label,
+  children,
+  className,
+}: {
+  label: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
   return (
-    <div className="min-w-0">
-      <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500 mb-0.5">{label}</p>
-      <div className="text-sm font-semibold text-slate-900 break-words">{children || "—"}</div>
+    <div className={className}>
+      <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-500 mb-1">{label}</p>
+      <p className="text-[12px] font-medium text-slate-900 border-b border-slate-300 pb-1.5 min-h-[24px] leading-snug">
+        {children || "—"}
+      </p>
     </div>
   );
 }
 
 function Section({
-  icon: Icon,
+  number,
   title,
   children,
 }: {
-  icon: React.ElementType;
+  number: string;
   title: string;
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm space-y-4 print:shadow-none print:break-inside-avoid">
-      <h3 className="font-bold text-slate-900 flex items-center gap-2 text-sm border-b border-slate-100 pb-2">
-        <Icon className="h-4 w-4 text-[#145c3f]" />
-        {title}
-      </h3>
+    <section className="mb-4" style={{ fontFamily: "system-ui, -apple-system, sans-serif" }}>
+      <h2 className="text-[11px] font-bold text-[#145c3f] border-b border-slate-300 pb-1 mb-2.5">
+        {number}. {title}
+      </h2>
       {children}
     </section>
   );
@@ -72,9 +56,12 @@ export default function SupplyVerificationDetailView() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
+  const fromPath = (location.state as any)?.from as string | undefined;
   const justCreated = Boolean((location.state as any)?.justCreated);
+  const printRef = useRef<HTMLDivElement>(null);
   const [record, setRecord] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
+  const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -113,6 +100,45 @@ export default function SupplyVerificationDetailView() {
     0
   );
 
+  const handleDownload = async () => {
+    if (!printRef.current || !record) return;
+    setDownloading(true);
+    try {
+      const canvas = await html2canvas(printRef.current, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+        logging: false,
+      });
+      const img = canvas.toDataURL("image/png");
+      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      const pageW = pdf.internal.pageSize.getWidth();
+      const pageH = pdf.internal.pageSize.getHeight();
+      const margin = 12;
+      const usableW = pageW - margin * 2;
+      const imgH = (canvas.height * usableW) / canvas.width;
+      let heightLeft = imgH;
+      let position = margin;
+
+      pdf.addImage(img, "PNG", margin, position, usableW, imgH);
+      heightLeft -= pageH - margin * 2;
+
+      while (heightLeft > 0) {
+        position = margin - (imgH - heightLeft);
+        pdf.addPage();
+        pdf.addImage(img, "PNG", margin, position, usableW, imgH);
+        heightLeft -= pageH - margin * 2;
+      }
+
+      pdf.save(`${record.supplyRefNo || "supply-certificate"}.pdf`);
+      toast.success("Certificate downloaded");
+    } catch (err: any) {
+      toast.error(err?.message || "Download failed");
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   if (loading) {
     return (
       <PageLayout title="Supply Verification Certificate" description="Loading…">
@@ -129,47 +155,53 @@ export default function SupplyVerificationDetailView() {
         title="Certificate Not Found"
         description="This supply verification could not be loaded"
         actions={
-          <Button variant="outline" size="sm" onClick={() => navigate("/store-management/verification/supply")}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => (fromPath ? navigate(fromPath) : navigate(-1))}
+          >
             <ArrowLeft className="h-3.5 w-3.5 mr-1" /> Back to list
           </Button>
         }
       >
-        <p className="text-sm text-slate-500">No certificate found for reference <span className="font-mono">{id}</span>.</p>
+        <p className="text-sm text-slate-500">
+          No certificate found for reference <span className="font-mono">{id}</span>.
+        </p>
       </PageLayout>
     );
   }
 
   return (
     <PageLayout
-      title={
-        <span className="flex items-center gap-2">
-          <FileText className="w-5 h-5 text-[#25a872]" />
-          Certificate {record.supplyRefNo}
-        </span>
-      }
-      description="Stock Verification Certificate of Completion for Supply / Works / Services"
+      title="Certificate of Completion"
+      description={record.supplyRefNo}
       actions={
         <div className="flex gap-2">
           <Button
             variant="outline"
             size="sm"
             className="text-xs"
-            onClick={() => navigate("/store-management/verification/supply")}
+            onClick={() => (fromPath ? navigate(fromPath) : navigate(-1))}
           >
             <ArrowLeft className="h-3.5 w-3.5 mr-1" /> Back
           </Button>
           <Button
             size="sm"
             className="text-xs bg-[#145c3f] hover:bg-[#0f3d2e] text-white"
-            onClick={() => window.print()}
+            disabled={downloading}
+            onClick={handleDownload}
           >
-            <Printer className="h-3.5 w-3.5 mr-1" /> Print
+            {downloading ? (
+              <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+            ) : (
+              <Download className="h-3.5 w-3.5 mr-1" />
+            )}
+            Download PDF
           </Button>
-          {record.classification === "ASSET_REGISTER" && (
+          {(record.classification === "ASSET_REGISTER" || isCapitalPrimaryCategory(record.goodsCategory)) && (
             <Button
               size="sm"
-              variant="outline"
-              className="text-xs"
+              className="text-xs bg-[#145c3f] hover:bg-[#0f3d2e] text-white"
               onClick={() =>
                 navigate("/store-management/assets/register", {
                   state: {
@@ -177,17 +209,23 @@ export default function SupplyVerificationDetailView() {
                     prefill: {
                       name: lineItems[0]?.description || record.suppliedItemName,
                       primaryCategory: record.goodsCategory,
+                      subCategory: record.storeSubcategory,
+                      specificType: lineItems[0]?.description || record.suppliedItemName,
                       acquisitionCost: lineItems[0]?.unitPrice,
                       zone_id: record.zone_id,
                       state_id: record.state_id,
                       department_id: record.department_id,
                       unit_id: record.unit_id,
+                      zone_name: record.zone_name,
+                      state_name: record.state_name,
+                      facilitySite: "State Office",
+                      specificLocation: record.storeLocation,
                     },
                   },
                 })
               }
             >
-              Continue to Asset Register
+              Capitalise to Asset Register
             </Button>
           )}
           {record.classification === "STORE_INVENTORY" && (
@@ -203,147 +241,203 @@ export default function SupplyVerificationDetailView() {
         </div>
       }
     >
-      <div className="w-full space-y-4 print:space-y-3">
-        {justCreated && (
-          <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 flex flex-wrap items-center gap-3 print:hidden">
-            <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-emerald-900">Certificate saved successfully</p>
-              <p className="text-xs text-emerald-800/80">
-                Review the full certificate below. You can print it, then continue to{" "}
-                {record.classification === "STORE_INVENTORY" ? "Inventory Catalog" : "Asset Register"}.
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* Header strip */}
-        <div className="rounded-xl border border-[#145c3f]/20 bg-[#e8f5ee] p-4 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-[10px] font-bold uppercase text-[#145c3f]/70">Control Number</p>
-            <p className="font-mono text-lg font-black text-[#145c3f]">{record.supplyRefNo}</p>
-          </div>
-          <div className="flex flex-wrap gap-2 items-center">
-            {verdictBadge(record.verdict)}
-            {approvalBadge(record.approvalStatus)}
-            <Badge className="bg-slate-100 text-slate-700 border-slate-200">
-              {record.classification === "STORE_INVENTORY" ? "Store Inventory" : "Asset Register"}
-            </Badge>
-          </div>
+      {justCreated && (
+        <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 flex items-center gap-2">
+          <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+          <p className="text-xs font-semibold text-emerald-900">
+            Certificate saved — download PDF when ready.
+          </p>
         </div>
+      )}
 
-        <Section icon={PackageCheck} title="Goods Classification">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Field label="Goods Category">{record.goodsCategory}</Field>
-            <Field label="Store Subcategory">{record.storeSubcategory}</Field>
-            <Field label="Certificate Date">{record.certificateDate}</Field>
-          </div>
-        </Section>
+      {/* A4 document surface */}
+      <div className="flex justify-center bg-[#e8ebe9] py-6 px-3">
+        <div
+          id="print-area"
+          ref={printRef}
+          className="w-full max-w-[210mm] min-h-[297mm] bg-white text-slate-900 border border-slate-300"
+          style={{
+            fontFamily: "Georgia, 'Times New Roman', Times, serif",
+            boxShadow: "0 2px 12px rgba(0,0,0,0.08)",
+          }}
+        >
+          <div className="px-10 py-9 sm:px-12 sm:py-10">
+            {/* Letterhead */}
+            <header className="text-center border-b-2 border-[#145c3f] pb-4 mb-5">
+              <p
+                className="text-[10px] font-bold tracking-[0.2em] uppercase text-[#145c3f]"
+                style={{ fontFamily: "system-ui, sans-serif" }}
+              >
+                National Health Insurance Authority
+              </p>
+              <h1 className="mt-2 text-[17px] sm:text-lg font-bold text-slate-900 leading-snug text-balance">
+                Stock Verification Certificate of Completion
+              </h1>
+              <p
+                className="mt-1.5 text-[11px] text-slate-600"
+                style={{ fontFamily: "system-ui, sans-serif" }}
+              >
+                For Supply / Works / Services
+              </p>
+            </header>
 
-        <Section icon={MapPin} title="Location">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Field label="Zone ID">{record.zone_id}</Field>
-            <Field label="State ID">{record.state_id}</Field>
-            <Field label="Department ID">{record.department_id}</Field>
-            <Field label="Unit ID">{record.unit_id}</Field>
-          </div>
-        </Section>
+            {/* Meta strip */}
+            <div
+              className="grid grid-cols-3 gap-4 mb-5 text-[12px] pb-4 border-b border-slate-200"
+              style={{ fontFamily: "system-ui, sans-serif" }}
+            >
+              <div>
+                <p className="text-[9px] uppercase tracking-wide text-slate-500 mb-0.5">Control Number</p>
+                <p className="font-mono font-bold text-[#145c3f] text-[13px]">{record.supplyRefNo}</p>
+              </div>
+              <div>
+                <p className="text-[9px] uppercase tracking-wide text-slate-500 mb-0.5">Certificate Date</p>
+                <p className="font-semibold text-slate-900">{record.certificateDate || "—"}</p>
+              </div>
+              <div>
+                <p className="text-[9px] uppercase tracking-wide text-slate-500 mb-0.5">Verification Status</p>
+                <p className="font-semibold text-slate-900">{verdictLabel(record.verdict)}</p>
+              </div>
+            </div>
 
-        <Section icon={FileText} title="1. Identification">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Field label="Control Number (PK)">{record.supplyRefNo}</Field>
-            <Field label="Certificate Date">{record.certificateDate}</Field>
-          </div>
-        </Section>
+            <Section number="1" title="Location">
+              <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+                <Field label="Zone">{record.zone_name || "—"}</Field>
+                <Field label="State">{record.state_name || "—"}</Field>
+                <Field label="Department">{record.department_name || "—"}</Field>
+                <Field label="Unit">{record.unit_name || "—"}</Field>
+              </div>
+            </Section>
 
-        <Section icon={Building2} title="2. Transaction & Contract Details">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <Field label="Instrument of Procurement">{record.procurementInstrument}</Field>
-            <Field label="Procurement Date">{record.procurementDate}</Field>
-            <Field label="Purchase Order Ref">{record.purchaseOrderRef}</Field>
-            <Field label="Contractor Name">{record.supplierName}</Field>
-            <Field label="Contractor Address">{record.contractorAddress}</Field>
-            <Field label="SRV No.">{record.srvNo}</Field>
-            <Field label="SRV Date">{record.srvDate}</Field>
-          </div>
-        </Section>
+            <Section number="2" title="Classification">
+              <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+                <Field label="Nature">{record.supplyNature || "Goods"}</Field>
+                <Field label="Primary Category">{record.goodsCategory || "—"}</Field>
+                <Field label="Sub Category">{record.storeSubcategory || "—"}</Field>
+                <Field label="State office store">{record.storeLocation || record.state_name || "—"}</Field>
+                <Field label="Post-Verification Route">
+                  {record.classification === "STORE_INVENTORY" ? "Store Inventory" : "Asset Register"}
+                </Field>
+                <Field label="Approval Status">{record.approvalStatus || "PENDING"}</Field>
+              </div>
+            </Section>
 
-        <Section icon={ShieldCheck} title="3. Verification & Compliance">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Field label="Physical Condition">{record.physicalCondition}</Field>
-            <Field label="Verification Status">{verdictBadge(record.verdict)}</Field>
-            <Field label="Specification Conformity">
-              {record.specificationMatch === false ? "No" : "Yes"}
-            </Field>
-            <Field label="Price Conformance">
-              {record.priceConformance === false ? "No" : "Yes"}
-            </Field>
-          </div>
-        </Section>
+            <Section number="3" title="Transaction & Contract Details">
+              <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+                <Field label="Instrument of Procurement">{record.procurementInstrument}</Field>
+                <Field label="Procurement Date">{record.procurementDate}</Field>
+                <Field label="Purchase Order Reference">{record.purchaseOrderRef}</Field>
+                <Field label="Contractor Name">{record.supplierName}</Field>
+                <Field label="Contractor Address" className="col-span-2">
+                  {record.contractorAddress}
+                </Field>
+                <Field label="Store Receipt Voucher (SRV) No.">{record.srvNo}</Field>
+                <Field label="SRV Date">{record.srvDate}</Field>
+              </div>
+            </Section>
 
-        <Section icon={ListOrdered} title="4. Line Items / Deliverables">
-          <div className="overflow-x-auto border border-slate-200 rounded-lg">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 border-b border-slate-200 uppercase text-[10px] font-bold text-slate-600">
-                <tr>
-                  <th className="p-3">Control No. (FK)</th>
-                  <th className="p-3">Item Description</th>
-                  <th className="p-3 text-right">Qty Delivered</th>
-                  <th className="p-3 text-right">Unit Price (₦)</th>
-                  <th className="p-3 text-right">Line Total (₦)</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {lineItems.length === 0 && (
-                  <tr>
-                    <td colSpan={5} className="p-4 text-center text-slate-400">
-                      No line items recorded
-                    </td>
+            <Section number="4" title="Verification & Compliance">
+              <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+                <Field label="Physical Condition">{record.physicalCondition}</Field>
+                <Field label="Verification Verdict">{verdictLabel(record.verdict)}</Field>
+                <Field label="Specification Conformity">
+                  {record.specificationMatch === false ? "No" : "Yes"}
+                </Field>
+                <Field label="Price Conformance">
+                  {record.priceConformance === false ? "No" : "Yes"}
+                </Field>
+              </div>
+            </Section>
+
+            <Section number="5" title="Line Items / Deliverables">
+              <table
+                className="w-full text-left text-[11px] border border-slate-300"
+                style={{ fontFamily: "system-ui, sans-serif" }}
+              >
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-300">
+                    <th className="px-2.5 py-2 font-bold text-slate-700">Control No.</th>
+                    <th className="px-2.5 py-2 font-bold text-slate-700">Item Description</th>
+                    <th className="px-2.5 py-2 font-bold text-slate-700 text-right">Qty</th>
+                    <th className="px-2.5 py-2 font-bold text-slate-700 text-right">Unit Price (₦)</th>
+                    <th className="px-2.5 py-2 font-bold text-slate-700 text-right">Line Total (₦)</th>
                   </tr>
-                )}
-                {lineItems.map((row, i) => {
-                  const qty = Number(row.quantityDelivered || 0);
-                  const price = Number(row.unitPrice || 0);
-                  return (
-                    <tr key={i}>
-                      <td className="p-3 font-mono text-slate-500">{record.supplyRefNo}</td>
-                      <td className="p-3 font-semibold text-slate-900">{row.description}</td>
-                      <td className="p-3 text-right font-mono font-bold">{qty}</td>
-                      <td className="p-3 text-right font-mono">₦{price.toLocaleString()}</td>
-                      <td className="p-3 text-right font-mono font-bold">
-                        ₦{(qty * price).toLocaleString()}
+                </thead>
+                <tbody>
+                  {lineItems.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="px-2.5 py-3 text-center text-slate-400">
+                        No line items recorded
                       </td>
                     </tr>
-                  );
-                })}
-              </tbody>
-              {lineItems.length > 0 && (
-                <tfoot className="bg-slate-50 border-t border-slate-200">
-                  <tr>
-                    <td colSpan={4} className="p-3 text-right font-bold text-slate-600">
-                      Total
-                    </td>
-                    <td className="p-3 text-right font-mono font-black text-[#145c3f]">
-                      ₦{lineTotal.toLocaleString()}
-                    </td>
-                  </tr>
-                </tfoot>
-              )}
-            </table>
-          </div>
-        </Section>
+                  )}
+                  {lineItems.map((row, i) => {
+                    const qty = Number(row.quantityDelivered || 0);
+                    const price = Number(row.unitPrice || 0);
+                    return (
+                      <tr key={i} className="border-b border-slate-200">
+                        <td className="px-2.5 py-2 font-mono text-slate-600">{record.supplyRefNo}</td>
+                        <td className="px-2.5 py-2 font-semibold text-slate-900">{row.description}</td>
+                        <td className="px-2.5 py-2 text-right font-mono">{qty}</td>
+                        <td className="px-2.5 py-2 text-right font-mono">{price.toLocaleString()}</td>
+                        <td className="px-2.5 py-2 text-right font-mono font-bold">
+                          {(qty * price).toLocaleString()}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                {lineItems.length > 0 && (
+                  <tfoot>
+                    <tr className="bg-slate-50">
+                      <td colSpan={4} className="px-2.5 py-2 text-right font-bold text-slate-700">
+                        Total
+                      </td>
+                      <td className="px-2.5 py-2 text-right font-mono font-bold text-[#145c3f]">
+                        ₦{lineTotal.toLocaleString()}
+                      </td>
+                    </tr>
+                  </tfoot>
+                )}
+              </table>
+            </Section>
 
-        <Section icon={User} title="5. Sign-off & Signature Record">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Field label="Verifying Officer">{record.verifiedBy}</Field>
-            <Field label="Officer Designation">{record.officerDesignation}</Field>
-            <Field label="Sign-off Date">{record.signOffDate}</Field>
-            <Field label="Approval Status">{approvalBadge(record.approvalStatus)}</Field>
-            <div className="md:col-span-2 lg:col-span-4">
-              <Field label="Remarks">{record.remarks || "—"}</Field>
-            </div>
+            <Section number="6" title="Sign-off & Signature Record">
+              <div className="grid grid-cols-2 gap-x-6 gap-y-3 mb-8">
+                <Field label="Verifying Officer">{record.verifiedBy}</Field>
+                <Field label="Officer Designation">{record.officerDesignation}</Field>
+                <Field label="Sign-off Date">{record.signOffDate}</Field>
+                <Field label="Remarks">{record.remarks || "—"}</Field>
+              </div>
+
+              <div
+                className="grid grid-cols-2 gap-12 mt-2 pt-2"
+                style={{ fontFamily: "system-ui, sans-serif" }}
+              >
+                <div>
+                  <div className="border-b border-slate-800 h-12" />
+                  <p className="mt-2 text-[10px] font-semibold text-slate-600">
+                    Verifying Officer Signature & Date
+                  </p>
+                </div>
+                <div>
+                  <div className="border-b border-slate-800 h-12" />
+                  <p className="mt-2 text-[10px] font-semibold text-slate-600">
+                    Approving Officer Signature & Date
+                  </p>
+                </div>
+              </div>
+            </Section>
+
+            <footer
+              className="mt-8 pt-3 border-t border-slate-300 text-center text-[9px] text-slate-500"
+              style={{ fontFamily: "system-ui, sans-serif" }}
+            >
+              This document is an official NHIA stock verification record.
+              Control No. {record.supplyRefNo}.
+            </footer>
           </div>
-        </Section>
+        </div>
       </div>
     </PageLayout>
   );

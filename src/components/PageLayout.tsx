@@ -50,7 +50,7 @@ export function PageLayout({
   const headerBlock = hasHeader ? (
     <div
       className={cn(
-        "flex flex-col gap-2 sm:flex-row sm:items-start justify-between",
+        "flex flex-col gap-1 sm:flex-row sm:items-start justify-between",
         headerClassName
       )}
     >
@@ -110,7 +110,7 @@ export function PageLayout({
     >
       <Card
         className={cn(
-          "m-0 flex flex-1 flex-col border-gray-200/80 p-0 shadow-sm",
+          "m-0 flex flex-1 flex-col border-gray-200/80 p-0 shadow-sm gap-1",
           cardClassName
         )}
       >

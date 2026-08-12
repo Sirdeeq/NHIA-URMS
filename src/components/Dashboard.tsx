@@ -82,6 +82,8 @@ import SupplyVerificationView from "../modules/store_management/pages/SupplyVeri
 import NewSupplyVerificationView from "../modules/store_management/pages/verification/NewSupplyVerificationView";
 import SupplyVerificationDetailView from "../modules/store_management/pages/verification/SupplyVerificationDetailView";
 import VerificationView from "../modules/store_management/pages/verification/VerificationView";
+import VerifyAssetView from "../modules/store_management/pages/verification/VerifyAssetView";
+import PhysicalAssetVerificationDetailView from "../modules/store_management/pages/verification/PhysicalAssetVerificationDetailView";
 import VerificationCertificateView from "../modules/store_management/pages/verification/VerificationCertificateView";
 import ExceptionsView from "../modules/store_management/pages/verification/ExceptionsView";
 import MaintenanceView from "../modules/store_management/pages/MaintenanceView";
@@ -92,6 +94,7 @@ import OfficesView from "../modules/store_management/pages/admin/OfficesView";
 import AuditView from "../modules/store_management/pages/admin/AuditView";
 import AdjustmentsView from "../modules/store_management/pages/AdjustmentsView";
 import AssetConversionView from "../modules/store_management/pages/AssetConversionView";
+import NewCapitalisationView from "../modules/store_management/pages/NewCapitalisationView";
 import MovementLedgerView from "../modules/store_management/pages/MovementLedgerView";
 import { getMonthlyReportContext } from "@/src/access/monthlyReportAccess";
 import { canAccessFunctionality, expandAccessEntries } from "@/src/access/accessUtils";
@@ -686,14 +689,17 @@ export default function Dashboard({ role, user, access = [], functionalities = "
             <Route path="/store-management/stores/issues/new" element={<NewStockIssueView />} />
             <Route path="/store-management/stores/list" element={<StoreListView />} />
             <Route path="/store-management/stores/returns" element={<StockReturnsView />} />
-            <Route path="/store-management/transfers/requests" element={<AssetTransfersView />} />
-            <Route path="/store-management/transfers/new" element={<NewTransferView />} />
-            <Route path="/transfers/requests" element={<AssetTransfersView />} />
-            <Route path="/transfers/new" element={<NewTransferView />} />
+            <Route path="/store-management/transfers/requests" element={<StockIssuesView />} />
+            <Route path="/store-management/transfers/new" element={<NewStockIssueView />} />
+            <Route path="/transfers/requests" element={<StockIssuesView />} />
+            <Route path="/transfers/new" element={<NewStockIssueView />} />
             <Route path="/store-management/verification/supply" element={<SupplyVerificationView />} />
             <Route path="/store-management/verification/supply/new" element={<NewSupplyVerificationView />} />
             <Route path="/store-management/verification/supply/:id" element={<SupplyVerificationDetailView />} />
             <Route path="/store-management/verification/verify" element={<VerificationView />} />
+            <Route path="/store-management/verification/verify/new" element={<AssetRegisterView />} />
+            <Route path="/store-management/verification/verify/asset/:assetId" element={<VerifyAssetView />} />
+            <Route path="/store-management/verification/verify/:id" element={<PhysicalAssetVerificationDetailView />} />
             <Route path="/store-management/verification/certificates" element={<VerificationCertificateView />} />
             <Route path="/store-management/verification/exceptions" element={<ExceptionsView />} />
             <Route path="/store-management/maintenance/repairs" element={<MaintenanceView />} />
@@ -704,6 +710,7 @@ export default function Dashboard({ role, user, access = [], functionalities = "
             <Route path="/store-management/admin/logs" element={<AuditView />} />
             <Route path="/store-management/adjustments" element={<AdjustmentsView />} />
             <Route path="/store-management/conversion" element={<AssetConversionView />} />
+            <Route path="/store-management/conversion/new" element={<NewCapitalisationView />} />
             <Route path="/store-management/movement-ledger" element={<MovementLedgerView />} />
 
             {/* ── System Administration ── */}

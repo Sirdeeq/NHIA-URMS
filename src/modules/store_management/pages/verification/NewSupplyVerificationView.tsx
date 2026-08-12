@@ -17,18 +17,24 @@ import {
   Trash2,
   MapPin,
   Loader2,
+  ChevronLeft,
+  ChevronRight,
+  AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-
-const GOODS_CATEGORIES = [
-  "Office Furniture",
-  "Office Equipment",
-  "Computer Equipment",
-  "Motor Vehicles",
-];
-
-const PHYSICAL_CONDITIONS = ["Excellent", "Good", "Fair", "Poor", "Defective"];
+import {
+  SUPPLY_NATURES,
+  getSupplySubcategories,
+  getPrimaryCategoryKeys,
+  getSubCategoryKeys,
+  getSpecificTypeKeys,
+  classificationForCategory,
+  PHYSICAL_CONDITIONS,
+  VERIFICATION_STATUSES,
+  APPROVAL_STATUSES,
+  storeNameFromState,
+} from "../../lib/storeOptions";
 
 type LineItem = {
   description: string;
@@ -38,28 +44,46 @@ type LineItem = {
 
 type Option = { id: number; label: string };
 
+const STEPS = [
+  { id: 1, title: "Classification & Location", icon: MapPin },
+  { id: 2, title: "Identification & Contract", icon: Building2 },
+  { id: 3, title: "Compliance", icon: ShieldCheck },
+  { id: 4, title: "Line Items", icon: ListOrdered },
+  { id: 5, title: "Sign-off", icon: User },
+];
+
 function nextControlNumber() {
   const y = new Date().getFullYear();
   const seq = String(Date.now()).slice(-4);
   return `SVC-${y}-${seq}`;
 }
 
+function labelOf(options: Option[], id: string) {
+  if (!id) return "";
+  return options.find((o) => String(o.id) === String(id))?.label || "";
+}
+
 export function NewSupplyVerificationView() {
   const navigate = useNavigate();
   const user = useSelector((s: RootState) => s.auth.user);
 
+  const [currentStep, setCurrentStep] = useState(1);
   const [zones, setZones] = useState<Option[]>([]);
   const [states, setStates] = useState<Option[]>([]);
   const [departments, setDepartments] = useState<Option[]>([]);
   const [units, setUnits] = useState<Option[]>([]);
   const [saving, setSaving] = useState(false);
   const [successMsg, setSuccessMsg] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     supplyRefNo: nextControlNumber(),
     certificateDate: new Date().toISOString().slice(0, 10),
+    supplyNature: "Goods" as (typeof SUPPLY_NATURES)[number],
     goodsCategory: "Office Equipment",
-    storeSubcategory: "",
+    storeSubcategory: getSubCategoryKeys("Office Equipment")[0] || "",
+    specificType: getSpecificTypeKeys("Office Equipment", getSubCategoryKeys("Office Equipment")[0] || "")[0] || "",
+    storeLocation: "",
     procurementInstrument: "",
     procurementDate: new Date().toISOString().slice(0, 10),
     supplierName: "",
@@ -71,11 +95,15 @@ export function NewSupplyVerificationView() {
     verdict: "VERIFIED_PASSED",
     specificationMatch: true,
     priceConformance: true,
-    classification: "ASSET_REGISTER" as "ASSET_REGISTER" | "STORE_INVENTORY",
+    classification: "STORE_INVENTORY" as "ASSET_REGISTER" | "STORE_INVENTORY",
     zone_id: "",
     state_id: "",
     department_id: "",
     unit_id: "",
+    zone_name: "",
+    state_name: "",
+    department_name: "",
+    unit_name: "",
     verifiedBy: user?.name || "",
     officerDesignation: user?.role_label || user?.role?.replace(/-/g, " ") || "",
     signOffDate: new Date().toISOString().slice(0, 10),
@@ -84,13 +112,16 @@ export function NewSupplyVerificationView() {
   });
 
   const [lineItems, setLineItems] = useState<LineItem[]>([
-    { description: "", quantityDelivered: 1, unitPrice: 0 },
+    { description: getSpecificTypeKeys("Office Equipment", getSubCategoryKeys("Office Equipment")[0] || "")[0] || "", quantityDelivered: 1, unitPrice: 0 },
   ]);
 
   useEffect(() => {
-    stockApi.getZones().then((r) => {
-      setZones((r.data || []).map((z: any) => ({ id: z.id, label: z.description })));
-    }).catch(() => {});
+    stockApi
+      .getZones()
+      .then((r) => {
+        setZones((r.data || []).map((z: any) => ({ id: z.id, label: z.description })));
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -101,13 +132,22 @@ export function NewSupplyVerificationView() {
 
   const setField = (key: string, value: string | boolean | number) => {
     setFormData((prev) => ({ ...prev, [key]: value }));
+    if (validationError) setValidationError(null);
   };
 
   const handleZoneChange = async (zoneId: string) => {
-    setField("zone_id", zoneId);
-    setField("state_id", "");
-    setField("department_id", "");
-    setField("unit_id", "");
+    setFormData((p) => ({
+      ...p,
+      zone_id: zoneId,
+      zone_name: labelOf(zones, zoneId),
+      state_id: "",
+      state_name: "",
+      storeLocation: "",
+      department_id: "",
+      department_name: "",
+      unit_id: "",
+      unit_name: "",
+    }));
     setStates([]);
     setDepartments([]);
     setUnits([]);
@@ -121,9 +161,17 @@ export function NewSupplyVerificationView() {
   };
 
   const handleStateChange = async (stateId: string) => {
-    setField("state_id", stateId);
-    setField("department_id", "");
-    setField("unit_id", "");
+    const stateName = labelOf(states, stateId);
+    setFormData((p) => ({
+      ...p,
+      state_id: stateId,
+      state_name: stateName,
+      storeLocation: storeNameFromState(stateName),
+      department_id: "",
+      department_name: "",
+      unit_id: "",
+      unit_name: "",
+    }));
     setDepartments([]);
     setUnits([]);
     if (!stateId) return;
@@ -136,8 +184,13 @@ export function NewSupplyVerificationView() {
   };
 
   const handleDeptChange = async (deptId: string) => {
-    setField("department_id", deptId);
-    setField("unit_id", "");
+    setFormData((p) => ({
+      ...p,
+      department_id: deptId,
+      department_name: labelOf(departments, deptId),
+      unit_id: "",
+      unit_name: "",
+    }));
     setUnits([]);
     if (!deptId) return;
     try {
@@ -148,39 +201,101 @@ export function NewSupplyVerificationView() {
     }
   };
 
-  const updateLine = (index: number, key: keyof LineItem, value: string | number) => {
-    setLineItems((prev) =>
-      prev.map((row, i) => (i === index ? { ...row, [key]: value } : row))
-    );
+  const handleUnitChange = (unitId: string) => {
+    setFormData((p) => ({
+      ...p,
+      unit_id: unitId,
+      unit_name: labelOf(units, unitId),
+    }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const validLines = lineItems.filter((l) => l.description.trim());
-    if (validLines.length === 0) {
-      toast.error("Add at least one line item");
-      return;
+  const updateLine = (index: number, key: keyof LineItem, value: string | number) => {
+    setLineItems((prev) => prev.map((row, i) => (i === index ? { ...row, [key]: value } : row)));
+  };
+
+  const validateStep = (step: number): boolean => {
+    if (step === 1) {
+      if (!formData.supplyNature) {
+        setValidationError("Select Goods, Services, or Works");
+        return false;
+      }
+      if (formData.supplyNature === "Goods" && !formData.goodsCategory) {
+        setValidationError("Select a goods category");
+        return false;
+      }
+      if (!formData.zone_id || !formData.state_id) {
+        setValidationError("Zone and State office are required — the state office is the receiving store");
+        return false;
+      }
     }
-    if (!formData.supplierName.trim()) {
-      toast.error("Contractor / supplier name is required");
-      return;
+    if (step === 2) {
+      if (!formData.supplyRefNo.trim()) {
+        setValidationError("Control number is required");
+        return false;
+      }
+      if (!formData.supplierName.trim()) {
+        setValidationError("Contractor / supplier name is required");
+        return false;
+      }
+    }
+    if (step === 4) {
+      const validLines = lineItems.filter((l) => l.description.trim());
+      if (validLines.length === 0) {
+        setValidationError("Add at least one line item with a description");
+        return false;
+      }
+    }
+    if (step === 5) {
+      if (!formData.verifiedBy.trim()) {
+        setValidationError("Verifying officer name is required");
+        return false;
+      }
+    }
+    setValidationError(null);
+    return true;
+  };
+
+  const handleNext = () => {
+    if (validateStep(currentStep)) {
+      setCurrentStep((s) => Math.min(5, s + 1));
+    }
+  };
+
+  const handleSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    for (let s = 1; s <= 5; s++) {
+      if (!validateStep(s)) {
+        setCurrentStep(s);
+        return;
+      }
     }
 
+    const validLines = lineItems.filter((l) => l.description.trim());
     setSaving(true);
     try {
       const first = validLines[0];
+      const classification = classificationForCategory(formData.supplyNature, formData.goodsCategory);
+      const { specificType: _specificType, ...formFields } = formData;
       const payload = {
-        ...formData,
+        ...formFields,
+        classification,
+        goodsCategory:
+          formData.supplyNature === "Goods" ? formData.goodsCategory : formData.supplyNature,
         zone_id: formData.zone_id ? Number(formData.zone_id) : null,
         state_id: formData.state_id ? Number(formData.state_id) : null,
         department_id: formData.department_id ? Number(formData.department_id) : null,
         unit_id: formData.unit_id ? Number(formData.unit_id) : null,
+        zone_name: formData.zone_name || labelOf(zones, formData.zone_id),
+        state_name: formData.state_name || labelOf(states, formData.state_id),
+        department_name: formData.department_name || labelOf(departments, formData.department_id),
+        unit_name: formData.unit_name || labelOf(units, formData.unit_id),
+        storeLocation: storeNameFromState(formData.state_name || labelOf(states, formData.state_id)),
         physicalCondition: formData.physicalCondition.toUpperCase(),
         lineItems: validLines,
         expectedItemName: first.description,
         suppliedItemName: first.description,
-        expectedQuantity: validLines.reduce((s, l) => s + Number(l.quantityDelivered || 0), 0),
-        suppliedQuantity: validLines.reduce((s, l) => s + Number(l.quantityDelivered || 0), 0),
+        expectedQuantity: validLines.reduce((sum, l) => sum + Number(l.quantityDelivered || 0), 0),
+        suppliedQuantity: validLines.reduce((sum, l) => sum + Number(l.quantityDelivered || 0), 0),
       };
 
       const res = await stockApi.createSupplyVerification(payload);
@@ -190,36 +305,41 @@ export function NewSupplyVerificationView() {
       const posted = (res as any).inventoryPosted?.length || 0;
       const savedId = res.data?.id;
       toast.success(
-        formData.classification === "STORE_INVENTORY"
+        classification === "STORE_INVENTORY"
           ? `Saved — ${posted} item(s) posted to Inventory Catalog`
-          : "Supply verification saved"
+          : "Saved — continue on the Asset Register to capitalise"
       );
 
-      // Always open the certificate first so the officer can review/print it
       setTimeout(() => {
-        if (savedId) {
-          navigate(`/store-management/verification/supply/${savedId}`, {
+        if (classification === "ASSET_REGISTER") {
+          navigate("/store-management/assets/register", {
             state: {
-              justCreated: true,
-              classification: formData.classification,
-              prefill:
-                formData.classification === "ASSET_REGISTER"
-                  ? {
-                      name: first.description,
-                      primaryCategory: formData.goodsCategory,
-                      acquisitionCost: first.unitPrice,
-                      zone_id: formData.zone_id,
-                      state_id: formData.state_id,
-                      department_id: formData.department_id,
-                      unit_id: formData.unit_id,
-                    }
-                  : undefined,
+              fromSupplyVerification: true,
+              prefill: {
+                name: first.description || formData.specificType,
+                primaryCategory: formData.goodsCategory,
+                subCategory: formData.storeSubcategory,
+                specificType: formData.specificType,
+                acquisitionCost: first.unitPrice || "",
+                zone_id: formData.zone_id,
+                state_id: formData.state_id,
+                department_id: formData.department_id,
+                unit_id: formData.unit_id,
+                zone_name: payload.zone_name,
+                state_name: payload.state_name,
+                facilitySite: "State Office",
+                specificLocation: payload.storeLocation,
+              },
             },
           });
-        } else if (formData.classification === "ASSET_REGISTER") {
-          navigate("/store-management/assets/register");
+          return;
+        }
+        if (savedId) {
+          navigate(`/store-management/verification/supply/${savedId}`, {
+            state: { justCreated: true, from: "/store-management/verification/supply" },
+          });
         } else {
-          navigate("/store-management/inventory/items");
+          navigate("/store-management/verification/supply");
         }
       }, 700);
     } catch (err: any) {
@@ -230,370 +350,659 @@ export function NewSupplyVerificationView() {
   };
 
   const inputCls =
-    "w-full px-3 py-2 rounded-md border border-slate-200 bg-white text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#145c3f]/30 focus:border-[#145c3f]";
-  const labelCls = "block text-xs font-bold text-slate-700 mb-1";
-  const sectionCls = "rounded-xl border border-slate-200 bg-white p-5 space-y-4 shadow-sm";
+    "w-full h-10 px-3 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-900 placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25a872]/40 disabled:bg-slate-50 disabled:text-slate-500";
+  const labelCls = "block text-[11px] font-semibold text-slate-600 mb-1.5";
 
   return (
     <PageLayout
-      title="Stock Verification Certificate of Completion"
-      description="Certificate of completion for supply / works / services — inspect before asset register or store inventory posting"
+      title="Verification of Supply"
+      description="Inspect the delivery — store items post to Inventory; Land, Building and Vehicles continue to the Asset Register"
       actions={
         <Button
           variant="outline"
           size="sm"
-          onClick={() => navigate("/store-management/verification/supply")}
+          onClick={() => navigate(-1)}
           className="text-xs"
         >
           <ArrowLeft className="h-3.5 w-3.5 mr-1" />
-          Back to Supply Verifications
+          Back
         </Button>
       }
     >
-      <form onSubmit={handleSubmit} className="w-full space-y-5 text-sm">
-        {successMsg && (
-          <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-lg font-semibold flex items-center gap-2">
-            <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-            Verification submitted. Routing to{" "}
-            {formData.classification === "ASSET_REGISTER"
-              ? "Asset Register"
-              : "Store Inventory"}
-            …
+      <div className="w-full bg-white border border-slate-200 rounded-lg overflow-hidden shadow-sm">
+        <div className="bg-[#145c3f] text-white px-5 py-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="h-9 w-9 rounded-md bg-white/10 border border-white/20 flex items-center justify-center">
+              <PackageCheck className="h-5 w-5 text-[#25a872]" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold tracking-tight text-white">Supply Verification Certificate</h2>
+              <p className="text-xs text-emerald-100/90">National Health Insurance Authority</p>
+            </div>
+          </div>
+          <span className="px-3 py-1 rounded text-xs font-mono font-bold bg-white/10 text-emerald-200 border border-white/20">
+            {formData.supplyRefNo}
+          </span>
+        </div>
+
+        <div className="bg-[#f4f7f5] border-b border-slate-200 flex overflow-x-auto">
+          {STEPS.map((step) => {
+            const Icon = step.icon;
+            const isActive = currentStep === step.id;
+            const isDone = currentStep > step.id;
+            return (
+              <button
+                key={step.id}
+                type="button"
+                onClick={() => {
+                  if (step.id < currentStep || validateStep(currentStep)) {
+                    setCurrentStep(step.id);
+                  }
+                }}
+                className={`flex items-center gap-2 px-4 py-3 text-xs font-bold whitespace-nowrap transition-all border-r border-slate-200 ${
+                  isActive
+                    ? "bg-white text-[#145c3f] border-b-2 border-b-[#145c3f] shadow-sm"
+                    : isDone
+                      ? "text-[#145c3f] hover:bg-slate-200/60"
+                      : "text-slate-600 hover:bg-slate-200/60"
+                }`}
+              >
+                <Icon className={`h-4 w-4 ${isActive || isDone ? "text-[#25a872]" : "text-slate-400"}`} />
+                <span>
+                  {step.id}. {step.title}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {validationError && (
+          <div className="m-4 p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-md font-semibold text-xs flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 text-rose-600 shrink-0" />
+            {validationError}
           </div>
         )}
 
-        {/* Classification */}
-        <div className={sectionCls}>
-          <h3 className="font-bold text-slate-900 flex items-center gap-2 text-sm">
-            <PackageCheck className="h-4 w-4 text-[#145c3f]" />
-            Goods Classification
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div>
-              <label className={labelCls}>Goods Category</label>
-              <select
-                className={inputCls}
-                value={formData.goodsCategory}
-                onChange={(e) => setField("goodsCategory", e.target.value)}
-              >
-                {GOODS_CATEGORIES.map((c) => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className={labelCls}>Store subcategory</label>
-              <input
-                className={inputCls}
-                placeholder="e.g. Stationeries, tissue"
-                value={formData.storeSubcategory}
-                onChange={(e) => setField("storeSubcategory", e.target.value)}
-              />
-            </div>
-            <div>
-              <label className={labelCls}>Post-verification route</label>
-              <select
-                className={inputCls}
-                value={formData.classification}
-                onChange={(e) => setField("classification", e.target.value)}
-              >
-                <option value="ASSET_REGISTER">Asset Register (capital / tagged)</option>
-                <option value="STORE_INVENTORY">Store Inventory (consumables)</option>
-              </select>
-            </div>
+        {successMsg && (
+          <div className="m-4 p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-md font-semibold text-xs flex items-center gap-2">
+            <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+            Certificate saved — opening paper view…
           </div>
-        </div>
+        )}
 
-        {/* Location */}
-        <div className={sectionCls}>
-          <h3 className="font-bold text-slate-900 flex items-center gap-2 text-sm">
-            <MapPin className="h-4 w-4 text-sky-600" />
-            Location (Zone / State / Department / Unit)
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div>
-              <label className={labelCls}>Zone</label>
-              <select className={inputCls} value={formData.zone_id} onChange={(e) => handleZoneChange(e.target.value)}>
-                <option value="">Select zone</option>
-                {zones.map((z) => (
-                  <option key={z.id} value={z.id}>{z.label}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className={labelCls}>State</label>
-              <select className={inputCls} value={formData.state_id} onChange={(e) => handleStateChange(e.target.value)} disabled={!formData.zone_id}>
-                <option value="">Select state</option>
-                {states.map((s) => (
-                  <option key={s.id} value={s.id}>{s.label}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className={labelCls}>Department</label>
-              <select className={inputCls} value={formData.department_id} onChange={(e) => handleDeptChange(e.target.value)} disabled={!formData.state_id}>
-                <option value="">Select department</option>
-                {departments.map((d) => (
-                  <option key={d.id} value={d.id}>{d.label}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className={labelCls}>Unit</label>
-              <select className={inputCls} value={formData.unit_id} onChange={(e) => setField("unit_id", e.target.value)} disabled={!formData.department_id}>
-                <option value="">Select unit</option>
-                {units.map((u) => (
-                  <option key={u.id} value={u.id}>{u.label}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </div>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (currentStep < 5) handleNext();
+            else handleSubmit();
+          }}
+          className="p-6 space-y-5 text-xs"
+        >
+          {currentStep === 1 && (
+            <div className="space-y-4">
+              <h3 className="font-bold text-sm text-slate-900 border-b pb-2 flex items-center gap-2">
+                <FileText className="h-4 w-4 text-[#145c3f]" />
+                1. Classification & Location
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div>
+                  <label className={labelCls} htmlFor="supply-nature">
+                    Nature <span className="text-rose-500">*</span>
+                  </label>
+                  <select
+                    id="supply-nature"
+                    name="supplyNature"
+                    className={inputCls}
+                    value={formData.supplyNature}
+                    onChange={(e) => {
+                      const nature = e.target.value as (typeof SUPPLY_NATURES)[number];
+                      const subs = getSupplySubcategories(nature, formData.goodsCategory);
+                      const types = nature === "Goods"
+                        ? getSpecificTypeKeys(formData.goodsCategory, subs[0] || "")
+                        : [];
+                      setFormData((p) => ({
+                        ...p,
+                        supplyNature: nature,
+                        storeSubcategory: subs[0] || "",
+                        specificType: types[0] || "",
+                        classification: classificationForCategory(nature, p.goodsCategory),
+                      }));
+                    }}
+                  >
+                    {SUPPLY_NATURES.map((n) => (
+                      <option key={n} value={n}>
+                        {n === "Goods" ? "Goods (Supply)" : n}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex flex-col justify-end">
+                  <p className="text-[11px] font-semibold text-slate-600 mb-1.5">After verification</p>
+                  <p className={`h-10 flex items-center px-3 rounded-lg border text-sm font-semibold ${
+                    classificationForCategory(formData.supplyNature, formData.goodsCategory) === "ASSET_REGISTER"
+                      ? "border-[#25a872]/40 bg-[#e8f5ee] text-[#0f3d2e]"
+                      : "border-slate-200 bg-slate-50 text-slate-800"
+                  }`}>
+                    {classificationForCategory(formData.supplyNature, formData.goodsCategory) === "ASSET_REGISTER"
+                      ? "Capitalise to Asset Register"
+                      : "Post to Inventory"}
+                  </p>
+                </div>
+              </div>
 
-        {/* 1. Identification */}
-        <div className={sectionCls}>
-          <h3 className="font-bold text-slate-900 flex items-center gap-2 text-sm">
-            <FileText className="h-4 w-4 text-[#145c3f]" />
-            1. Identification
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className={labelCls}>Control Number (PK)</label>
-              <input className={`${inputCls} font-mono`} required value={formData.supplyRefNo} onChange={(e) => setField("supplyRefNo", e.target.value)} />
+              {formData.supplyNature === "Goods" ? (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-[#f4f7f5] p-4 rounded-lg border border-slate-200">
+                  <div>
+                    <label className={labelCls} htmlFor="goods-category">Primary Category</label>
+                    <select
+                      id="goods-category"
+                      name="goodsCategory"
+                      className={inputCls}
+                      value={formData.goodsCategory}
+                      onChange={(e) => {
+                        const nextCategory = e.target.value;
+                        const nextSubs = getSubCategoryKeys(nextCategory);
+                        const nextSub = nextSubs[0] || "";
+                        const nextTypes = getSpecificTypeKeys(nextCategory, nextSub);
+                        const nextType = nextTypes[0] || "";
+                        setFormData((p) => ({
+                          ...p,
+                          goodsCategory: nextCategory,
+                          storeSubcategory: nextSub,
+                          specificType: nextType,
+                          classification: classificationForCategory("Goods", nextCategory),
+                        }));
+                        setLineItems((rows) => {
+                          const first = rows[0];
+                          if (!first) return rows;
+                          const prevType = formData.specificType;
+                          if (!first.description.trim() || first.description === prevType) {
+                            return rows.map((row, i) => (i === 0 ? { ...row, description: nextType } : row));
+                          }
+                          return rows;
+                        });
+                      }}
+                    >
+                      {getPrimaryCategoryKeys().map((c) => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className={labelCls} htmlFor="store-subcategory">Sub Category</label>
+                    <select
+                      id="store-subcategory"
+                      name="storeSubcategory"
+                      className={inputCls}
+                      value={formData.storeSubcategory}
+                      onChange={(e) => {
+                        const nextSub = e.target.value;
+                        const nextType = getSpecificTypeKeys(formData.goodsCategory, nextSub)[0] || "";
+                        setFormData((p) => ({ ...p, storeSubcategory: nextSub, specificType: nextType }));
+                        setLineItems((rows) => {
+                          const first = rows[0];
+                          if (!first) return rows;
+                          if (!first.description.trim() || first.description === formData.specificType) {
+                            return rows.map((row, i) => (i === 0 ? { ...row, description: nextType } : row));
+                          }
+                          return rows;
+                        });
+                      }}
+                    >
+                      {getSubCategoryKeys(formData.goodsCategory).map((c) => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className={labelCls} htmlFor="specific-type">Specific Item Type</label>
+                    <select
+                      id="specific-type"
+                      name="specificType"
+                      className={inputCls}
+                      value={formData.specificType}
+                      onChange={(e) => {
+                        const nextType = e.target.value;
+                        setFormData((p) => ({ ...p, specificType: nextType }));
+                        setLineItems((rows) => {
+                          const first = rows[0];
+                          if (!first) return rows;
+                          if (!first.description.trim() || first.description === formData.specificType) {
+                            return rows.map((row, i) => (i === 0 ? { ...row, description: nextType } : row));
+                          }
+                          return rows;
+                        });
+                      }}
+                    >
+                      {getSpecificTypeKeys(formData.goodsCategory, formData.storeSubcategory).map((t) => (
+                        <option key={t} value={t}>{t}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <label className={labelCls} htmlFor="store-subcategory">Subcategory</label>
+                  <select
+                    id="store-subcategory"
+                    name="storeSubcategory"
+                    className={inputCls}
+                    value={formData.storeSubcategory}
+                    onChange={(e) => setField("storeSubcategory", e.target.value)}
+                  >
+                    {getSupplySubcategories(formData.supplyNature, formData.goodsCategory).map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div>
+                  <label className={labelCls} htmlFor="zone-select">
+                    Zone <span className="text-rose-500">*</span>
+                  </label>
+                  <select
+                    id="zone-select"
+                    name="zone_id"
+                    className={inputCls}
+                    value={formData.zone_id}
+                    onChange={(e) => handleZoneChange(e.target.value)}
+                  >
+                    <option value="">Select zone</option>
+                    {zones.map((z) => (
+                      <option key={z.id} value={z.id}>
+                        {z.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className={labelCls} htmlFor="state-select">
+                    State office <span className="text-rose-500">*</span>
+                  </label>
+                  <select
+                    id="state-select"
+                    name="state_id"
+                    className={inputCls}
+                    value={formData.state_id}
+                    onChange={(e) => handleStateChange(e.target.value)}
+                    disabled={!formData.zone_id}
+                  >
+                    <option value="">
+                      {formData.zone_id ? "Select state…" : "Select zone first"}
+                    </option>
+                    {states.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className={labelCls} htmlFor="dept-select">Department</label>
+                  <select
+                    id="dept-select"
+                    name="department_id"
+                    className={inputCls}
+                    value={formData.department_id}
+                    onChange={(e) => handleDeptChange(e.target.value)}
+                    disabled={!formData.state_id}
+                  >
+                    <option value="">Select department</option>
+                    {departments.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className={labelCls} htmlFor="unit-select">Unit</label>
+                  <select
+                    id="unit-select"
+                    name="unit_id"
+                    className={inputCls}
+                    value={formData.unit_id}
+                    onChange={(e) => handleUnitChange(e.target.value)}
+                    disabled={!formData.department_id}
+                  >
+                    <option value="">Select unit</option>
+                    {units.map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
             </div>
-            <div>
-              <label className={labelCls}>Certificate Date</label>
-              <input type="date" className={inputCls} required value={formData.certificateDate} onChange={(e) => setField("certificateDate", e.target.value)} />
-            </div>
-          </div>
-        </div>
+          )}
 
-        {/* 2. Transaction */}
-        <div className={sectionCls}>
-          <h3 className="font-bold text-slate-900 flex items-center gap-2 text-sm">
-            <Building2 className="h-4 w-4 text-sky-600" />
-            2. Transaction & Contract Details
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div>
-              <label className={labelCls}>Ref: Instrument of Procurement</label>
-              <input className={inputCls} value={formData.procurementInstrument} onChange={(e) => setField("procurementInstrument", e.target.value)} />
+          {currentStep === 2 && (
+            <div className="space-y-4">
+              <h3 className="font-bold text-sm text-slate-900 border-b pb-2 flex items-center gap-2">
+                <Building2 className="h-4 w-4 text-[#145c3f]" />
+                2. Identification & Contract
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className={labelCls}>Control Number (PK)</label>
+                  <input
+                    className={`${inputCls} font-mono`}
+                    required
+                    value={formData.supplyRefNo}
+                    onChange={(e) => setField("supplyRefNo", e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className={labelCls}>Certificate Date</label>
+                  <input
+                    type="date"
+                    className={inputCls}
+                    value={formData.certificateDate}
+                    onChange={(e) => setField("certificateDate", e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div>
+                  <label className={labelCls}>Instrument of Procurement</label>
+                  <input
+                    className={inputCls}
+                    value={formData.procurementInstrument}
+                    onChange={(e) => setField("procurementInstrument", e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className={labelCls}>Procurement Date</label>
+                  <input
+                    type="date"
+                    className={inputCls}
+                    value={formData.procurementDate}
+                    onChange={(e) => setField("procurementDate", e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className={labelCls}>Purchase Order Ref</label>
+                  <input
+                    className={`${inputCls} font-mono`}
+                    value={formData.purchaseOrderRef}
+                    onChange={(e) => setField("purchaseOrderRef", e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className={labelCls}>
+                    Contractor Name <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    className={inputCls}
+                    value={formData.supplierName}
+                    onChange={(e) => setField("supplierName", e.target.value)}
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className={labelCls}>Contractor Address</label>
+                  <input
+                    className={inputCls}
+                    value={formData.contractorAddress}
+                    onChange={(e) => setField("contractorAddress", e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className={labelCls}>SRV No.</label>
+                  <input
+                    className={`${inputCls} font-mono`}
+                    value={formData.srvNo}
+                    onChange={(e) => setField("srvNo", e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className={labelCls}>SRV Date</label>
+                  <input
+                    type="date"
+                    className={inputCls}
+                    value={formData.srvDate}
+                    onChange={(e) => setField("srvDate", e.target.value)}
+                  />
+                </div>
+              </div>
             </div>
-            <div>
-              <label className={labelCls}>Procurement Date</label>
-              <input type="date" className={inputCls} value={formData.procurementDate} onChange={(e) => setField("procurementDate", e.target.value)} />
-            </div>
-            <div>
-              <label className={labelCls}>Purchase Order Ref</label>
-              <input className={`${inputCls} font-mono`} value={formData.purchaseOrderRef} onChange={(e) => setField("purchaseOrderRef", e.target.value)} />
-            </div>
-            <div>
-              <label className={labelCls}>Contractor Name *</label>
-              <input className={inputCls} required value={formData.supplierName} onChange={(e) => setField("supplierName", e.target.value)} />
-            </div>
-            <div className="md:col-span-2">
-              <label className={labelCls}>Contractor Address</label>
-              <input className={inputCls} value={formData.contractorAddress} onChange={(e) => setField("contractorAddress", e.target.value)} />
-            </div>
-            <div>
-              <label className={labelCls}>Store Receipt Voucher (SRV) No.</label>
-              <input className={`${inputCls} font-mono`} value={formData.srvNo} onChange={(e) => setField("srvNo", e.target.value)} />
-            </div>
-            <div>
-              <label className={labelCls}>SRV Date</label>
-              <input type="date" className={inputCls} value={formData.srvDate} onChange={(e) => setField("srvDate", e.target.value)} />
-            </div>
-          </div>
-        </div>
+          )}
 
-        {/* 3. Compliance */}
-        <div className={sectionCls}>
-          <h3 className="font-bold text-slate-900 flex items-center gap-2 text-sm">
-            <ShieldCheck className="h-4 w-4 text-emerald-600" />
-            3. Verification & Compliance
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div>
-              <label className={labelCls}>Physical Condition</label>
-              <select className={inputCls} value={formData.physicalCondition} onChange={(e) => setField("physicalCondition", e.target.value)}>
-                {PHYSICAL_CONDITIONS.map((c) => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
+          {currentStep === 3 && (
+            <div className="space-y-4">
+              <h3 className="font-bold text-sm text-slate-900 border-b pb-2 flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4 text-[#145c3f]" />
+                3. Verification & Compliance
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div>
+                  <label className={labelCls}>Physical Condition</label>
+                  <select
+                    className={inputCls}
+                    value={formData.physicalCondition}
+                    onChange={(e) => setField("physicalCondition", e.target.value)}
+                  >
+                    {PHYSICAL_CONDITIONS.map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className={labelCls}>Verification Status</label>
+                  <select
+                    className={inputCls}
+                    value={formData.verdict}
+                    onChange={(e) => setField("verdict", e.target.value)}
+                  >
+                    {VERIFICATION_STATUSES.map((s) => (
+                      <option key={s.value} value={s.value}>{s.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className={labelCls}>Specification Conformity</label>
+                  <select
+                    className={inputCls}
+                    value={formData.specificationMatch ? "Yes" : "No"}
+                    onChange={(e) => setField("specificationMatch", e.target.value === "Yes")}
+                  >
+                    <option>Yes</option>
+                    <option>No</option>
+                  </select>
+                </div>
+                <div>
+                  <label className={labelCls}>Price Conformance</label>
+                  <select
+                    className={inputCls}
+                    value={formData.priceConformance ? "Yes" : "No"}
+                    onChange={(e) => setField("priceConformance", e.target.value === "Yes")}
+                  >
+                    <option>Yes</option>
+                    <option>No</option>
+                  </select>
+                </div>
+              </div>
             </div>
-            <div>
-              <label className={labelCls}>Verification Status</label>
-              <select className={inputCls} value={formData.verdict} onChange={(e) => setField("verdict", e.target.value)}>
-                <option value="VERIFIED_PASSED">Verified & Passed</option>
-                <option value="PARTIAL_PASS">Partial Pass</option>
-                <option value="FAILED">Failed / Rejected</option>
-              </select>
-            </div>
-            <div>
-              <label className={labelCls}>Specification Conformity</label>
-              <select
-                className={inputCls}
-                value={formData.specificationMatch ? "Yes" : "No"}
-                onChange={(e) => setField("specificationMatch", e.target.value === "Yes")}
-              >
-                <option>Yes</option>
-                <option>No</option>
-              </select>
-            </div>
-            <div>
-              <label className={labelCls}>Price Conformance</label>
-              <select
-                className={inputCls}
-                value={formData.priceConformance ? "Yes" : "No"}
-                onChange={(e) => setField("priceConformance", e.target.value === "Yes")}
-              >
-                <option>Yes</option>
-                <option>No</option>
-              </select>
-            </div>
-          </div>
-        </div>
+          )}
 
-        {/* 4. Line items */}
-        <div className={sectionCls}>
-          <div className="flex items-center justify-between gap-2">
-            <h3 className="font-bold text-slate-900 flex items-center gap-2 text-sm">
-              <ListOrdered className="h-4 w-4 text-amber-600" />
-              4. Line Items / Deliverables
-            </h3>
+          {currentStep === 4 && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between gap-2 border-b pb-2">
+                <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
+                  <ListOrdered className="h-4 w-4 text-[#145c3f]" />
+                  4. Line Items / Deliverables
+                </h3>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="text-xs"
+                  onClick={() =>
+                    setLineItems((p) => [...p, { description: "", quantityDelivered: 1, unitPrice: 0 }])
+                  }
+                >
+                  <Plus className="h-3.5 w-3.5 mr-1" /> Add line
+                </Button>
+              </div>
+              <div className="overflow-x-auto border border-slate-200 rounded-lg">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-50 border-b border-slate-200 font-bold text-slate-600">
+                    <tr>
+                      <th className="p-3 w-28">Control No.</th>
+                      <th className="p-3">Item Description</th>
+                      <th className="p-3 w-28">Qty</th>
+                      <th className="p-3 w-36">Unit Price (₦)</th>
+                      <th className="p-3 w-12" />
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {lineItems.map((row, i) => (
+                      <tr key={i}>
+                        <td className="p-2 font-mono text-slate-500">{formData.supplyRefNo}</td>
+                        <td className="p-2">
+                          <input
+                            className={inputCls}
+                            placeholder="Item description"
+                            value={row.description}
+                            onChange={(e) => updateLine(i, "description", e.target.value)}
+                          />
+                        </td>
+                        <td className="p-2">
+                          <input
+                            type="number"
+                            min={0}
+                            className={inputCls}
+                            value={row.quantityDelivered}
+                            onChange={(e) => updateLine(i, "quantityDelivered", Number(e.target.value))}
+                          />
+                        </td>
+                        <td className="p-2">
+                          <input
+                            type="number"
+                            min={0}
+                            step="0.01"
+                            className={inputCls}
+                            value={row.unitPrice}
+                            onChange={(e) => updateLine(i, "unitPrice", Number(e.target.value))}
+                          />
+                        </td>
+                        <td className="p-2">
+                          {lineItems.length > 1 && (
+                            <button
+                              type="button"
+                              className="p-1.5 text-rose-500 hover:bg-rose-50 rounded"
+                              onClick={() => setLineItems((p) => p.filter((_, idx) => idx !== i))}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {currentStep === 5 && (
+            <div className="space-y-4">
+              <h3 className="font-bold text-sm text-slate-900 border-b pb-2 flex items-center gap-2">
+                <User className="h-4 w-4 text-[#145c3f]" />
+                5. Sign-off & Signature Record
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div>
+                  <label className={labelCls}>
+                    Verifying Officer <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    className={inputCls}
+                    value={formData.verifiedBy}
+                    onChange={(e) => setField("verifiedBy", e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className={labelCls}>Officer Designation</label>
+                  <input
+                    className={inputCls}
+                    value={formData.officerDesignation}
+                    onChange={(e) => setField("officerDesignation", e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className={labelCls}>Sign-off Date</label>
+                  <input
+                    type="date"
+                    className={inputCls}
+                    value={formData.signOffDate}
+                    onChange={(e) => setField("signOffDate", e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className={labelCls}>Approval Status</label>
+                  <select
+                    className={inputCls}
+                    value={formData.approvalStatus}
+                    onChange={(e) => setField("approvalStatus", e.target.value)}
+                  >
+                    {APPROVAL_STATUSES.map((s) => (
+                      <option key={s.value} value={s.value}>{s.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="md:col-span-2 lg:col-span-4">
+                  <label className={labelCls}>Remarks</label>
+                  <textarea
+                    className={`${inputCls} min-h-[80px]`}
+                    value={formData.remarks}
+                    onChange={(e) => setField("remarks", e.target.value)}
+                    placeholder="Optional notes from inspection"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="flex items-center justify-between pt-4 border-t border-slate-200">
             <Button
               type="button"
               variant="outline"
-              size="sm"
+              disabled={currentStep === 1}
+              onClick={() => setCurrentStep((s) => Math.max(1, s - 1))}
               className="text-xs"
-              onClick={() =>
-                setLineItems((p) => [...p, { description: "", quantityDelivered: 1, unitPrice: 0 }])
-              }
             >
-              <Plus className="h-3.5 w-3.5 mr-1" /> Add line
+              <ChevronLeft className="h-3.5 w-3.5 mr-1" />
+              Previous Step
             </Button>
-          </div>
-          <p className="text-[11px] text-slate-500">
-            Control Number <span className="font-mono font-bold">{formData.supplyRefNo}</span> links each line (FK) to this certificate.
-          </p>
-          <div className="overflow-x-auto border border-slate-200 rounded-lg">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 border-b border-slate-200 uppercase text-[10px] font-bold text-slate-600">
-                <tr>
-                  <th className="p-3 w-28">Control No.</th>
-                  <th className="p-3">Item Description</th>
-                  <th className="p-3 w-28">Qty Delivered</th>
-                  <th className="p-3 w-36">Unit Price (₦)</th>
-                  <th className="p-3 w-12" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {lineItems.map((row, i) => (
-                  <tr key={i}>
-                    <td className="p-2 font-mono text-slate-500">{formData.supplyRefNo}</td>
-                    <td className="p-2">
-                      <input
-                        className={inputCls}
-                        required={i === 0}
-                        placeholder="Item description"
-                        value={row.description}
-                        onChange={(e) => updateLine(i, "description", e.target.value)}
-                      />
-                    </td>
-                    <td className="p-2">
-                      <input
-                        type="number"
-                        min={0}
-                        className={inputCls}
-                        value={row.quantityDelivered}
-                        onChange={(e) => updateLine(i, "quantityDelivered", Number(e.target.value))}
-                      />
-                    </td>
-                    <td className="p-2">
-                      <input
-                        type="number"
-                        min={0}
-                        step="0.01"
-                        className={inputCls}
-                        value={row.unitPrice}
-                        onChange={(e) => updateLine(i, "unitPrice", Number(e.target.value))}
-                      />
-                    </td>
-                    <td className="p-2">
-                      {lineItems.length > 1 && (
-                        <button
-                          type="button"
-                          className="p-1.5 text-rose-500 hover:bg-rose-50 rounded"
-                          onClick={() => setLineItems((p) => p.filter((_, idx) => idx !== i))}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
 
-        {/* 5. Sign-off */}
-        <div className={sectionCls}>
-          <h3 className="font-bold text-slate-900 flex items-center gap-2 text-sm">
-            <User className="h-4 w-4 text-slate-600" />
-            5. Sign-off & Signature Record
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div>
-              <label className={labelCls}>Verifying Officer Name</label>
-              <input className={inputCls} required value={formData.verifiedBy} onChange={(e) => setField("verifiedBy", e.target.value)} />
-            </div>
-            <div>
-              <label className={labelCls}>Officer Designation</label>
-              <input className={inputCls} value={formData.officerDesignation} onChange={(e) => setField("officerDesignation", e.target.value)} />
-            </div>
-            <div>
-              <label className={labelCls}>Sign-off Date</label>
-              <input type="date" className={inputCls} value={formData.signOffDate} onChange={(e) => setField("signOffDate", e.target.value)} />
-            </div>
-            <div>
-              <label className={labelCls}>Approval Status</label>
-              <select className={inputCls} value={formData.approvalStatus} onChange={(e) => setField("approvalStatus", e.target.value)}>
-                <option value="PENDING">Pending</option>
-                <option value="APPROVED">Approved</option>
-                <option value="REJECTED">Rejected</option>
-              </select>
-            </div>
-            <div className="md:col-span-2 lg:col-span-4">
-              <label className={labelCls}>Remarks</label>
-              <textarea
-                className={`${inputCls} min-h-[80px]`}
-                value={formData.remarks}
-                onChange={(e) => setField("remarks", e.target.value)}
-                placeholder="Optional notes from inspection"
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className="flex justify-end gap-2 pt-2 pb-6">
-          <Button type="button" variant="outline" onClick={() => navigate(-1)}>
-            Cancel
-          </Button>
-          <Button
-            type="submit"
-            disabled={saving}
-            className="bg-[#145c3f] hover:bg-[#0f3d2e] text-white font-bold text-xs min-w-[220px]"
-          >
-            {saving ? (
-              <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+            {currentStep < 5 ? (
+              <Button
+                type="button"
+                onClick={handleNext}
+                className="bg-[#145c3f] hover:bg-[#0f3d2e] text-white text-xs font-bold"
+              >
+                Next Step
+                <ChevronRight className="h-3.5 w-3.5 ml-1" />
+              </Button>
             ) : (
-              <PackageCheck className="h-4 w-4 mr-1.5" />
+              <Button
+                type="submit"
+                disabled={saving}
+                className="bg-[#145c3f] hover:bg-[#0f3d2e] text-white text-xs font-bold min-w-[200px]"
+              >
+                {saving ? (
+                  <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                ) : (
+                  <PackageCheck className="h-4 w-4 mr-1.5" />
+                )}
+                Submit Certificate
+              </Button>
             )}
-            Submit Certificate & Route Item
-          </Button>
-        </div>
-      </form>
+          </div>
+        </form>
+      </div>
     </PageLayout>
   );
 }

@@ -1,14 +1,17 @@
-import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { stockApi } from "@/lib/api";
 import CustomTable, { CustomTableField } from "@/components/CustomTable";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PackageCheck, Plus, Download, Eye } from "lucide-react";
 import PageLayout from "../components/PageLayout";
+import ListSearchBar from "../components/ListSearchBar";
 
 export default function SupplyVerificationView({ onNavigate }: { onNavigate?: (view: string) => void }) {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const q = searchParams.get("q") || "";
   const [verifications, setVerifications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -33,16 +36,32 @@ export default function SupplyVerificationView({ onNavigate }: { onNavigate?: (v
     };
   }, []);
 
+  const filtered = useMemo(() => {
+    const query = q.trim().toLowerCase();
+    if (!query) return verifications;
+    return verifications.filter((v) =>
+      [v.supplyRefNo, v.supplierName, v.goodsCategory, v.storeSubcategory, v.suppliedItemName, v.storeLocation, v.verdict]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(query)
+    );
+  }, [verifications, q]);
+
   const openCertificate = (item: any) => {
-    navigate(`/store-management/verification/supply/${item.id}`);
+    navigate(`/store-management/verification/supply/${item.id}`, {
+      state: { from: "/store-management/verification/supply" },
+    });
   };
 
   const fields: CustomTableField[] = [
     { title: "Control No.", value: "supplyRefNo", className: "font-mono font-bold text-slate-800" },
     { title: "Supplier", value: "supplierName" },
-    { title: "Category", value: "goodsCategory" },
+    { title: "Major Category", value: "goodsCategory" },
+    { title: "Subcategory", value: "storeSubcategory" },
     { title: "Item", value: "suppliedItemName" },
     { title: "Qty", value: "suppliedQuantity", className: "text-right font-bold" },
+    { title: "State Store", value: "storeLocation" },
     {
       title: "Route",
       value: "classification",
@@ -113,7 +132,9 @@ export default function SupplyVerificationView({ onNavigate }: { onNavigate?: (v
             className="bg-[#145c3f] hover:bg-[#0f3d2e] text-white text-xs h-9 font-semibold"
             onClick={() => {
               if (onNavigate) onNavigate("store-supply-verification-new");
-              else navigate("/store-management/verification/supply/new");
+              else navigate("/store-management/verification/supply/new", {
+                state: { from: "/store-management/verification/supply" },
+              });
             }}
           >
             <Plus className="w-4 h-4 mr-1.5" /> New Verification Certificate
@@ -121,10 +142,20 @@ export default function SupplyVerificationView({ onNavigate }: { onNavigate?: (v
         </>
       }
     >
+      <ListSearchBar
+        value={q}
+        onChange={(v) => {
+          const next = new URLSearchParams(searchParams);
+          if (v) next.set("q", v); else next.delete("q");
+          setSearchParams(next, { replace: true });
+        }}
+        placeholder="Search control no, supplier, item, store…"
+        id="supply-search"
+      />
       <CustomTable
-        data={verifications}
+        data={filtered}
         fields={fields}
-        filter={true}
+        filter={false}
         loading={loading}
         pageSize={15}
         message="No supply verification records found"

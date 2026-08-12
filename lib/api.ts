@@ -14,7 +14,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const json = await res.json();
   if (!res.ok) {
     const msg =
-      json?.errors?.[0]?.msg || json?.message || `Request failed (${res.status})`;
+      json?.errors?.[0]?.msg || json?.message || json?.error || `Request failed (${res.status})`;
     throw new Error(msg);
   }
   return json;
@@ -294,6 +294,48 @@ export const stockApi = {
   createSupplyVerification: (payload: any) =>
     request<{ success: boolean; data: any; inventoryPosted?: any[] }>("/store-management/verification/supply", {
       method: "POST", body: JSON.stringify(payload),
+    }),
+
+  /** Physical Asset Verification — audits Master Register (StoreAsset) */
+  getPhysicalVerifications: (filters?: { status?: string; type?: string }) => {
+    const params = new URLSearchParams(
+      Object.entries(filters || {}).filter(([, v]) => !!v) as [string, string][]
+    ).toString();
+    return request<{ success: boolean; data: any[] }>(
+      `/store-management/verification/physical${params ? `?${params}` : ""}`
+    );
+  },
+
+  getPhysicalVerification: (id: number | string) =>
+    request<{ success: boolean; data: any }>(`/store-management/verification/physical/${id}`),
+
+  createPhysicalVerification: (payload: any) =>
+    request<{ success: boolean; data: any }>("/store-management/verification/physical", {
+      method: "POST", body: JSON.stringify(payload),
+    }),
+
+  getStockIssues: () =>
+    request<{ success: boolean; data: any[] }>("/store-management/stores/issues"),
+
+  createStockIssue: (payload: any) =>
+    request<{ success: boolean; data: any }>("/store-management/stores/issues", {
+      method: "POST", body: JSON.stringify(payload),
+    }),
+
+  getConversions: () =>
+    request<{ success: boolean; data: any[] }>("/store-management/inventory/conversions"),
+
+  capitaliseInventory: (payload: any) =>
+    request<{ success: boolean; data: any }>("/store-management/inventory/capitalise", {
+      method: "POST", body: JSON.stringify(payload),
+    }),
+
+  getInventoryMovements: (id: number | string) =>
+    request<{ success: boolean; data: any[] }>(`/store-management/inventory/items/${id}/movements`),
+
+  updatePhysicalVerification: (id: number | string, payload: any) =>
+    request<{ success: boolean; data: any }>(`/store-management/verification/physical/${id}`, {
+      method: "PUT", body: JSON.stringify(payload),
     }),
 
   // Transfers

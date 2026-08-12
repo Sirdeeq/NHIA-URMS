@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import PageLayout from "@/components/PageLayout";
 import { useAssetManagement, LOOKUPS } from "@/src/store/useAssetManagement";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { stockApi } from "@/lib/api";
 import {
   CheckCircle2,
@@ -22,6 +22,11 @@ interface Option { id: number; label: string; }
 
 export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) => void }) {
   const navigate = useNavigate();
+  const location = useLocation();
+  const capitaliseState = (location.state as any)?.fromCapitalisation
+    ? (location.state as any)
+    : null;
+  const fromSupply = Boolean((location.state as any)?.fromSupplyVerification);
   const { registerAsset } = useAssetManagement();
   const [currentStep, setCurrentStep] = useState(1);
   const [successMsg, setSuccessMsg] = useState(false);
@@ -83,7 +88,32 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
     categoryAttributes: {}
   });
 
-  // Load Zones on Mount (same as StockAssetManager)
+  useEffect(() => {
+    const prefill = (location.state as any)?.prefill;
+    if (!prefill) return;
+    setFormData((prev: any) => ({
+      ...prev,
+      ...prefill,
+      name: prefill.name || prev.name,
+      primaryCategory: prefill.primaryCategory || prev.primaryCategory,
+      subCategory: prefill.subCategory || prev.subCategory,
+      specificType: prefill.specificType || prev.specificType,
+      acquisitionCost: prefill.acquisitionCost ?? prev.acquisitionCost,
+      facilitySite: prefill.facilitySite || prev.facilitySite,
+      specificLocation: prefill.specificLocation || prev.specificLocation,
+    }));
+    if (prefill.zone_id) {
+      stockApi.getStates(prefill.zone_id).then((r: any) => {
+        if (r?.data) setStates(r.data.map((s: any) => ({ id: s.id, label: s.description })));
+      }).catch(() => {});
+    }
+    if (prefill.state_id) {
+      stockApi.getDepartments(prefill.state_id).then((r: any) => {
+        if (r?.data) setDepartments(r.data.map((d: any) => ({ id: d.id, label: d.name })));
+      }).catch(() => {});
+    }
+  }, [location.state]);
+
   useEffect(() => {
     stockApi.getZones().then((r: any) => {
       if (r?.data) {
@@ -260,16 +290,30 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
     if (!validateStep(1) || !validateStep(2) || !validateStep(3)) {
       return;
     }
-    await registerAsset(formData);
-    setSuccessMsg(true);
-    setTimeout(() => {
-      setSuccessMsg(false);
-      if (onNavigate) {
-        onNavigate("store-assets-list");
+    try {
+      if (capitaliseState?.inventoryItemId) {
+        await stockApi.capitaliseInventory({
+          inventoryItemId: capitaliseState.inventoryItemId,
+          quantity: Number(capitaliseState.quantity || 1),
+          asset: formData,
+        });
       } else {
-        navigate("/store-management/assets/list");
+        await registerAsset(formData);
       }
-    }, 1200);
+      setSuccessMsg(true);
+      setTimeout(() => {
+        setSuccessMsg(false);
+        if (capitaliseState) {
+          navigate("/store-management/transfers/requests?tab=capitalise");
+        } else if (onNavigate) {
+          onNavigate("store-assets-list");
+        } else {
+          navigate("/store-management/assets/list");
+        }
+      }, 1200);
+    } catch (err: any) {
+      setValidationError(err?.message || "Failed to save asset");
+    }
   };
 
   const steps = [
@@ -283,14 +327,26 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
     <PageLayout
       title={
         <span className="flex items-center gap-2">
-          <ShieldCheck className="w-5 h-5 text-[#25a872]" /> Asset Registration Form
+          <ShieldCheck className="w-5 h-5 text-[#25a872]" /> {capitaliseState ? "Capitalise Store Item" : fromSupply ? "Capitalise Verified Supply" : "Asset Registration Form"}
         </span>
       }
-      description="Register new physical assets with dynamic Zone, State, Department, and Unit cascading selects"
+      description={
+        capitaliseState
+          ? "Complete asset details — stock will be deducted from the store on save"
+          : fromSupply
+            ? "Complete asset details for this verified supply — it will be tagged on the register"
+            : "Register new physical assets with dynamic Zone, State, Department, and Unit cascading selects"
+      }
       back={true}
-      backTo="/store-management/assets/list"
+      backTo={
+        capitaliseState
+          ? "/store-management/transfers/requests?tab=capitalise"
+          : fromSupply
+            ? "/store-management/verification/supply"
+            : "/store-management/assets/list"
+      }
     >
-      <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden flex flex-col min-h-[600px]">
+      <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden flex flex-col min-h-[600px] w-full">
         {/* Header Banner */}
         <div className="bg-[#145c3f] text-white p-4 border-b border-[#0f3d2e] flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -309,6 +365,17 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
             </span>
           </div>
         </div>
+
+        {capitaliseState && (
+          <div className="m-4 mb-0 p-3 bg-[#e8f5ee] border border-[#25a872]/40 text-[#0f3d2e] rounded-md font-semibold text-xs">
+            Capitalising {Number(capitaliseState.quantity || 1)} unit{Number(capitaliseState.quantity || 1) === 1 ? "" : "s"} from store stock. Saving will deduct this quantity from inventory.
+          </div>
+        )}
+        {fromSupply && !capitaliseState && (
+          <div className="m-4 mb-0 p-3 bg-[#e8f5ee] border border-[#25a872]/40 text-[#0f3d2e] rounded-md font-semibold text-xs">
+            Verified supply — complete the register to capitalise this item as a tagged asset.
+          </div>
+        )}
 
         {/* Step Tabs Navigation */}
         <div className="bg-[#f4f7f5] border-b border-slate-200 flex overflow-x-auto">
@@ -349,7 +416,9 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
         {successMsg && (
           <div className="m-4 p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-md font-semibold text-xs flex items-center gap-2 shadow-sm">
             <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-            Asset successfully registered and persisted in DB!
+            {capitaliseState
+              ? "Stock capitalised — asset registered and inventory reduced."
+              : "Asset successfully registered and persisted in DB!"}
           </div>
         )}
 
@@ -766,7 +835,7 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
                   className="inline-flex items-center gap-1.5 px-6 py-2 rounded bg-emerald-600 text-white font-bold hover:bg-emerald-700 shadow-md cursor-pointer"
                 >
                   <Save className="h-4 w-4" />
-                  <span>Save Asset to Register</span>
+                  <span>{capitaliseState ? "Capitalise to Register" : "Save Asset to Register"}</span>
                 </button>
               )}
             </div>
